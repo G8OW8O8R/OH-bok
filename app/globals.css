@@ -22,6 +22,7 @@
   --ease-out: var(--ease-out);
   --ease-soft: var(--ease-soft);
   --ease-pen: var(--ease-pen);
+  --ease-dissolve: var(--ease-dissolve);
 }
 
 html {
@@ -33,4 +34,27 @@ body {
   color: var(--text-primary);
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
+}
+
+@layer components {
+  /*
+   * Pudełko kadru sceny (lib/scene-fit.ts). Każda warstwa sceny (poster, wideo,
+   * deszcz, mgła, pioruny) używa tej klasy, więc wszystkie mają identyczny prostokąt.
+   * Przed hydracją: odpowiednik `cover` w CSS; po hydracji: wartości z ResizeObservera
+   * wyrównane do pikseli fizycznych.
+   */
+  .scene-stage {
+    container-type: size;
+  }
+
+  .scene-media {
+    position: absolute;
+    left: var(--scene-left, 50%);
+    top: var(--scene-top, 50%);
+    width: var(--scene-width, max(100cqw, 100cqh * 16 / 9));
+    height: var(--scene-height, max(100cqh, 100cqw * 9 / 16));
+    max-width: none;
+    translate: var(--scene-translate, -50% -50%);
+    object-fit: fill;
+  }
 }

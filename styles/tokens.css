@@ -34,16 +34,19 @@
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
   --ease-soft: cubic-bezier(0.22, 0.61, 0.36, 1);
   --ease-pen: cubic-bezier(0.37, 0.01, 0.2, 1);
+  --ease-dissolve: cubic-bezier(0.45, 0, 0.55, 1); /* symetryczne przenikanie obrazu w obraz */
 
   /* Ruch: czasy */
   --dur-feedback: 240ms; /* odpowiedź na interakcję, < 300 ms */
   --dur-fade: 150ms; /* przenikania przy reduced motion */
-  --dur-scene: 1200ms; /* crossfade między scenami */
+  --dur-scene: 1400ms; /* crossfade między scenami */
+  --dur-handoff: 200ms; /* poster → pierwsza klatka wideo */
 }
 
 @media (prefers-reduced-motion: reduce) {
   :root {
     --dur-feedback: 150ms;
     --dur-scene: 150ms;
+    --dur-handoff: 150ms;
   }
 }

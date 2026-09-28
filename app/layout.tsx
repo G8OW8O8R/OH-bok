@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
+import { SceneFitScript } from "@/components/scene/SceneFitScript";
 import "./globals.css";
 
 const inter = Inter({
@@ -20,6 +21,9 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="pl" className={`${inter.variable} h-full`}>
+      <head>
+        <SceneFitScript />
+      </head>
       <body className="min-h-full">{children}</body>
     </html>
   );
