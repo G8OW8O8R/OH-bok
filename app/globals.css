@@ -1,0 +1,36 @@
+@import "tailwindcss";
+@import "../styles/tokens.css";
+
+@theme inline {
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+
+  --color-amber: var(--accent-amber);
+  --color-text-primary: var(--text-primary);
+  --color-text-secondary: var(--text-secondary);
+  --color-text-tertiary: var(--text-tertiary);
+  --color-glass: var(--glass-bg);
+  --color-glass-border: var(--glass-border);
+
+  --radius-widget: var(--radius-widget);
+  --radius-window: var(--radius-window);
+  --radius-pill: var(--radius-pill);
+
+  --shadow-far: var(--depth-far);
+  --shadow-mid: var(--depth-mid);
+  --shadow-near: var(--depth-near);
+
+  --ease-out: var(--ease-out);
+  --ease-soft: var(--ease-soft);
+  --ease-pen: var(--ease-pen);
+}
+
+html {
+  color-scheme: dark;
+  background: #000;
+}
+
+body {
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
