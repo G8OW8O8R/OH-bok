@@ -1,0 +1,49 @@
+/*
+ * Obok: tokeny projektowe (§6 szkło, §7 ruch).
+ * Wartości startowe, do kalibracji względem design/mockup-main.jpg.
+ */
+
+:root {
+  /* Szkło (dymne) */
+  --glass-bg: rgba(14, 16, 20, 0.42);
+  --glass-milk: rgba(255, 255, 255, 0.04);
+  --glass-blur: 36px;
+  --glass-saturate: 150%;
+  --glass-border: rgba(255, 255, 255, 0.1); /* 1px hairline */
+  --glass-highlight: inset 0 1px 0 rgba(255, 255, 255, 0.12);
+
+  /* Głębia: daleko / środek / blisko */
+  --depth-far: 0 6px 20px rgba(0, 0, 0, 0.18);
+  --depth-mid: 0 14px 40px rgba(0, 0, 0, 0.26);
+  --depth-near: 0 24px 64px rgba(0, 0, 0, 0.34);
+
+  /* Akcent: jedyny ciepły kolor (lampa latarni) */
+  --accent-amber: #f5a04a;
+
+  /* Promienie */
+  --radius-widget: 28px;
+  --radius-window: 30px;
+  --radius-pill: 999px;
+
+  /* Tekst */
+  --text-primary: rgba(255, 255, 255, 0.96);
+  --text-secondary: rgba(255, 255, 255, 0.7);
+  --text-tertiary: rgba(255, 255, 255, 0.5);
+
+  /* Ruch: easingi (lustro lib/motion.ts) */
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-soft: cubic-bezier(0.22, 0.61, 0.36, 1);
+  --ease-pen: cubic-bezier(0.37, 0.01, 0.2, 1);
+
+  /* Ruch: czasy */
+  --dur-feedback: 240ms; /* odpowiedź na interakcję, < 300 ms */
+  --dur-fade: 150ms; /* przenikania przy reduced motion */
+  --dur-scene: 1200ms; /* crossfade między scenami */
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --dur-feedback: 150ms;
+    --dur-scene: 150ms;
+  }
+}
