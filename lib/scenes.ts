@@ -39,15 +39,6 @@ export const SCENE_MEDIA: Record<SceneVideoId, SceneMedia> = {
   },
 };
 
-/**
- * Wspólna geometria kadru. Warstwy deszczu, mgły i piorunów MUSZĄ używać
- * tych samych wartości co <video>, inaczej rozjadą się na innych proporcjach.
- */
-export const SCENE_FIT = {
-  objectFit: "cover",
-  objectPosition: "50% 50%",
-} as const;
-
 /** Filtr wideo w stałej postaci, żeby CSS mógł płynnie interpolować między scenami. */
 export interface VideoFilter {
   brightness: number;

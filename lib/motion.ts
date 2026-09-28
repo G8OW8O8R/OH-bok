@@ -8,6 +8,8 @@ export const ease = {
   soft: [0.22, 0.61, 0.36, 1],
   /** rysowanie linii */
   pen: [0.37, 0.01, 0.2, 1],
+  /** symetryczne przenikanie obrazu w obraz (sceny, poster → wideo) */
+  dissolve: [0.45, 0, 0.55, 1],
 } as const satisfies Record<string, BezierDefinition>;
 
 export const spring = {
@@ -21,5 +23,7 @@ export const duration = {
   feedback: 0.24,
   /** górny limit przenikań przy prefers-reduced-motion */
   reducedFade: 0.15,
-  sceneCrossfade: 1.2,
+  sceneCrossfade: 1.4,
+  /** poster → pierwsza klatka wideo */
+  posterHandoff: 0.2,
 } as const;
