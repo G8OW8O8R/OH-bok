@@ -121,6 +121,7 @@ body {
     backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
     border: 1px solid var(--glass-border);
     box-shadow: var(--glass-highlight), var(--glass-depth, var(--depth-far));
+    text-shadow: var(--glass-text-shadow, none);
   }
 
   .glass[data-depth="mid"] {

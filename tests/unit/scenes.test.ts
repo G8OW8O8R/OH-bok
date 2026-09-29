@@ -78,7 +78,8 @@ describe("SCENES", () => {
   it("jasne niebo ma mocniejsze halo i ciemniejsze szkło niż deszcz (pomiar kontrastu)", () => {
     for (const state of ["cloudy", "fog", "snow"] as const) {
       expect(SCENES[state].tokens.haloStrength).toBeGreaterThan(SCENES.rain.tokens.haloStrength);
-      expect(SCENES[state].tokens.glassTint).toBe("rgba(14, 16, 20, 0.62)");
+      expect(SCENES[state].tokens.glassTint).toBe("rgba(14, 16, 20, 0.58)");
+      expect(SCENES[state].tokens.glassBlur).toBeLessThanOrEqual(40);
     }
   });
 });

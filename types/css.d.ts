@@ -10,6 +10,10 @@ declare module "react" {
     "--halo-strength"?: number;
     /** Tło szkła zależne od sceny (`glassTint`). */
     "--glass-bg"?: string;
+    /** Rozmycie szkła zależne od sceny (`glassBlur`). */
+    "--glass-blur"?: string;
+    /** Cień tekstu w panelach szkła (`glassTextShadow`). */
+    "--glass-text-shadow"?: string;
     /** Cień swobodnego tekstu zależny od sceny (`textShadow`). */
     "--scene-text-shadow"?: string;
     /** Przesunięcie fazy animacji (fala dźwięku). */

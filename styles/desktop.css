@@ -124,8 +124,9 @@
   }
 
   /*
-   * Miękka eliptyczna winieta za swobodnym tekstem. Siła z tokenu sceny `haloStrength`;
-   * kształt zanika do zera na krawędziach, więc nie widać „plamy”.
+   * Przyciemnienie nieba za swobodnym tekstem (powitanie). Bardzo duże i rozmyte filtrem,
+   * więc nie ma krawędzi, po której widać kształt; resztę czytelności daje cień tekstu.
+   * Siła z tokenu sceny `haloStrength`.
    */
   .halo {
     position: relative;
@@ -135,18 +136,29 @@
   .halo::before {
     content: "";
     position: absolute;
-    inset: var(--halo-inset, -110% -55%);
+    inset: var(--halo-inset, -150% -75%);
     z-index: -1;
     pointer-events: none;
-    /* Szeroki, łagodny spadek: czyta się jak ciemniejsza chmura, nie jak plama za tekstem. */
     background: radial-gradient(
       closest-side,
       rgb(0 0 0 / var(--halo-strength)) 0%,
-      rgb(0 0 0 / calc(var(--halo-strength) * 0.85)) 35%,
-      rgb(0 0 0 / calc(var(--halo-strength) * 0.45)) 65%,
-      rgb(0 0 0 / calc(var(--halo-strength) * 0.12)) 88%,
+      rgb(0 0 0 / calc(var(--halo-strength) * 0.7)) 40%,
+      rgb(0 0 0 / calc(var(--halo-strength) * 0.3)) 70%,
       rgb(0 0 0 / 0) 100%
     );
+    filter: blur(calc(var(--u) * 5));
+  }
+
+  /* Brief: wyrównane linie bez samotnych słów; bez `balance` – przynajmniej `pretty` i limit szerokości. */
+  .brief {
+    max-width: 30ch;
+    text-wrap: balance;
+  }
+
+  @supports not (text-wrap: balance) {
+    .brief {
+      text-wrap: pretty;
+    }
   }
 
   /* Łuk: półokrągła góra, zaokrąglony dół. */

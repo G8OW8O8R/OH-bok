@@ -20,7 +20,7 @@ export function Greeting({ title, brief, recipeLabel, onPlan, onRecipe }: Greeti
     <div data-testid="greeting" className="flex max-w-[36rem] flex-col items-start desk:mt-[calc(var(--u)*3.9)] desk:max-w-none">
       <div className="halo scene-text desk:max-w-[calc(var(--u)*26)]">
         <h1 className="text-display font-semibold text-text-primary">{title}</h1>
-        <p className="mt-2 text-lead text-balance text-text-primary">{brief}</p>
+        <p className="brief mt-2 text-lead text-text-primary">{brief}</p>
       </div>
       <div className="mt-6 flex flex-wrap gap-4">
         <button type="button" onClick={onPlan} className={capsule}>

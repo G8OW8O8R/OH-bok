@@ -110,6 +110,8 @@ export function Desktop({ initialWeather, override, initialNow }: DesktopProps) 
         style={{
           "--halo-strength": tokens.haloStrength,
           "--glass-bg": tokens.glassTint,
+          "--glass-blur": `${tokens.glassBlur}px`,
+          "--glass-text-shadow": tokens.glassTextShadow,
           "--scene-text-shadow": tokens.textShadow,
         }}
       >

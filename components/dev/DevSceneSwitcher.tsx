@@ -1,4 +1,7 @@
+"use client";
+
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import { WEATHER_STATES, type WeatherState } from "@/lib/scenes";
 
 interface DevSceneSwitcherProps {
@@ -11,8 +14,49 @@ const OPTIONS: ReadonlyArray<{ label: string; href: string; state: WeatherState 
   ...WEATHER_STATES.map((state) => ({ label: state, href: `?weather=${state}`, state })),
 ];
 
-/** Tylko w trybie dev: szybkie przełączanie `?weather=` nawigacją po stronie klienta (z przenikaniem). */
+const HIDDEN_KEY = "obok-dev-switcher-hidden";
+
+function isTyping(target: EventTarget | null): boolean {
+  return target instanceof HTMLElement && (target.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName));
+}
+
+/**
+ * Tylko w trybie dev: szybkie przełączanie `?weather=` nawigacją po stronie klienta (z przenikaniem).
+ * Domyślnie widoczny; Shift+D ukrywa i pokazuje (stan w sessionStorage).
+ */
 export function DevSceneSwitcher({ current }: DevSceneSwitcherProps) {
+  const [hidden, setHidden] = useState(false);
+
+  useEffect(() => {
+    let stored = false;
+    try {
+      stored = sessionStorage.getItem(HIDDEN_KEY) === "1";
+    } catch {
+      // Brak dostępu do sessionStorage: zostaje widoczny.
+    }
+    const restore = window.setTimeout(() => setHidden(stored), 0);
+
+    const onKey = (event: KeyboardEvent) => {
+      if (!event.shiftKey || event.ctrlKey || event.metaKey || event.altKey) return;
+      if (event.code !== "KeyD" || event.repeat || isTyping(event.target)) return;
+      setHidden((was) => {
+        try {
+          sessionStorage.setItem(HIDDEN_KEY, was ? "0" : "1");
+        } catch {
+          // Tylko wygoda: bez zapisu stan przetrwa do przeładowania.
+        }
+        return !was;
+      });
+    };
+    window.addEventListener("keydown", onKey);
+    return () => {
+      window.clearTimeout(restore);
+      window.removeEventListener("keydown", onKey);
+    };
+  }, []);
+
+  if (hidden) return null;
+
   return (
     <nav
       aria-label="Scena (dev)"

@@ -78,6 +78,10 @@ export interface SceneTokens {
   videoFilter: VideoFilter;
   textShadow: string;
   glassTint: string;
+  /** Rozmycie tła szkła (px, maks. 40). */
+  glassBlur: number;
+  /** Cień tekstu wewnątrz paneli szkła: dociąga kontrast w jasnych scenach bez ciężkiego tintu. */
+  glassTextShadow: string;
 }
 
 export interface SceneDefinition {
@@ -87,9 +91,13 @@ export interface SceneDefinition {
 
 const NEUTRAL_FILTER: VideoFilter = { brightness: 1, saturate: 1 };
 const SOFT_SHADOW = "0 1px 2px rgba(0, 0, 0, 0.25), 0 2px 16px rgba(0, 0, 0, 0.2)";
-const STRONG_SHADOW = "0 1px 3px rgba(0, 0, 0, 0.45), 0 2px 24px rgba(0, 0, 0, 0.4)";
-/** Jasne niebo (pochmurno, mgła, śnieg): szkło ciemniejsze, żeby tekst drugorzędny i bursztyn miały ≥ 4.5:1. */
-const BRIGHT_SKY_GLASS = "rgba(14, 16, 20, 0.62)";
+/** Jasne niebo: wąski cień przy literach + szeroki, miękki pod całym tekstem (zamiast widocznej plamy). */
+const STRONG_SHADOW =
+  "0 1px 2px rgba(0, 0, 0, 0.45), 0 0 18px rgba(0, 0, 0, 0.4), 0 2px 44px rgba(0, 0, 0, 0.35)";
+/** Jasne niebo (pochmurno, mgła, śnieg): lżejszy tint niż wcześniej (.62) przy blur 40 px, kontrast dociąga cień tekstu. */
+const BRIGHT_SKY_GLASS = "rgba(14, 16, 20, 0.58)";
+const GLASS_TEXT_SHADOW = "0 1px 2px rgba(0, 0, 0, 0.3)";
+const BRIGHT_GLASS_TEXT_SHADOW = "0 1px 2px rgba(0, 0, 0, 0.5), 0 0 14px rgba(0, 0, 0, 0.45)";
 
 export const SCENES: Record<WeatherState, SceneDefinition> = {
   sunny: {
@@ -101,6 +109,8 @@ export const SCENES: Record<WeatherState, SceneDefinition> = {
       videoFilter: { brightness: 1, saturate: 0.9 },
       textShadow: STRONG_SHADOW,
       glassTint: "rgba(14, 16, 20, 0.46)",
+      glassBlur: 38,
+      glassTextShadow: BRIGHT_GLASS_TEXT_SHADOW,
     },
   },
   cloudy: {
@@ -112,6 +122,8 @@ export const SCENES: Record<WeatherState, SceneDefinition> = {
       videoFilter: NEUTRAL_FILTER,
       textShadow: STRONG_SHADOW,
       glassTint: BRIGHT_SKY_GLASS,
+      glassBlur: 40,
+      glassTextShadow: BRIGHT_GLASS_TEXT_SHADOW,
     },
   },
   fog: {
@@ -123,6 +135,8 @@ export const SCENES: Record<WeatherState, SceneDefinition> = {
       videoFilter: NEUTRAL_FILTER,
       textShadow: STRONG_SHADOW,
       glassTint: BRIGHT_SKY_GLASS,
+      glassBlur: 40,
+      glassTextShadow: BRIGHT_GLASS_TEXT_SHADOW,
     },
   },
   drizzle: {
@@ -134,6 +148,8 @@ export const SCENES: Record<WeatherState, SceneDefinition> = {
       videoFilter: NEUTRAL_FILTER,
       textShadow: SOFT_SHADOW,
       glassTint: "rgba(14, 16, 20, 0.4)",
+      glassBlur: 36,
+      glassTextShadow: GLASS_TEXT_SHADOW,
     },
   },
   rain: {
@@ -145,6 +161,8 @@ export const SCENES: Record<WeatherState, SceneDefinition> = {
       videoFilter: NEUTRAL_FILTER,
       textShadow: SOFT_SHADOW,
       glassTint: "rgba(14, 16, 20, 0.4)",
+      glassBlur: 36,
+      glassTextShadow: GLASS_TEXT_SHADOW,
     },
   },
   snow: {
@@ -156,6 +174,8 @@ export const SCENES: Record<WeatherState, SceneDefinition> = {
       videoFilter: NEUTRAL_FILTER,
       textShadow: STRONG_SHADOW,
       glassTint: BRIGHT_SKY_GLASS,
+      glassBlur: 40,
+      glassTextShadow: BRIGHT_GLASS_TEXT_SHADOW,
     },
   },
   storm: {
@@ -167,6 +187,8 @@ export const SCENES: Record<WeatherState, SceneDefinition> = {
       videoFilter: { brightness: 0.72, saturate: 0.9 },
       textShadow: SOFT_SHADOW,
       glassTint: "rgba(12, 14, 18, 0.44)",
+      glassBlur: 36,
+      glassTextShadow: GLASS_TEXT_SHADOW,
     },
   },
 };
