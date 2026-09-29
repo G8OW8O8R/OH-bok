@@ -6,39 +6,19 @@ import {
   SCENES,
   toCssFilter,
   WEATHER_STATES,
-  wmoToWeather,
+  weatherLabel,
 } from "@/lib/scenes";
 
-describe("wmoToWeather", () => {
-  it.each([
-    [0, "sunny"],
-    [1, "sunny"],
-    [2, "cloudy"],
-    [3, "cloudy"],
-    [45, "fog"],
-    [48, "fog"],
-    [51, "drizzle"],
-    [57, "drizzle"],
-    [61, "rain"],
-    [67, "rain"],
-    [80, "rain"],
-    [82, "rain"],
-    [71, "snow"],
-    [77, "snow"],
-    [85, "snow"],
-    [86, "snow"],
-    [95, "storm"],
-    [99, "storm"],
-  ] as const)("kod %i → %s", (code, expected) => {
-    expect(wmoToWeather(code)).toBe(expected);
+describe("weatherLabel", () => {
+  it("nazywa stany po polsku", () => {
+    expect(weatherLabel("rain", true)).toBe("Deszcz");
+    expect(weatherLabel("storm", false)).toBe("Burza");
   });
 
-  it.each([4, 44, 50, 58, 68, 79, 83, 87, 94, 100, -1])(
-    "nieznany kod %i → neutralna scena",
-    (code) => {
-      expect(wmoToWeather(code)).toBe("cloudy");
-    },
-  );
+  it("słońce w nocy = bezchmurnie", () => {
+    expect(weatherLabel("sunny", true)).toBe("Słonecznie");
+    expect(weatherLabel("sunny", false)).toBe("Bezchmurnie");
+  });
 });
 
 describe("parseWeatherOverride", () => {

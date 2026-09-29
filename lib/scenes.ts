@@ -19,6 +19,23 @@ export type SceneVideoId = "sunny" | "cloudy" | "rain";
 
 export const DEFAULT_WEATHER: WeatherState = "rain";
 
+/** Nazwy stanów w UI (po polsku). */
+export const WEATHER_LABELS: Record<WeatherState, string> = {
+  sunny: "Słonecznie",
+  cloudy: "Pochmurno",
+  fog: "Mgła",
+  drizzle: "Mżawka",
+  rain: "Deszcz",
+  snow: "Śnieg",
+  storm: "Burza",
+};
+
+/** Etykieta z uwzględnieniem pory dnia: „słonecznie” w nocy brzmi źle. */
+export function weatherLabel(state: WeatherState, isDay: boolean): string {
+  if (state === "sunny" && !isDay) return "Bezchmurnie";
+  return WEATHER_LABELS[state];
+}
+
 export interface SceneMedia {
   video: string;
   poster: string;
@@ -134,6 +151,8 @@ export function toCssFilter({ brightness, saturate }: VideoFilter): string {
 
 /** Kod pogody WMO (Open-Meteo) → stan sceny, według tabeli stanów pogody. */
 export function wmoToWeather(code: number): WeatherState {
+  // Kody WMO są całkowite; wszystko inne traktujemy jak nieznany kod.
+  if (!Number.isInteger(code)) return "cloudy";
   if (code === 0 || code === 1) return "sunny";
   if (code === 2 || code === 3) return "cloudy";
   if (code === 45 || code === 48) return "fog";

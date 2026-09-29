@@ -1,15 +1,21 @@
+import { cookies } from "next/headers";
 import { DevSceneSwitcher } from "@/components/dev/DevSceneSwitcher";
-import { SceneVideo } from "@/components/scene/SceneVideo";
-import { DEFAULT_WEATHER, parseWeatherOverride } from "@/lib/scenes";
+import { Desktop } from "@/components/system/Desktop";
+import { parseWeatherOverride } from "@/lib/scenes";
+import { LOCATION_COOKIE, parseLocationCookie } from "@/lib/weather/coords";
+import { getWeather } from "@/lib/weather/service";
 
 export default async function DesktopPage({ searchParams }: PageProps<"/">) {
-  const { weather: weatherParam } = await searchParams;
-  const weather = parseWeatherOverride(weatherParam) ?? DEFAULT_WEATHER;
+  const [{ weather: weatherParam }, cookieStore] = await Promise.all([searchParams, cookies()]);
+  const override = parseWeatherOverride(weatherParam);
+  // Ciasteczko istnieje tylko po zgodzie na lokalizację; bez niego: Gdańsk.
+  const coords = parseLocationCookie(cookieStore.get(LOCATION_COOKIE)?.value);
+  const { data } = await getWeather(coords);
 
   return (
     <main className="relative isolate h-dvh overflow-hidden">
-      <SceneVideo weather={weather} />
-      {process.env.NODE_ENV === "development" && <DevSceneSwitcher current={weather} />}
+      <Desktop initialWeather={data} override={override} />
+      {process.env.NODE_ENV === "development" && <DevSceneSwitcher current={override} />}
     </main>
   );
 }

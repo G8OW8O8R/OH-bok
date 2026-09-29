@@ -12,13 +12,13 @@ function collectConsoleErrors(page: Page): string[] {
 const layerVideo = (page: Page) => page.locator("[data-testid=scene-layer] video");
 const layerPoster = (page: Page) => page.locator("[data-testid=scene-layer] img");
 
-test("domyślnie scena deszczowa: poster w HTML z serwera, wideo wczytywane dopiero po hydracji", async ({
+test("scena deszczowa: poster w HTML z serwera, wideo wczytywane dopiero po hydracji", async ({
   page,
   request,
 }) => {
   const errors = collectConsoleErrors(page);
 
-  const html = await (await request.get("/")).text();
+  const html = await (await request.get("/?weather=rain")).text();
   expect(html).toMatch(/<link[^>]+rel="preload"[^>]+rain-lighthouse\/poster\.jpg/);
   expect(html).toMatch(/<img[^>]+src="\/scenes\/rain-lighthouse\/poster\.jpg"/);
   const videoTag = html.match(/<video[^>]*>/)?.[0] ?? "";
@@ -27,7 +27,7 @@ test("domyślnie scena deszczowa: poster w HTML z serwera, wideo wczytywane dopi
   expect(videoTag).toMatch(/playsInline/i);
   expect(videoTag).not.toMatch(/autoplay/i);
 
-  await page.goto("/");
+  await page.goto("/?weather=rain");
   await expect(page.getByTestId("scene")).toHaveAttribute("data-weather", "rain");
   await expect(layerVideo(page)).toHaveCount(1);
   await expect(layerVideo(page)).toHaveAttribute("src", "/scenes/rain-lighthouse/loop-720.mp4");
@@ -77,9 +77,13 @@ test("poster i wideo mają identyczne pudełko kadru, przeliczane przy zmianie r
     { width: 1600, height: 700 },
   ]) {
     await page.setViewportSize(viewport);
+    // Czekamy, aż ResizeObserver przeliczy pudełko dla nowego rozmiaru okna.
     await expect
-      .poll(async () => (await box(layerVideo(page))).height)
-      .toBeGreaterThanOrEqual(viewport.height);
+      .poll(async () => {
+        const b = await box(layerVideo(page));
+        return b.x + b.width >= viewport.width && b.y + b.height >= viewport.height;
+      })
+      .toBe(true);
     const poster = await box(layerPoster(page));
     const video = await box(layerVideo(page));
     expect(video).toEqual(poster);
@@ -116,7 +120,7 @@ test("prefers-reduced-motion: przekazanie i zmiana sceny działają z krótkimi 
   page,
 }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
-  await page.goto("/");
+  await page.goto("/?weather=rain");
   await expect(layerVideo(page)).toHaveAttribute("data-handoff", "video", { timeout: 15_000 });
 
   await page.getByRole("link", { name: "cloudy" }).click();
@@ -127,7 +131,7 @@ test("prefers-reduced-motion: przekazanie i zmiana sceny działają z krótkimi 
 
 test("przełączenie sceny przenika bez przesunięcia layoutu", async ({ page }) => {
   const errors = collectConsoleErrors(page);
-  await page.goto("/");
+  await page.goto("/?weather=rain");
   await page.evaluate(() => {
     const w = window as Window & { __cls?: number };
     w.__cls = 0;

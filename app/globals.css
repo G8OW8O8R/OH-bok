@@ -36,7 +36,34 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+/* Zarejestrowana, żeby przeglądarka interpolowała liczbę, a nie przeskakiwała gradientem. */
+@property --scrim-strength {
+  syntax: "<number>";
+  inherits: false;
+  initial-value: 0;
+}
+
 @layer components {
+  /* Winieta pod tekstem po lewej (components/scene/Scrim.tsx, tokeny sceny). */
+  .scrim {
+    background: linear-gradient(
+      90deg,
+      rgb(0 0 0 / calc(var(--scrim-strength) * 1)) 0%,
+      rgb(0 0 0 / calc(var(--scrim-strength) * 0.75)) 28%,
+      rgb(0 0 0 / calc(var(--scrim-strength) * 0.3)) 48%,
+      rgb(0 0 0 / 0) 64%
+    );
+    transition: --scrim-strength var(--dur-scene) var(--ease-dissolve);
+  }
+
+  /* Dymne szkło. */
+  .glass {
+    background: var(--glass-bg);
+    backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+    border: 1px solid var(--glass-border);
+    box-shadow: var(--glass-highlight), var(--depth-far);
+  }
+
   /*
    * Pudełko kadru sceny (lib/scene-fit.ts). Każda warstwa sceny (poster, wideo,
    * deszcz, mgła, pioruny) używa tej klasy, więc wszystkie mają identyczny prostokąt.
