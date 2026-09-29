@@ -66,4 +66,19 @@ describe("SCENES", () => {
     expect(toCssFilter(SCENES.storm.tokens.videoFilter)).toBe("brightness(0.72) saturate(0.9)");
     expect(toCssFilter(SCENES.sunny.tokens.videoFilter)).toBe("brightness(1) saturate(0.9)");
   });
+
+  it.each(WEATHER_STATES)("%s: siły winiet w zakresie 0–1", (state) => {
+    const { scrimStrength, haloStrength, vignetteStrength } = SCENES[state].tokens;
+    for (const value of [scrimStrength, haloStrength, vignetteStrength]) {
+      expect(value).toBeGreaterThanOrEqual(0);
+      expect(value).toBeLessThanOrEqual(1);
+    }
+  });
+
+  it("jasne niebo ma mocniejsze halo i ciemniejsze szkło niż deszcz (pomiar kontrastu)", () => {
+    for (const state of ["cloudy", "fog", "snow"] as const) {
+      expect(SCENES[state].tokens.haloStrength).toBeGreaterThan(SCENES.rain.tokens.haloStrength);
+      expect(SCENES[state].tokens.glassTint).toBe("rgba(14, 16, 20, 0.62)");
+    }
+  });
 });

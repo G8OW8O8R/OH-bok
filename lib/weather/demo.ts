@@ -6,6 +6,10 @@ import type { WeatherData } from "./schema";
 const DEMO_TIMEZONE = "Europe/Warsaw";
 /** Deszczowy tydzień nad Zatoką Gdańską: kody WMO na kolejne dni. */
 const DEMO_DAILY_CODES = [61, 63, 3, 2, 80] as const;
+/** Opad (mm) w kolejnych godzinach od bieżącej: pada, przejaśnia się, wieczorem znów pada. */
+const DEMO_HOURLY_MM = [1.8, 1.2, 0.6, 0, 0, 0, 0, 0.4, 1.1, 1.6, 0.9, 0.3] as const;
+const DEMO_HOURS = 24;
+
 const DEMO_TEMPS = [
   [14, 9],
   [12, 8],
@@ -54,6 +58,19 @@ export function demoWeather(now: Date, coords: Coords | null = null): WeatherDat
     };
   });
 
+  // Pełne godziny od bieżącej, w strefie demo (jak `forecast_hours` Open-Meteo).
+  const hourStart = Math.floor((now.getTime() + offset * 1000) / 3_600_000) * 3_600_000 - offset * 1000;
+  const hourly = Array.from({ length: DEMO_HOURS }, (_, i) => {
+    const local = new Date(hourStart + i * 3_600_000 + offset * 1000).toISOString().slice(0, 19);
+    const mm = DEMO_HOURLY_MM[i] ?? 0;
+    return {
+      time: `${local}${tz}`,
+      state: wmoToWeather(mm > 0 ? 61 : 3),
+      precipitationMm: mm,
+      precipitationProbability: mm > 0 ? 80 : 20,
+    };
+  });
+
   const location = coords ?? GDANSK;
   return {
     location: { lat: location.lat, lon: location.lon, isDefault: coords === null },
@@ -72,5 +89,6 @@ export function demoWeather(now: Date, coords: Coords | null = null): WeatherDat
       isDay: true,
     },
     daily,
+    hourly,
   };
 }

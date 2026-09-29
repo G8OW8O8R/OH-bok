@@ -4,6 +4,13 @@
  */
 
 :root {
+  /*
+   * Jednostka pulpitu. Poniżej układu desktopowego = 1rem (tekst rośnie razem z zoomem).
+   * W układzie desktopowym kompozycja 96u × 54u odpowiada makiecie 16:9 (u = 20px przy 1920×1080)
+   * i skaluje się z viewportem; zoom zwęża viewport i przełącza na układ kolumnowy.
+   */
+  --u: 1rem;
+
   /* Szkło (dymne) */
   --glass-bg: rgba(14, 16, 20, 0.42);
   --glass-milk: rgba(255, 255, 255, 0.04);
@@ -21,8 +28,8 @@
   --accent-amber: #f5a04a;
 
   /* Promienie */
-  --radius-widget: 28px;
-  --radius-window: 30px;
+  --radius-widget: calc(var(--u) * 1.4); /* 28px przy u = 20px */
+  --radius-window: calc(var(--u) * 1.5);
   --radius-pill: 999px;
 
   /* Tekst */
@@ -41,6 +48,13 @@
   --dur-fade: 150ms; /* przenikania przy reduced motion */
   --dur-scene: 1400ms; /* crossfade między scenami */
   --dur-handoff: 200ms; /* poster → pierwsza klatka wideo */
+}
+
+/* Układ desktopowy pulpitu: szeroki, poziomy ekran (1280×800 i więcej, tablety poziomo od 1200px). */
+@media (min-width: 1200px) and (min-height: 640px) and (min-aspect-ratio: 4/3) {
+  :root {
+    --u: clamp(0.75rem, min(100vw / 96, 100dvh / 54), 1.5rem);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

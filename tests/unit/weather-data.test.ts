@@ -94,6 +94,26 @@ describe("normalize", () => {
     });
   });
 
+  it("prognoza godzinowa: czasy ze strefą, stany WMO, opad", () => {
+    const data = liveData();
+    expect(data.hourly).toHaveLength(24);
+    expect(data.hourly[0]).toEqual({
+      time: "2026-09-29T20:00:00+02:00",
+      state: "cloudy",
+      precipitationMm: 0,
+      precipitationProbability: 5,
+    });
+    expect(data.hourly[19]).toMatchObject({ time: "2026-09-30T15:00:00+02:00", state: "rain", precipitationMm: 1.2 });
+  });
+
+  it("stara kopia bez prognozy godzinowej nadal przechodzi walidację", () => {
+    const legacy: Record<string, unknown> = { ...liveData() };
+    delete legacy.hourly;
+    const parsed = weatherDataSchema.safeParse(legacy);
+    expect(parsed.success).toBe(true);
+    expect(parsed.data?.hourly).toEqual([]);
+  });
+
   it("brak wschodu (noc polarna) i brak kodu dnia nie psują normalizacji", () => {
     const raw = openMeteoResponseSchema.parse({
       ...fixture,
@@ -119,6 +139,8 @@ describe("demoWeather", () => {
     expect(demo.location.isDefault).toBe(true);
     expect(demo.daily).toHaveLength(5);
     expect(demo.daily[0]?.date).toBe("2026-09-29");
+    expect(demo.hourly).toHaveLength(24);
+    expect(demo.hourly[0]?.time).toBe("2026-09-29T20:00:00+02:00");
   });
 
   it("zachowuje lokalizację, o którą proszono", () => {

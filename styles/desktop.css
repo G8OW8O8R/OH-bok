@@ -1,0 +1,224 @@
+/*
+ * Pulpit. Wymiary w jednostce --u (tokens.css).
+ * Układ desktopowy odwzorowuje makietę 16:9 we współrzędnych 96u × 54u;
+ * poniżej: kolumny, kula u góry, strona się przewija.
+ */
+
+/* Tokeny sceny przechodzą płynnie razem z przenikaniem wideo. */
+@property --halo-strength {
+  syntax: "<number>";
+  inherits: true;
+  initial-value: 0;
+}
+
+@property --glass-bg {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: rgb(14 16 20 / 0.42);
+}
+
+@layer components {
+  .desktop {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: calc(var(--u) * 2.5);
+    min-height: 100dvh;
+    padding: calc(var(--u) * 1.25) calc(var(--u) * 1.25) calc(var(--u) * 9);
+    transition:
+      --halo-strength var(--dur-scene) var(--ease-dissolve),
+      --glass-bg var(--dur-scene) var(--ease-dissolve);
+  }
+
+  .desktop-chrome {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    align-items: center;
+    gap: var(--u);
+  }
+
+  .desktop-hero {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: calc(var(--u) * 2);
+    --orb-size: calc(var(--u) * 11);
+  }
+
+  .desktop-objects {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    justify-content: center;
+    gap: calc(var(--u) * 1.5);
+  }
+
+  /* position: fixed przez utility (szkło ustawia relative w tej samej warstwie). */
+  .desktop-dock {
+    bottom: calc(var(--u) * 0.9);
+    left: 50%;
+    z-index: 10;
+    max-width: calc(100vw - var(--u) * 2);
+    translate: -50% 0;
+  }
+
+  @media (max-width: 639px) {
+    .desktop-chrome {
+      grid-template-columns: 1fr auto;
+    }
+
+    .desktop-chrome > [data-slot="pill"] {
+      grid-column: 1 / -1;
+      grid-row: 2;
+      justify-self: center;
+    }
+  }
+
+  @media (min-width: 1200px) and (min-height: 640px) and (min-aspect-ratio: 4/3) {
+    .desktop {
+      /* Pionowy zapas ponad 54u (np. 16:10): rozdzielany między strefy, żeby nic nie kleiło się do krawędzi. */
+      --extra: max(0px, 100dvh - var(--u) * 54);
+      position: fixed;
+      inset: 0;
+      display: block;
+      width: calc(var(--u) * 96);
+      max-width: 100vw;
+      min-height: 0;
+      margin-inline: auto;
+      padding: 0;
+    }
+
+    .desktop-chrome {
+      position: absolute;
+      top: calc(var(--u) * 3.15 + var(--extra) * 0.15);
+      right: calc(var(--u) * 1.2);
+      left: calc(var(--u) * 3.4);
+      height: calc(var(--u) * 3.2);
+    }
+
+    .desktop-hero {
+      position: absolute;
+      top: calc(var(--u) * 9.1 + var(--extra) * 0.4);
+      left: calc(var(--u) * 22.2);
+      flex-wrap: nowrap;
+      align-items: flex-start;
+      justify-content: flex-start;
+      gap: calc(var(--u) * 4);
+      --orb-size: calc(var(--u) * 18.1);
+    }
+
+    .desktop-objects {
+      position: absolute;
+      bottom: calc(var(--u) * 8.75);
+      left: calc(var(--u) * 3.7);
+      flex-wrap: nowrap;
+      justify-content: flex-start;
+      gap: calc(var(--u) * 2.4);
+    }
+  }
+
+  /* Swobodny tekst na scenie (logo, zegar, powitanie). */
+  .scene-text {
+    text-shadow: var(--scene-text-shadow);
+  }
+
+  /*
+   * Miękka eliptyczna winieta za swobodnym tekstem. Siła z tokenu sceny `haloStrength`;
+   * kształt zanika do zera na krawędziach, więc nie widać „plamy”.
+   */
+  .halo {
+    position: relative;
+    isolation: isolate;
+  }
+
+  .halo::before {
+    content: "";
+    position: absolute;
+    inset: var(--halo-inset, -110% -55%);
+    z-index: -1;
+    pointer-events: none;
+    /* Szeroki, łagodny spadek: czyta się jak ciemniejsza chmura, nie jak plama za tekstem. */
+    background: radial-gradient(
+      closest-side,
+      rgb(0 0 0 / var(--halo-strength)) 0%,
+      rgb(0 0 0 / calc(var(--halo-strength) * 0.85)) 35%,
+      rgb(0 0 0 / calc(var(--halo-strength) * 0.45)) 65%,
+      rgb(0 0 0 / calc(var(--halo-strength) * 0.12)) 88%,
+      rgb(0 0 0 / 0) 100%
+    );
+  }
+
+  /* Łuk: półokrągła góra, zaokrąglony dół. */
+  .shape-arch {
+    width: var(--arch-width);
+    border-radius: calc(var(--arch-width) / 2) calc(var(--arch-width) / 2) var(--radius-widget) var(--radius-widget);
+  }
+
+  /* Kula (placeholder do zadania z kulą): szkło z refleksem, bursztynowy rim light, oddychanie. */
+  .orb {
+    border-radius: 50%;
+    background:
+      radial-gradient(circle at 34% 24%, rgb(255 255 255 / 0.34), rgb(255 255 255 / 0) 24%),
+      radial-gradient(circle at 50% 50%, rgb(255 255 255 / 0) 60%, rgb(255 255 255 / 0.08) 78%, rgb(255 255 255 / 0.24) 100%),
+      rgb(24 30 36 / 0.06);
+    backdrop-filter: blur(1.5px) saturate(1.25) brightness(1.1);
+    box-shadow:
+      inset 0 0 0 1px rgb(255 255 255 / 0.2),
+      inset calc(var(--u) * 0.2) 0 calc(var(--u) * 0.25) calc(var(--u) * -0.06) rgb(245 160 74 / 0.85),
+      inset calc(var(--u) * -0.4) calc(var(--u) * -0.6) calc(var(--u) * 1.4) rgb(255 255 255 / 0.12),
+      var(--depth-near);
+    animation: orb-breathe 6s var(--ease-soft) infinite;
+  }
+
+  .orb-small {
+    animation-delay: -2.2s;
+  }
+
+  @keyframes orb-breathe {
+    50% {
+      scale: 1.015;
+    }
+  }
+
+  /* Fala dźwięku w odtwarzaczu. */
+  .wave-bar {
+    transform-origin: center;
+    animation: wave-bar 0.9s var(--ease-soft) infinite alternate;
+    animation-delay: var(--delay, 0s);
+  }
+
+  [data-playing="false"] .wave-bar {
+    animation-play-state: paused;
+  }
+
+  @keyframes wave-bar {
+    from {
+      scale: 1 0.35;
+    }
+    to {
+      scale: 1 1;
+    }
+  }
+
+  /* „Cel podróży” akcji: obiekt, do którego prowadzi kapsuła, krótko się zgłasza. */
+  [data-called="true"] {
+    outline: 2px solid rgb(245 160 74 / 0.9);
+    outline-offset: calc(var(--u) * 0.3);
+    animation: called 700ms var(--ease-out);
+  }
+
+  @keyframes called {
+    40% {
+      scale: 1.03;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .orb,
+    .wave-bar,
+    [data-called="true"] {
+      animation: none;
+    }
+  }
+}

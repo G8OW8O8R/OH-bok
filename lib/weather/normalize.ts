@@ -1,8 +1,10 @@
 import { wmoToWeather } from "@/lib/scenes";
 import type { Coords } from "./coords";
-import type { DailyForecast, OpenMeteoResponse, WeatherData, WeatherSource } from "./schema";
+import type { DailyForecast, HourlyForecast, OpenMeteoResponse, WeatherData, WeatherSource } from "./schema";
 
 export const FORECAST_DAYS = 5;
+/** Godziny prognozy od bieżącej: wystarczy na brief „od 14:00 pada”. */
+export const FORECAST_HOURS = 24;
 
 /** `3600` → `+01:00`, `-12600` → `-03:30`. */
 export function formatUtcOffset(offsetSeconds: number): string {
@@ -34,7 +36,7 @@ interface NormalizeOptions {
 
 export function normalizeOpenMeteo(raw: OpenMeteoResponse, options: NormalizeOptions): WeatherData {
   const offset = raw.utc_offset_seconds;
-  const { current, daily } = raw;
+  const { current, daily, hourly } = raw;
   const optionalIso = (value: string | null | undefined) => (value ? localToIso(value, offset) : null);
 
   const days: DailyForecast[] = daily.time.slice(0, FORECAST_DAYS).map((date, i) => {
@@ -49,6 +51,16 @@ export function normalizeOpenMeteo(raw: OpenMeteoResponse, options: NormalizeOpt
       windMaxKmh: daily.wind_speed_10m_max[i] ?? null,
       sunrise: optionalIso(daily.sunrise[i]),
       sunset: optionalIso(daily.sunset[i]),
+    };
+  });
+
+  const hours: HourlyForecast[] = hourly.time.slice(0, FORECAST_HOURS).map((time, i) => {
+    const probability = hourly.precipitation_probability[i] ?? null;
+    return {
+      time: localToIso(time, offset),
+      state: wmoToWeather(hourly.weather_code[i] ?? -1),
+      precipitationMm: Math.max(0, hourly.precipitation[i] ?? 0),
+      precipitationProbability: probability === null ? null : Math.min(100, Math.max(0, probability)),
     };
   });
 
@@ -69,5 +81,6 @@ export function normalizeOpenMeteo(raw: OpenMeteoResponse, options: NormalizeOpt
       isDay: current.is_day === 1,
     },
     daily: days,
+    hourly: hours,
   };
 }

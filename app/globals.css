@@ -1,8 +1,43 @@
 @import "tailwindcss";
 @import "../styles/tokens.css";
+@import "../styles/desktop.css";
+
+/* Układ desktopowy pulpitu (lustro media query z tokens.css, gdzie zmienia się --u). */
+@custom-variant desk (@media (min-width: 1200px) and (min-height: 640px) and (min-aspect-ratio: 4/3));
 
 @theme inline {
   --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+
+  /* Siatka 8 pt skalowana jednostką pulpitu: p-4 = 1u (20px przy 1920×1080, 16px w układzie kolumnowym). */
+  --spacing: calc(var(--u) * 0.25);
+
+  /*
+   * Skala tekstu w jednostkach pulpitu z dolną granicą w rem: przy zoomie tekst nigdy
+   * nie spada poniżej czytelnego rozmiaru, a w układzie kolumnowym (u = 1rem) rośnie w pełni.
+   */
+  --text-temp: max(3.5rem, calc(var(--u) * 5.8));
+  --text-temp--line-height: 1;
+  --text-temp--letter-spacing: -0.045em;
+  --text-display: max(2.25rem, calc(var(--u) * 3.75));
+  --text-display--line-height: 1.05;
+  --text-display--letter-spacing: -0.03em;
+  --text-wordmark: max(1.75rem, calc(var(--u) * 2.65));
+  --text-wordmark--line-height: 1;
+  --text-wordmark--letter-spacing: -0.035em;
+  --text-lead: max(1.25rem, calc(var(--u) * 1.8));
+  --text-lead--line-height: 1.2;
+  --text-lead--letter-spacing: -0.015em;
+  --text-ring: max(1.5rem, calc(var(--u) * 1.9));
+  --text-ring--line-height: 1;
+  --text-ring--letter-spacing: -0.03em;
+  --text-title: max(1rem, calc(var(--u) * 1.15));
+  --text-title--line-height: 1.3;
+  --text-body: max(0.9375rem, calc(var(--u) * 1.05));
+  --text-body--line-height: 1.35;
+  --text-caption: max(0.8125rem, calc(var(--u) * 0.9));
+  --text-caption--line-height: 1.3;
+  --text-micro: max(0.75rem, calc(var(--u) * 0.72));
+  --text-micro--line-height: 1.3;
 
   --color-amber: var(--accent-amber);
   --color-text-primary: var(--text-primary);
@@ -43,25 +78,80 @@ body {
   initial-value: 0;
 }
 
+@property --vignette-strength {
+  syntax: "<number>";
+  inherits: false;
+  initial-value: 0;
+}
+
 @layer components {
   /* Winieta pod tekstem po lewej (components/scene/Scrim.tsx, tokeny sceny). */
   .scrim {
-    background: linear-gradient(
+    background:
+      /* Prawy górny narożnik (zegar): jak winietowanie obiektywu, bez paska. */
+      radial-gradient(
+        ellipse 34% 30% at 100% 0%,
+        rgb(0 0 0 / calc(var(--vignette-strength) * 0.72)),
+        rgb(0 0 0 / calc(var(--vignette-strength) * 0.35)) 50%,
+        rgb(0 0 0 / 0)
+      ),
+      /* Górna krawędź (logo, pigułka). */
+      linear-gradient(
+        180deg,
+        rgb(0 0 0 / calc(var(--vignette-strength) * 0.4)),
+        rgb(0 0 0 / calc(var(--vignette-strength) * 0.18)) 11%,
+        rgb(0 0 0 / 0) 24%
+      ),
+      linear-gradient(
       90deg,
       rgb(0 0 0 / calc(var(--scrim-strength) * 1)) 0%,
       rgb(0 0 0 / calc(var(--scrim-strength) * 0.75)) 28%,
       rgb(0 0 0 / calc(var(--scrim-strength) * 0.3)) 48%,
       rgb(0 0 0 / 0) 64%
     );
-    transition: --scrim-strength var(--dur-scene) var(--ease-dissolve);
+    transition:
+      --scrim-strength var(--dur-scene) var(--ease-dissolve),
+      --vignette-strength var(--dur-scene) var(--ease-dissolve);
   }
 
-  /* Dymne szkło. */
+  /* Dymne szkło. Głębia (cień) przez data-depth, patrz components/ui/Glass.tsx. */
   .glass {
-    background: var(--glass-bg);
+    position: relative;
+    background: linear-gradient(var(--glass-milk), var(--glass-milk)), var(--glass-bg);
     backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
     border: 1px solid var(--glass-border);
-    box-shadow: var(--glass-highlight), var(--depth-far);
+    box-shadow: var(--glass-highlight), var(--glass-depth, var(--depth-far));
+  }
+
+  .glass[data-depth="mid"] {
+    --glass-depth: var(--depth-mid);
+  }
+
+  .glass[data-depth="near"] {
+    --glass-depth: var(--depth-near);
+  }
+
+  /*
+   * Refleks światła na krawędzi, podążający za kursorem: gradient radialny widoczny
+   * tylko w 1px pierścieniu (maska content-box). --mx/--my ustawia ParallaxProvider.
+   */
+  .glass::after {
+    content: "";
+    position: absolute;
+    inset: -1px;
+    padding: 1px;
+    border-radius: inherit;
+    pointer-events: none;
+    background: radial-gradient(
+      calc(var(--u) * 14) circle at var(--mx, 50%) var(--my, -200%),
+      rgb(255 255 255 / 0.5),
+      rgb(255 255 255 / 0) 70%
+    );
+    mask:
+      linear-gradient(#000 0 0) content-box exclude,
+      linear-gradient(#000 0 0);
+    opacity: var(--edge-light, 0);
+    transition: opacity 600ms var(--ease-soft);
   }
 
   /*

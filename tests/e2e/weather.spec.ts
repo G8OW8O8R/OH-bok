@@ -10,7 +10,7 @@ function collectConsoleErrors(page: Page): string[] {
   return errors;
 }
 
-const capsule = (page: Page) => page.getByTestId("weather-capsule");
+const arc = (page: Page) => page.getByTestId("weather-arc");
 
 test("API: znormalizowane dane, nagłówki diagnostyczne, 400 dla błędnych współrzędnych", async ({ request }) => {
   const response = await request.get("/api/weather?lat=54.35&lon=18.65");
@@ -33,7 +33,8 @@ test("bez override scena odpowiada prawdziwej pogodzie; atrybucja Open-Meteo jes
   await page.goto("/");
   await expect(page.getByTestId("scene")).toHaveAttribute("data-weather", api.current.state);
   await expect(page.getByTestId("weather-place")).toHaveText("Gdańsk");
-  const attribution = capsule(page).getByRole("link", { name: "Open-Meteo.com" });
+  const attribution = page.getByRole("link", { name: "Open-Meteo.com" });
+  await expect(attribution).toBeVisible();
   await expect(attribution).toHaveAttribute("href", "https://open-meteo.com/");
   expect(errors).toEqual([]);
 });
@@ -41,7 +42,7 @@ test("bez override scena odpowiada prawdziwej pogodzie; atrybucja Open-Meteo jes
 test("override ?weather= ma pierwszeństwo przed prawdziwą pogodą", async ({ page }) => {
   await page.goto("/?weather=storm");
   await expect(page.getByTestId("scene")).toHaveAttribute("data-weather", "storm");
-  await expect(capsule(page)).toContainText("Scena wymuszona: burza");
+  await expect(arc(page)).toContainText("Scena wymuszona: burza");
 });
 
 test("odmowa geolokalizacji nie psuje strony: zostaje Gdańsk i czytelny komunikat", async ({ browser }) => {
@@ -50,8 +51,8 @@ test("odmowa geolokalizacji nie psuje strony: zostaje Gdańsk i czytelny komunik
   const errors = collectConsoleErrors(page);
   await page.goto("/");
 
-  await capsule(page).getByRole("button", { name: "Użyj mojej lokalizacji" }).click();
-  await expect(capsule(page)).toContainText("Brak zgody na lokalizację");
+  await arc(page).getByRole("button", { name: "Użyj mojej lokalizacji" }).click();
+  await expect(arc(page)).toContainText("Brak zgody na lokalizację");
   await expect(page.getByTestId("weather-place")).toHaveText("Gdańsk");
   await expect(page.getByTestId("scene")).toBeVisible();
   expect((await context.cookies()).find((c) => c.name === "obok-loc")).toBeUndefined();
@@ -83,17 +84,17 @@ test("zgoda na lokalizację: pogoda dla użytkownika, ciasteczko z zaokrągloną
 test("wyłączenie sieci: dane z pamięci z oznaczeniem, powrót sieci: dane na żywo", async ({ page, context }) => {
   await page.goto("/");
   // Jeśli SSR dostał nieświeży wpis cache, klient po chwili pobiera świeży.
-  await expect(capsule(page)).toHaveAttribute("data-source", "live", { timeout: 10_000 });
+  await expect(arc(page)).toHaveAttribute("data-source", "live", { timeout: 10_000 });
   // Ostatnie dobre dane trafiają do localStorage po hydracji.
   await expect
     .poll(() => page.evaluate(() => localStorage.getItem("obok-weather")?.includes('"lastGood":{') ?? false))
     .toBe(true);
 
   await context.setOffline(true);
-  await expect(capsule(page)).toHaveAttribute("data-source", "cache");
+  await expect(arc(page)).toHaveAttribute("data-source", "cache");
   await expect(page.getByTestId("weather-badge")).toHaveText(/^z pamięci · \d{2}:\d{2}$/);
   await expect(page.getByTestId("scene")).toBeVisible();
 
   await context.setOffline(false);
-  await expect(capsule(page)).toHaveAttribute("data-source", "live");
+  await expect(arc(page)).toHaveAttribute("data-source", "live");
 });

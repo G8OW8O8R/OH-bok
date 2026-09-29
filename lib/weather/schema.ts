@@ -32,6 +32,13 @@ export const openMeteoResponseSchema = z.object({
     sunrise: z.array(z.string().nullable()),
     sunset: z.array(z.string().nullable()),
   }),
+  /** Najbliższe godziny od bieżącej (`forecast_hours`), czasy lokalne bez strefy. */
+  hourly: z.object({
+    time: z.array(z.string()),
+    precipitation: z.array(z.number().nullable()),
+    precipitation_probability: z.array(z.number().nullable()),
+    weather_code: z.array(z.number().int().nullable()),
+  }),
 });
 
 export type OpenMeteoResponse = z.infer<typeof openMeteoResponseSchema>;
@@ -54,6 +61,16 @@ export const dailyForecastSchema = z.object({
 });
 
 export type DailyForecast = z.infer<typeof dailyForecastSchema>;
+
+export const hourlyForecastSchema = z.object({
+  time: isoDateTime,
+  state: weatherStateSchema,
+  precipitationMm: z.number().nonnegative(),
+  /** Prawdopodobieństwo opadu w %, gdy model go nie podaje: null. */
+  precipitationProbability: z.number().min(0).max(100).nullable(),
+});
+
+export type HourlyForecast = z.infer<typeof hourlyForecastSchema>;
 
 /** Znormalizowany format pogody: jedyny, jaki widzi klient. */
 export const weatherDataSchema = z.object({
@@ -79,6 +96,8 @@ export const weatherDataSchema = z.object({
     isDay: z.boolean(),
   }),
   daily: z.array(dailyForecastSchema).min(1).max(7),
+  /** Prognoza godzinowa (brief dnia). Starsze kopie w localStorage jej nie mają. */
+  hourly: z.array(hourlyForecastSchema).max(48).default([]),
 });
 
 export type WeatherData = z.infer<typeof weatherDataSchema>;

@@ -65,6 +65,16 @@ export interface VideoFilter {
 export interface SceneTokens {
   /** Siła winiety pod tekstem po lewej (0–1). */
   scrimStrength: number;
+  /**
+   * Siła miękkiej, eliptycznej winiety za swobodnym tekstem (powitanie, zegar).
+   * Liniowy scrim wygasa przed środkiem kadru, a powitanie stoi na niebie.
+   */
+  haloStrength: number;
+  /**
+   * Winieta górnej krawędzi i prawego górnego narożnika (logo, pigułka, zegar):
+   * jak winietowanie obiektywu, bez paska u góry. 0–1.
+   */
+  vignetteStrength: number;
   videoFilter: VideoFilter;
   textShadow: string;
   glassTint: string;
@@ -77,13 +87,17 @@ export interface SceneDefinition {
 
 const NEUTRAL_FILTER: VideoFilter = { brightness: 1, saturate: 1 };
 const SOFT_SHADOW = "0 1px 2px rgba(0, 0, 0, 0.25), 0 2px 16px rgba(0, 0, 0, 0.2)";
-const STRONG_SHADOW = "0 1px 2px rgba(0, 0, 0, 0.35), 0 2px 20px rgba(0, 0, 0, 0.3)";
+const STRONG_SHADOW = "0 1px 3px rgba(0, 0, 0, 0.45), 0 2px 24px rgba(0, 0, 0, 0.4)";
+/** Jasne niebo (pochmurno, mgła, śnieg): szkło ciemniejsze, żeby tekst drugorzędny i bursztyn miały ≥ 4.5:1. */
+const BRIGHT_SKY_GLASS = "rgba(14, 16, 20, 0.62)";
 
 export const SCENES: Record<WeatherState, SceneDefinition> = {
   sunny: {
     video: "sunny",
     tokens: {
       scrimStrength: 0.32,
+      haloStrength: 0.55,
+      vignetteStrength: 0.8,
       videoFilter: { brightness: 1, saturate: 0.9 },
       textShadow: STRONG_SHADOW,
       glassTint: "rgba(14, 16, 20, 0.46)",
@@ -93,24 +107,30 @@ export const SCENES: Record<WeatherState, SceneDefinition> = {
     video: "cloudy",
     tokens: {
       scrimStrength: 0.2,
+      haloStrength: 0.8,
+      vignetteStrength: 1,
       videoFilter: NEUTRAL_FILTER,
-      textShadow: SOFT_SHADOW,
-      glassTint: "rgba(14, 16, 20, 0.42)",
+      textShadow: STRONG_SHADOW,
+      glassTint: BRIGHT_SKY_GLASS,
     },
   },
   fog: {
     video: "cloudy",
     tokens: {
       scrimStrength: 0.2,
+      haloStrength: 0.8,
+      vignetteStrength: 1,
       videoFilter: NEUTRAL_FILTER,
-      textShadow: SOFT_SHADOW,
-      glassTint: "rgba(14, 16, 20, 0.42)",
+      textShadow: STRONG_SHADOW,
+      glassTint: BRIGHT_SKY_GLASS,
     },
   },
   drizzle: {
     video: "rain",
     tokens: {
       scrimStrength: 0.15,
+      haloStrength: 0.3,
+      vignetteStrength: 0.5,
       videoFilter: NEUTRAL_FILTER,
       textShadow: SOFT_SHADOW,
       glassTint: "rgba(14, 16, 20, 0.4)",
@@ -120,6 +140,8 @@ export const SCENES: Record<WeatherState, SceneDefinition> = {
     video: "rain",
     tokens: {
       scrimStrength: 0.15,
+      haloStrength: 0.3,
+      vignetteStrength: 0.5,
       videoFilter: NEUTRAL_FILTER,
       textShadow: SOFT_SHADOW,
       glassTint: "rgba(14, 16, 20, 0.4)",
@@ -129,15 +151,19 @@ export const SCENES: Record<WeatherState, SceneDefinition> = {
     video: "cloudy",
     tokens: {
       scrimStrength: 0.2,
+      haloStrength: 0.8,
+      vignetteStrength: 1,
       videoFilter: NEUTRAL_FILTER,
-      textShadow: SOFT_SHADOW,
-      glassTint: "rgba(14, 16, 20, 0.42)",
+      textShadow: STRONG_SHADOW,
+      glassTint: BRIGHT_SKY_GLASS,
     },
   },
   storm: {
     video: "rain",
     tokens: {
       scrimStrength: 0.1,
+      haloStrength: 0.15,
+      vignetteStrength: 0.3,
       videoFilter: { brightness: 0.72, saturate: 0.9 },
       textShadow: SOFT_SHADOW,
       glassTint: "rgba(12, 14, 18, 0.44)",
