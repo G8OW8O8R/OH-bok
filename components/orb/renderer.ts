@@ -1,6 +1,5 @@
 import type { Circle, Point } from "@/lib/orb/geometry";
-import { PREVIEW_FOCUS } from "@/lib/orb/preview";
-import { SCENE_ASPECT, type SceneFit } from "@/lib/scene-fit";
+import type { SceneFit } from "@/lib/scene-fit";
 import { saturateMatrix } from "@/lib/scene-grading";
 import type { VideoFilter } from "@/lib/scenes";
 import { FRAGMENT_SHADER, VERTEX_SHADER } from "./shaders";
@@ -57,8 +56,6 @@ const UNIFORMS = [
   "uPreviewBrightness",
   "uPreviewSaturate0",
   "uPreviewSaturate1",
-  "uPreviewFocus",
-  "uAspect",
 ] as const;
 
 type UniformName = (typeof UNIFORMS)[number];
@@ -116,8 +113,6 @@ export class OrbRenderer {
     });
     this.textures = textures;
     gl.useProgram(program);
-    gl.uniform1f(uniforms.uAspect, SCENE_ASPECT);
-    gl.uniform3f(uniforms.uPreviewFocus, PREVIEW_FOCUS.x, PREVIEW_FOCUS.y, PREVIEW_FOCUS.span);
     gl.uniform1i(uniforms.uPreview0, SLOTS.indexOf("preview0"));
     gl.uniform1i(uniforms.uPreview1, SLOTS.indexOf("preview1"));
     gl.clearColor(0, 0, 0, 0);

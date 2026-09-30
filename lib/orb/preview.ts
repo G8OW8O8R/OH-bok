@@ -19,10 +19,10 @@ export function previewImage(day: Pick<DailyForecast, "state">): OrbPreviewImage
 }
 
 /**
- * Kadr podglądu na posterze (współrzędne 0–1): środek przy latarni, `span` = połowa
- * wysokości kadru widoczna w kuli. Klatka ma 16:9, więc w poziomie kadr jest węższy.
+ * Kadr podglądu w kuli CSS (fallback): punkt posteru przy latarni (0–1).
+ * Kula WebGL pokazuje podgląd w tym samym kadrze co scenę.
  */
-export const PREVIEW_FOCUS = { x: 0.74, y: 0.47, span: 0.36 } as const;
+export const PREVIEW_FOCUS = { x: 0.74, y: 0.47 } as const;
 
 function temperature(value: number | null): string {
   if (value === null) return "brak danych o temperaturze";
