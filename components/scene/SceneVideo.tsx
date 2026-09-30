@@ -1,20 +1,24 @@
 "use client";
 
-import { motion, useReducedMotion } from "motion/react";
+import { animate, motion, useMotionValue, useReducedMotion, useTransform, type MotionValue } from "motion/react";
 import Image from "next/image";
-import { useEffect, useEffectEvent, useRef, useState } from "react";
+import { useEffect, useEffectEvent, useMemo, useRef, useState } from "react";
 import { preload } from "react-dom";
+import { scheduleBootDone } from "@/lib/boot";
 import { duration, ease } from "@/lib/motion";
 import { SCENE_MEDIA_SIZE } from "@/lib/scene-fit";
+import { sceneFilterCss } from "@/lib/scene-grading";
 import {
   initialLayers,
   markLayerReady,
   reconcileLayers,
   settleLayers,
+  type SceneLayer,
   type SceneLayers,
 } from "@/lib/scene-transition";
-import { SCENE_MEDIA, SCENES, toCssFilter, type SceneVideoId, type WeatherState } from "@/lib/scenes";
+import { SCENE_MEDIA, SCENES, type SceneVideoId, type WeatherState } from "@/lib/scenes";
 import { handoffStep } from "@/lib/video-handoff";
+import { useSceneSource } from "./SceneSource";
 import { useSceneFit } from "./useSceneFit";
 
 /** Jeśli poster nie da znaku życia, nie blokujemy przejścia w nieskończoność. */
@@ -24,14 +28,20 @@ interface SceneVideoProps {
   weather: WeatherState;
 }
 
+type Crossfade = { duration: number; ease: typeof ease.dissolve };
+
 /**
  * Pełnoekranowe tło sceny. Każda warstwa to poster (<img>, LCP) i nad nim wideo,
  * które odsłania się dopiero na klatce 0. Zmiana sceny = przenikanie warstw.
+ *
+ * Krycie warstw i grading to motion values ze wspólnego źródła sceny (SceneSource):
+ * kula próbkuje te same klatki z tym samym postępem, więc obraz w niej zgadza się z tłem.
  */
 export function SceneVideo({ weather }: SceneVideoProps) {
   const scene = SCENES[weather];
   const reduceMotion = useReducedMotion();
   const stageRef = useSceneFit<HTMLDivElement>();
+  const { brightness, saturate, flash } = useSceneSource();
   const [layers, setLayers] = useState<SceneLayers>(() => initialLayers(scene.video));
 
   // Poster to LCP. Wywołane podczas SSR trafia jako <link rel="preload"> do <head>;
@@ -42,10 +52,24 @@ export function SceneVideo({ weather }: SceneVideoProps) {
   const reconciled = reconcileLayers(layers, scene.video);
   if (reconciled !== layers) setLayers(reconciled);
 
-  const crossfade = {
-    duration: reduceMotion ? duration.reducedFade : duration.sceneCrossfade,
-    ease: ease.dissolve,
-  };
+  const crossfade = useMemo<Crossfade>(
+    () => ({ duration: reduceMotion ? duration.reducedFade : duration.sceneCrossfade, ease: ease.dissolve }),
+    [reduceMotion],
+  );
+
+  // Grading przechodzi razem ze sceną (dawniej CSS `transition: filter`, te same czas i krzywa).
+  const target = scene.tokens.videoFilter;
+  useEffect(() => {
+    const controls = [
+      animate(brightness, target.brightness, crossfade),
+      animate(saturate, target.saturate, crossfade),
+    ];
+    return () => controls.forEach((control) => control.stop());
+  }, [brightness, saturate, target.brightness, target.saturate, crossfade]);
+
+  const filter = useTransform(() =>
+    sceneFilterCss({ brightness: brightness.get(), saturate: saturate.get() }, flash.get()),
+  );
 
   return (
     <div
@@ -55,53 +79,93 @@ export function SceneVideo({ weather }: SceneVideoProps) {
       data-weather={weather}
       className="scene-stage fixed inset-0 -z-10 overflow-hidden bg-black"
     >
-      <div
-        className="absolute inset-0"
-        style={{
-          filter: toCssFilter(scene.tokens.videoFilter),
-          transition: "filter var(--dur-scene) var(--ease-dissolve)",
-        }}
-      >
+      <motion.div className="absolute inset-0" style={{ filter }}>
         {reconciled.map((layer) => (
-          <motion.div
+          <SceneLayerView
             key={layer.id}
-            className="absolute inset-0"
-            data-testid="scene-layer"
-            data-video={layer.video}
-            data-ready={layer.ready}
-            // Pierwsza scena jest widoczna od razu (poster z SSR), kolejne wchodzą od 0.
-            initial={layer.id === 0 ? false : { opacity: 0 }}
-            animate={{ opacity: layer.ready ? 1 : 0 }}
-            transition={crossfade}
-            onAnimationComplete={() => {
-              if (layer.ready) setLayers((current) => settleLayers(current, layer.id));
-            }}
-          >
-            <SceneLayerMedia
-              video={layer.video}
-              onReady={() => setLayers((current) => markLayerReady(current, layer.id))}
-            />
-          </motion.div>
+            layer={layer}
+            crossfade={crossfade}
+            onReady={() => setLayers((current) => markLayerReady(current, layer.id))}
+            onSettled={() => setLayers((current) => settleLayers(current, layer.id))}
+          />
         ))}
-      </div>
+      </motion.div>
     </div>
   );
 }
 
+interface SceneLayerViewProps {
+  layer: SceneLayer;
+  crossfade: Crossfade;
+  onReady: () => void;
+  /** Przenikanie zakończone: warstwa pod spodem może zniknąć. */
+  onSettled: () => void;
+}
+
+function SceneLayerView({ layer, crossfade, onReady, onSettled }: SceneLayerViewProps) {
+  // Pierwsza scena jest widoczna od razu (poster z SSR), kolejne wchodzą od 0.
+  const opacity = useMotionValue(layer.id === 0 ? 1 : 0);
+  const handleSettled = useEffectEvent(onSettled);
+
+  useEffect(() => {
+    if (!layer.ready) return;
+    let active = true;
+    const control = animate(opacity, 1, crossfade);
+    control.then(() => {
+      if (active) handleSettled();
+    });
+    return () => {
+      active = false;
+      control.stop();
+    };
+  }, [layer.ready, opacity, crossfade]);
+
+  return (
+    <motion.div
+      className="absolute inset-0"
+      data-testid="scene-layer"
+      data-video={layer.video}
+      data-ready={layer.ready}
+      style={{ opacity }}
+    >
+      <SceneLayerMedia layerId={layer.id} video={layer.video} opacity={opacity} onReady={onReady} />
+    </motion.div>
+  );
+}
+
 interface SceneLayerMediaProps {
+  layerId: number;
   video: SceneVideoId;
+  opacity: MotionValue<number>;
   /** Poster jest zdekodowany: warstwa może zacząć się pojawiać. */
   onReady: () => void;
 }
 
-function SceneLayerMedia({ video, onReady }: SceneLayerMediaProps) {
+function SceneLayerMedia({ layerId, video, opacity, onReady }: SceneLayerMediaProps) {
   const media = SCENE_MEDIA[video];
+  const { layers } = useSceneSource();
   const reduceMotion = useReducedMotion();
   const posterRef = useRef<HTMLImageElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   /** `mediaTime` klatki, na której wideo zakryło poster (null = widać poster). */
   const [revealedAt, setRevealedAt] = useState<number | null>(null);
   const handleReady = useEffectEvent(onReady);
+
+  // Rejestracja w źródle sceny: kula próbkuje poster, a od klatki 0 wideo tej warstwy.
+  useEffect(() => {
+    layers.set({
+      id: layerId,
+      video,
+      opacity,
+      poster: posterRef.current,
+      element: videoRef.current,
+      revealed: revealedAt !== null,
+    });
+    // Pierwsza klatka sceny: tymczasowy koniec sekwencji startowej (lib/boot.ts).
+    if (revealedAt !== null) scheduleBootDone();
+  }, [layers, layerId, video, opacity, revealedAt]);
+
+  useEffect(() => () => layers.remove(layerId), [layers, layerId]);
 
   useEffect(() => {
     const poster = posterRef.current;

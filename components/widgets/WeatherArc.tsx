@@ -19,6 +19,11 @@ interface WeatherArcProps {
   /** Strefa użytkownika (godzina „z pamięci”). */
   timeZone: string;
   called: boolean;
+  /** Dzień przypięty do podglądu w kuli. */
+  pinnedDay: string | null;
+  /** Najechanie / fokus na dzień prognozy (null = wyjście): podgląd w kuli. */
+  onHoverDay: (date: string | null) => void;
+  onTogglePin: (date: string) => void;
 }
 
 const noopSubscribe = () => () => {};
@@ -47,6 +52,9 @@ export function WeatherArc({
   now,
   timeZone,
   called,
+  pinnedDay,
+  onHoverDay,
+  onTogglePin,
 }: WeatherArcProps) {
   const isClient = useIsClient();
   const { current, location, source } = weather;
@@ -105,7 +113,13 @@ export function WeatherArc({
 
         <div className="w-full px-1">
           <p className="sr-only">Prognoza na {weather.daily.length} dni</p>
-          <TemperatureCurve days={weather.daily} today={dateIn(now, weather.timezone)} />
+          <TemperatureCurve
+            days={weather.daily}
+            today={dateIn(now, weather.timezone)}
+            pinnedDay={pinnedDay}
+            onHoverDay={onHoverDay}
+            onTogglePin={onTogglePin}
+          />
         </div>
       </Glass>
 

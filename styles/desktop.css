@@ -167,8 +167,46 @@
     border-radius: calc(var(--arch-width) / 2) calc(var(--arch-width) / 2) var(--radius-widget) var(--radius-widget);
   }
 
-  /* Kula (placeholder do zadania z kulą): szkło z refleksem, bursztynowy rim light, oddychanie. */
+  /*
+   * Kula „Obok” (components/orb). Płótno WebGL2 wystaje poza pudełko kuli o margines
+   * ORB_CANVAS_PAD (lib/orb/geometry.ts) na oddech, rim i małą kulę.
+   */
+  .orb-canvas {
+    inset: -6%;
+    width: 112%;
+    height: 112%;
+    pointer-events: none;
+    transition: opacity var(--dur-feedback) var(--ease-out);
+  }
+
+  /* Kula w CSS pod płótnem: po pojawieniu się WebGL chowa się i przestaje animować. */
+  .orb-fallback {
+    transition:
+      opacity var(--dur-feedback) var(--ease-out),
+      visibility 0s;
+  }
+
+  .orb-fallback[data-hidden="true"] {
+    opacity: 0;
+    visibility: hidden;
+    transition:
+      opacity var(--dur-feedback) var(--ease-out),
+      visibility 0s linear var(--dur-feedback);
+  }
+
+  .orb-fallback[data-hidden="true"] :is(.orb, .orb-ripple, .orb-glow) {
+    animation-play-state: paused;
+  }
+
+  /* Cień głębi osobno: w trybie WebGL płótno rysuje tylko szkło. */
+  .orb-shadow {
+    border-radius: 50%;
+    box-shadow: var(--depth-near);
+  }
+
+  /* Kula w CSS: szkło z refleksem, bursztynowy rim light, oddychanie. */
   .orb {
+    position: relative;
     border-radius: 50%;
     background:
       radial-gradient(circle at 34% 24%, rgb(255 255 255 / 0.34), rgb(255 255 255 / 0) 24%),
@@ -178,18 +216,100 @@
     box-shadow:
       inset 0 0 0 1px rgb(255 255 255 / 0.2),
       inset calc(var(--u) * 0.2) 0 calc(var(--u) * 0.25) calc(var(--u) * -0.06) rgb(245 160 74 / 0.85),
-      inset calc(var(--u) * -0.4) calc(var(--u) * -0.6) calc(var(--u) * 1.4) rgb(255 255 255 / 0.12),
-      var(--depth-near);
+      inset calc(var(--u) * -0.4) calc(var(--u) * -0.6) calc(var(--u) * 1.4) rgb(255 255 255 / 0.12);
     animation: orb-breathe 6s var(--ease-soft) infinite;
   }
 
   .orb-small {
+    position: absolute;
     animation-delay: -2.2s;
   }
 
   @keyframes orb-breathe {
     50% {
       scale: 1.015;
+    }
+  }
+
+  /* Podgląd dnia w kuli CSS: poster kadrowany na latarnię, lekko wypukły. */
+  .orb-preview {
+    opacity: 0;
+    scale: 1.12;
+    transition:
+      opacity var(--dur-feedback) var(--ease-out),
+      scale var(--dur-feedback) var(--ease-out);
+    mask-image: radial-gradient(closest-side, #000 82%, rgb(0 0 0 / 0.85) 100%);
+  }
+
+  .orb-preview[data-visible="true"] {
+    opacity: 1;
+    scale: 1;
+  }
+
+  /* Wypukłość: jaśniejszy środek, ciemniejszy brzeg. */
+  .orb-preview::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(circle at 42% 38%, rgb(255 255 255 / 0.1), rgb(0 0 0 / 0) 45%, rgb(0 0 0 / 0.28) 100%);
+  }
+
+  /* „Myśli”: kręgi rozchodzące się od środka. */
+  .orb-ripple {
+    position: absolute;
+    inset: 12%;
+    border-radius: 50%;
+    border: 1px solid rgb(255 255 255 / 0.45);
+    opacity: 0;
+    scale: 0.35;
+  }
+
+  [data-state="thinking"] .orb-ripple {
+    animation: orb-ripple 1.8s var(--ease-soft) infinite;
+  }
+
+  @keyframes orb-ripple {
+    0% {
+      opacity: 0;
+      scale: 0.35;
+    }
+    25% {
+      opacity: 0.7;
+    }
+    100% {
+      opacity: 0;
+      scale: 1.05;
+    }
+  }
+
+  /* „Mówi”: bursztyn w głębi dużej kuli i puls małej. */
+  .orb-glow {
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    background: radial-gradient(circle at 56% 59%, rgb(245 160 74 / 0.42), rgb(245 160 74 / 0) 55%);
+    opacity: 0;
+    transition: opacity var(--dur-feedback) var(--ease-out);
+  }
+
+  [data-state="speaking"] .orb-glow {
+    opacity: 1;
+    animation: orb-glow 0.83s var(--ease-soft) infinite alternate;
+  }
+
+  [data-state="speaking"] .orb-small {
+    animation: orb-pulse 0.83s var(--ease-soft) infinite alternate;
+  }
+
+  @keyframes orb-glow {
+    from {
+      opacity: 0.55;
+    }
+  }
+
+  @keyframes orb-pulse {
+    to {
+      scale: 1.08;
     }
   }
 
@@ -228,9 +348,24 @@
 
   @media (prefers-reduced-motion: reduce) {
     .orb,
+    .orb-ripple,
+    .orb-glow,
     .wave-bar,
-    [data-called="true"] {
+    [data-called="true"],
+    [data-state] .orb-small,
+    [data-state] .orb-ripple,
+    [data-state] .orb-glow {
       animation: none;
+    }
+
+    /* Stany bez ruchu: stały krąg „myśli”, stała poświata „mówi”. */
+    [data-state="thinking"] .orb-ripple {
+      opacity: 0.4;
+      scale: 0.75;
+    }
+
+    [data-state="speaking"] .orb-glow {
+      opacity: 0.6;
     }
   }
 }

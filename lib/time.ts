@@ -1,6 +1,7 @@
 /** Formatowanie dat i godzin po polsku. Strefa zawsze jawna, żeby SSR i klient liczyły tak samo. */
 
 const WEEKDAYS_SHORT = ["Nd", "Pon", "Wt", "Śr", "Czw", "Pt", "Sob"] as const;
+const WEEKDAYS_LONG = ["Niedziela", "Poniedziałek", "Wtorek", "Środa", "Czwartek", "Piątek", "Sobota"] as const;
 
 function formatter(timeZone: string, options: Intl.DateTimeFormatOptions): Intl.DateTimeFormat {
   return new Intl.DateTimeFormat("pl-PL", { ...options, timeZone });
@@ -39,6 +40,12 @@ export function formatClock(at: Date, timeZone: string): string {
 export function weekdayShort(date: string): string {
   const day = new Date(`${date}T12:00:00Z`).getUTCDay();
   return WEEKDAYS_SHORT[day] ?? "";
+}
+
+/** Pełna nazwa dnia tygodnia dla daty kalendarzowej `YYYY-MM-DD` (niezależna od strefy). */
+export function weekdayLong(date: string): string {
+  const day = new Date(`${date}T12:00:00Z`).getUTCDay();
+  return WEEKDAYS_LONG[day] ?? "";
 }
 
 /** Pełne minuty do chwili `at` (ujemne = już minęła). */

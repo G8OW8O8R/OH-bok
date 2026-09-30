@@ -134,10 +134,10 @@ body {
 
   /*
    * Refleks światła na krawędzi, podążający za kursorem: gradient radialny widoczny
-   * tylko w 1px pierścieniu (maska content-box). --mx/--my ustawia ParallaxProvider.
+   * tylko w 1px pierścieniu (maska content-box). --mx/--my ustawia ParallaxProvider
+   * na tym elemencie (liść w components/ui/Glass.tsx), więc zmiana nie przelicza treści panelu.
    */
-  .glass::after {
-    content: "";
+  .glass-light {
     position: absolute;
     inset: -1px;
     padding: 1px;

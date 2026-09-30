@@ -3,15 +3,17 @@
 import { useReducedMotion } from "motion/react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Scrim } from "@/components/scene/Scrim";
+import { SceneSourceProvider } from "@/components/scene/SceneSource";
 import { SceneVideo } from "@/components/scene/SceneVideo";
+import { Orb } from "@/components/orb/Orb";
 import { DepthLayer, ParallaxProvider } from "@/components/ui/Parallax";
 import { Greeting } from "@/components/widgets/Greeting";
-import { OrbPlaceholder } from "@/components/widgets/OrbPlaceholder";
 import { PlayerCapsule } from "@/components/widgets/PlayerCapsule";
 import { RecipeOrb } from "@/components/widgets/RecipeOrb";
 import { Reminders } from "@/components/widgets/Reminders";
 import { ShoppingList } from "@/components/widgets/ShoppingList";
 import { WeatherArc } from "@/components/widgets/WeatherArc";
+import { BOOT_SAFETY_MS, markBootDone } from "@/lib/boot";
 import { dayBrief, greeting, recipePrompt } from "@/lib/brief";
 import {
   addIngredients,
@@ -23,7 +25,8 @@ import {
 } from "@/lib/desktop/sample";
 import { pluralPl } from "@/lib/plural";
 import { SCENE_MEDIA, SCENES, type WeatherState } from "@/lib/scenes";
-import { hourIn } from "@/lib/time";
+import type { OrbMode, OrbState } from "@/lib/orb/states";
+import { dateIn, hourIn } from "@/lib/time";
 import { useNow, useUserTimeZone } from "@/lib/use-now";
 import type { WeatherData } from "@/lib/weather/schema";
 import { useWeather } from "@/lib/weather/use-weather";
@@ -39,12 +42,16 @@ interface DesktopProps {
   override: WeatherState | null;
   /** Chwila renderu na serwerze (ISO): wspólny punkt startu zegara dla SSR i hydracji. */
   initialNow: string;
+  /** Stan kuli (`?orb=`); docelowo sterowany przez asystenta. */
+  orbState: OrbState;
+  /** `?orb-mode=webgl|fallback` */
+  orbMode: OrbMode | null;
 }
 
 const CALL_MS = 1200;
 const MESSAGE_MS = 4000;
 
-export function Desktop({ initialWeather, override, initialNow }: DesktopProps) {
+export function Desktop({ initialWeather, override, initialNow, orbState, orbMode }: DesktopProps) {
   const { weather, locating, locationError, locate } = useWeather(initialWeather);
   const scene = override ?? weather.current.state;
   const tokens = SCENES[scene].tokens;
@@ -58,12 +65,18 @@ export function Desktop({ initialWeather, override, initialNow }: DesktopProps) 
   const [message, setMessage] = useState<string | null>(null);
   const [called, setCalled] = useState<string | null>(null);
   const timers = useRef<{ call?: number; message?: number }>({});
+  /** Podgląd dnia w kuli: najechany (lub z fokusem) dzień ma pierwszeństwo przed przypiętym. */
+  const [hoveredDay, setHoveredDay] = useState<string | null>(null);
+  const [pinnedDay, setPinnedDay] = useState<string | null>(null);
 
   useEffect(() => {
     const pending = timers.current;
+    // Sekwencja startowa (zadanie 5) jeszcze nie istnieje: gdy wideo nie ruszy, start i tak się kończy.
+    const bootSafety = window.setTimeout(markBootDone, BOOT_SAFETY_MS);
     return () => {
       window.clearTimeout(pending.call);
       window.clearTimeout(pending.message);
+      window.clearTimeout(bootSafety);
     };
   }, []);
 
@@ -100,8 +113,12 @@ export function Desktop({ initialWeather, override, initialNow }: DesktopProps) 
   };
 
   const next = nextReminder(reminders, now);
+  const today = dateIn(now, weather.timezone);
+  const previewDate = hoveredDay ?? pinnedDay;
+  const previewDay = weather.daily.find((day) => day.date === previewDate) ?? null;
 
   return (
+    <SceneSourceProvider initialFilter={tokens.videoFilter}>
     <ParallaxProvider>
       <SceneVideo weather={scene} />
       <Scrim strength={tokens.scrimStrength} vignette={tokens.vignetteStrength} />
@@ -123,7 +140,7 @@ export function Desktop({ initialWeather, override, initialNow }: DesktopProps) 
 
         <div className="desktop-hero">
           <DepthLayer depth="near">
-            <OrbPlaceholder />
+            <Orb state={orbState} preview={previewDay} today={today} modeOverride={orbMode} />
           </DepthLayer>
           <DepthLayer depth="near">
             <Greeting
@@ -146,6 +163,9 @@ export function Desktop({ initialWeather, override, initialNow }: DesktopProps) 
             now={now}
             timeZone={timeZone}
             called={called === "weather"}
+            pinnedDay={pinnedDay}
+            onHoverDay={setHoveredDay}
+            onTogglePin={(date) => setPinnedDay((current) => (current === date ? null : date))}
           />
           <ShoppingList items={shopping} called={called === "shopping"} />
           <Reminders
@@ -162,5 +182,6 @@ export function Desktop({ initialWeather, override, initialNow }: DesktopProps) 
         <Dock active="weather" onOpen={call} />
       </div>
     </ParallaxProvider>
+    </SceneSourceProvider>
   );
 }

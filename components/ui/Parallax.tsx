@@ -78,11 +78,16 @@ export function ParallaxProvider({ children }: { children: ReactNode }) {
       frame = 0;
       rawX.set(pointerToUnit(pointer.x, window.innerWidth));
       rawY.set(pointerToUnit(pointer.y, window.innerHeight));
-      for (const element of lights.current) {
-        const rect = element.getBoundingClientRect();
+      // Najpierw wszystkie odczyty, potem zapisy: przeplatanie wymuszało przeliczenie
+      // stylów po każdym elemencie (dziesiątki razy na klatkę przy ruchu kursora).
+      const elements = [...lights.current];
+      const rects = elements.map((element) => element.getBoundingClientRect());
+      elements.forEach((element, i) => {
+        const rect = rects[i];
+        if (!rect) return;
         element.style.setProperty("--mx", `${Math.round(pointer.x - rect.left)}px`);
         element.style.setProperty("--my", `${Math.round(pointer.y - rect.top)}px`);
-      }
+      });
     };
 
     const onMove = (event: PointerEvent) => {
@@ -124,6 +129,12 @@ export function useParallax(depth: Depth | null): { x: MotionValue<number>; y: M
   const offsetX = useTransform(x, (unit) => (depth ? parallaxOffset(unit, depth) : 0));
   const offsetY = useTransform(y, (unit) => (depth ? parallaxOffset(unit, depth) : 0));
   return { x: offsetX, y: offsetY };
+}
+
+/** Wygładzona pozycja kursora względem środka ekranu, [-1, 1] (0 bez myszy i przy reduced motion). */
+export function usePointerUnits(): { x: MotionValue<number>; y: MotionValue<number> } {
+  const { x, y } = useParallaxContext();
+  return { x, y };
 }
 
 /** Rejestracja elementu na refleks światła za kursorem. */

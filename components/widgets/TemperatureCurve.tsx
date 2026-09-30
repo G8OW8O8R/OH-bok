@@ -11,6 +11,12 @@ interface TemperatureCurveProps {
   days: DailyForecast[];
   /** Dzisiejsza data w strefie lokalizacji (`YYYY-MM-DD`): „dziś” w bursztynie. */
   today: string;
+  /** Dzień przypięty do podglądu w kuli. */
+  pinnedDay: string | null;
+  /** Najechanie / fokus na dzień (null = wyjście): podgląd pogody tego dnia w kuli. */
+  onHoverDay: (date: string | null) => void;
+  /** Kliknięcie przypina podgląd (albo go odpina). */
+  onTogglePin: (date: string) => void;
 }
 
 const W = 230;
@@ -26,7 +32,7 @@ function formatTemp(value: number | null): string {
 }
 
 /** Mini krzywa maksymalnych temperatur z prawdziwej prognozy + dni pod spodem. */
-export function TemperatureCurve({ days, today }: TemperatureCurveProps) {
+export function TemperatureCurve({ days, today, pinnedDay, onHoverDay, onTogglePin }: TemperatureCurveProps) {
   const reduceMotion = useReducedMotion();
   const gradientId = useId();
   const curve = temperatureCurve(days, { width: W, height: H, inset: 8 });
@@ -71,18 +77,40 @@ export function TemperatureCurve({ days, today }: TemperatureCurveProps) {
         )}
       </svg>
 
-      <ol className="mt-3 grid" style={{ gridTemplateColumns: `repeat(${days.length}, minmax(0, 1fr))` }}>
+      <ol
+        className="mt-3 grid"
+        style={{ gridTemplateColumns: `repeat(${days.length}, minmax(0, 1fr))` }}
+        onPointerLeave={() => onHoverDay(null)}
+      >
         {days.map((day) => {
           const isToday = day.date === today;
+          const pinned = day.date === pinnedDay;
           return (
-            <li key={day.date} className="flex flex-col items-center gap-1.5">
-              <span aria-hidden className={`size-2 rounded-full ${isToday ? "bg-amber" : "bg-white/35"}`} />
-              <span className={`text-caption ${isToday ? "text-amber" : "text-text-secondary"}`}>
-                {weekdayShort(day.date)}
-                <span className="sr-only">
-                  {isToday ? " (dziś)" : ""}: do {formatTemp(day.temperatureMaxC)}, od {formatTemp(day.temperatureMinC)}
+            <li key={day.date} className="flex justify-center">
+              {/* Najechanie i fokus: pogoda tego dnia w kuli; klik przypina podgląd. */}
+              <button
+                type="button"
+                aria-pressed={pinned}
+                title="Pokaż pogodę tego dnia w kuli"
+                data-testid="forecast-day"
+                className="group flex flex-col items-center gap-1.5 rounded-pill px-1.5 py-1 transition-colors duration-(--dur-feedback) hover:bg-white/8 aria-pressed:bg-white/10"
+                onPointerEnter={(event) => {
+                  if (event.pointerType === "mouse" || event.pointerType === "pen") onHoverDay(day.date);
+                }}
+                onFocus={() => onHoverDay(day.date)}
+                onBlur={() => onHoverDay(null)}
+                onClick={() => onTogglePin(day.date)}
+              >
+                <span aria-hidden className={`size-2 rounded-full ${isToday ? "bg-amber" : "bg-white/35"}`} />
+                <span
+                  className={`text-caption ${isToday ? "text-amber" : "text-text-secondary group-hover:text-text-primary"}`}
+                >
+                  {weekdayShort(day.date)}
+                  <span className="sr-only">
+                    {isToday ? " (dziś)" : ""}: do {formatTemp(day.temperatureMaxC)}, od {formatTemp(day.temperatureMinC)}
+                  </span>
                 </span>
-              </span>
+              </button>
             </li>
           );
         })}
