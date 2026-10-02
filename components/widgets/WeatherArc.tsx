@@ -10,7 +10,7 @@ import { TemperatureCurve } from "./TemperatureCurve";
 
 interface WeatherArcProps {
   weather: WeatherData;
-  /** Scena wymuszona przez `?weather=` (dev override). */
+  /** Scena wymuszona przez `?weather=`; etykieta o niej tylko w trybie dev (jak przełącznik scen). */
   override: WeatherState | null;
   locating: boolean;
   locationError: string | null;
@@ -107,7 +107,7 @@ export function WeatherArc({
             )}
             {locating && <span className={chip}>Ustalam lokalizację…</span>}
             {locationError && <span className={chip}>{locationError}</span>}
-            {override && <span className={chip}>Scena wymuszona: {WEATHER_LABELS[override].toLowerCase()}</span>}
+            {override && process.env.NODE_ENV === "development" && <span className={chip}>Scena wymuszona: {WEATHER_LABELS[override].toLowerCase()}</span>}
           </div>
         </div>
 

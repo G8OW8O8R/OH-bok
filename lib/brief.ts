@@ -1,6 +1,8 @@
 import type { WeatherState } from "@/lib/scenes";
 import type { HourlyForecast, WeatherData } from "@/lib/weather/schema";
-import { formatTime, hourIn } from "@/lib/time";
+import { pluralPl } from "@/lib/plural";
+import { isDue, type Reminder } from "@/lib/reminders/reminders";
+import { dateIn, formatTime, hourIn } from "@/lib/time";
 
 /** Ile godzin naprzód patrzy brief. */
 const BRIEF_WINDOW_H = 12;
@@ -64,8 +66,9 @@ const ONGOING: Record<string, string> = {
 /**
  * Jedno zdanie o najbliższych godzinach, oparte na prognozie godzinowej.
  * Godziny w strefie lokalizacji pogody: „od 14:00 pada” dotyczy tego miejsca.
+ * `compact` pomija dopiski o temperaturze (miejsce na drugie zdanie, patrz `composeBrief`).
  */
-export function dayBrief(weather: WeatherData, now: Date): string {
+export function dayBrief(weather: WeatherData, now: Date, compact = false): string {
   const tz = weather.timezone;
   const evening = hourIn(now, tz) >= EVENING_FROM;
   const [today, tomorrow] = weather.daily;
@@ -91,16 +94,16 @@ export function dayBrief(weather: WeatherData, now: Date): string {
     }
   } else if ((today?.precipitationSumMm ?? 0) >= 1 && !evening) {
     // Brak prognozy godzinowej (stara kopia z pamięci): tylko ogólny sygnał z prognozy dziennej.
-    const max = temperature(today?.temperatureMaxC);
-    return `Dziś deszczowo${max ? `, do ${max}` : ""}. Weź parasol.`;
+    const max = compact ? null : temperature(today?.temperatureMaxC);
+    return `Dziś deszczowo, weź parasol${max ? `, do ${max}` : ""}.`;
   }
 
   if (evening) {
-    const max = temperature(tomorrow?.temperatureMaxC);
-    return max ? `Wieczór bez deszczu. Jutro do ${max}.` : "Wieczór bez deszczu.";
+    const max = compact ? null : temperature(tomorrow?.temperatureMaxC);
+    return max ? `Wieczór bez deszczu, jutro do ${max}.` : "Wieczór bez deszczu.";
   }
 
-  const max = temperature(today?.temperatureMaxC);
+  const max = compact ? null : temperature(today?.temperatureMaxC);
   const suffix = max ? `, do ${max}` : "";
   switch (weather.current.state) {
     case "sunny":
@@ -110,6 +113,60 @@ export function dayBrief(weather: WeatherData, now: Date): string {
     default:
       return `Dziś bez deszczu${suffix}.`;
   }
+}
+
+/** Budżet znaków całego briefu: mieści się w 2 liniach przy najwęższym bloku powitania. */
+const BRIEF_MAX_CHARS = 52;
+/** Krótszy tytuł niż tyle nie niesie informacji: wolimy pominąć drugie zdanie. */
+const MIN_TITLE_CHARS = 8;
+
+export interface BriefContext {
+  /** Pozycje listy zakupów jeszcze do kupienia. */
+  remaining: number;
+  /** Najbliższe niezakończone przypomnienie (po terminie też). */
+  next: Reminder | null;
+  now: Date;
+  /** Strefa użytkownika (godziny przypomnień). */
+  timeZone: string;
+}
+
+/** Tytuł skrócony do `room` znaków albo null, gdy nie ma na niego miejsca. */
+function fitTitle(title: string, room: number): string | null {
+  if (title.length <= room) return title;
+  if (room < MIN_TITLE_CHARS) return null;
+  return `${title.slice(0, room - 1).trimEnd()}…`;
+}
+
+/** Drugie zdanie (najważniejsza rzecz) w `room` znakach albo null, gdy się nie mieści. */
+function extraSentence({ remaining, next, now, timeZone }: BriefContext, room: number): string | null {
+  if (next && isDue(next, now)) {
+    const title = fitTitle(next.title, room - "Teraz: .".length);
+    return title ? `Teraz: ${title}.` : null;
+  }
+  if (next && dateIn(new Date(next.at), timeZone) === dateIn(now, timeZone)) {
+    const time = formatTime(new Date(next.at), timeZone);
+    const title = fitTitle(next.title, room - ` o ${time}.`.length);
+    return title ? `${title} o ${time}.` : null;
+  }
+  if (remaining > 0) {
+    const text = `Do kupienia ${remaining} ${pluralPl(remaining, ["rzecz", "rzeczy", "rzeczy"])}.`;
+    return text.length <= room ? text : null;
+  }
+  return null;
+}
+
+/**
+ * Brief = zdanie o pogodzie + jedna najważniejsza rzecz: przypomnienie po terminie,
+ * potem najbliższe przypomnienie dziś, potem liczba rzeczy do kupienia. Całość mieści się
+ * w `BRIEF_MAX_CHARS` (2 linie): najpierw próbujemy pełnego zdania o pogodzie, potem
+ * `compactLine` (bez dopisków), a gdy nie ma miejsca – zostaje samo zdanie o pogodzie.
+ */
+export function composeBrief(weatherLine: string, context: BriefContext, compactLine = weatherLine): string {
+  for (const line of [weatherLine, compactLine]) {
+    const extra = extraSentence(context, BRIEF_MAX_CHARS - line.length - 1);
+    if (extra) return `${line} ${extra}`;
+  }
+  return weatherLine;
 }
 
 /** Druga kapsuła akcji: przepis dopasowany do pogody. */

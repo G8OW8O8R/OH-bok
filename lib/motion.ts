@@ -27,3 +27,11 @@ export const duration = {
   /** poster → pierwsza klatka wideo */
   posterHandoff: 0.2,
 } as const;
+
+/** Przejście ≤ 150 ms zamiast sprężyny/rysowania przy prefers-reduced-motion. */
+export const reducedTransition = { duration: duration.reducedFade, ease: ease.soft } as const;
+
+/** Sprężyna albo, przy reduced motion, krótkie przenikanie. */
+export function transitionFor<T extends Transition>(reduceMotion: boolean | null, full: T): T | typeof reducedTransition {
+  return reduceMotion ? reducedTransition : full;
+}

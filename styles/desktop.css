@@ -149,9 +149,15 @@
     filter: blur(calc(var(--u) * 5));
   }
 
-  /* Brief: wyrównane linie bez samotnych słów; bez `balance` – przynajmniej `pretty` i limit szerokości. */
+  /*
+   * Brief: linie wyrównane przez `balance` (fallback `pretty`), a samotne krótkie słowa
+   * zatrzymuje twarda spacja (lib/typography.ts). Limit 30ch działa w układzie kolumnowym;
+   * w desktopowym (30ch ≈ 680 px) szerokość wyznacza kontener `.halo` (26u).
+   * Rezerwa na 2 linie, żeby dopisanie przypomnienia po hydracji nie przesuwało kapsuł akcji.
+   */
   .brief {
     max-width: 30ch;
+    min-block-size: 2lh;
     text-wrap: balance;
   }
 
@@ -331,6 +337,39 @@
     to {
       scale: 1 1;
     }
+  }
+
+  /*
+   * Tło pod otwartym panelem: pulpit przyciemniony i mocniej rozmyty, żeby nie prześwitywał
+   * przez szkło panelu. Rozmycie jest stałe – animuje się tylko krycie warstwy.
+   */
+  .panel-backdrop {
+    background: rgb(6 8 12 / 0.5);
+    backdrop-filter: blur(calc(var(--u) * 1.2)) saturate(0.8);
+  }
+
+  /*
+   * Pole tekstowe w szkle. Wskaźnik aktywnego pola na `:focus`, nie `:focus-visible`: po fokusie
+   * ze skryptu (otwarcie panelu kliknięciem) heurystyka przeglądarki potrafi go nie pokazać
+   * albo pokazać dopiero po pierwszym klawiszu. Kursor jawnie w bursztynie.
+   */
+  .field {
+    min-width: 0;
+    border-radius: var(--radius-pill);
+    background: rgb(255 255 255 / 0.1);
+    padding: calc(var(--spacing) * 2.5) calc(var(--spacing) * 4);
+    color: var(--color-text-primary);
+    caret-color: var(--accent-amber);
+    outline: 2px solid transparent;
+    outline-offset: 0;
+  }
+
+  .field::placeholder {
+    color: var(--color-text-tertiary);
+  }
+
+  .field:focus {
+    outline-color: var(--accent-amber);
   }
 
   /* „Cel podróży” akcji: obiekt, do którego prowadzi kapsuła, krótko się zgłasza. */

@@ -11,25 +11,25 @@ import { Greeting } from "@/components/widgets/Greeting";
 import { PlayerCapsule } from "@/components/widgets/PlayerCapsule";
 import { RecipeOrb } from "@/components/widgets/RecipeOrb";
 import { Reminders } from "@/components/widgets/Reminders";
+import { RemindersPanel } from "@/components/widgets/RemindersPanel";
 import { ShoppingList } from "@/components/widgets/ShoppingList";
+import { ShoppingPanel } from "@/components/widgets/ShoppingPanel";
 import { WeatherArc } from "@/components/widgets/WeatherArc";
 import { BOOT_SAFETY_MS, markBootDone } from "@/lib/boot";
-import { dayBrief, greeting, recipePrompt } from "@/lib/brief";
-import {
-  addIngredients,
-  nextReminder,
-  SAMPLE_RECIPE,
-  SAMPLE_SHOPPING,
-  SAMPLE_TRACK,
-  sampleReminders,
-} from "@/lib/desktop/sample";
+import { composeBrief, dayBrief, greeting, recipePrompt } from "@/lib/brief";
+import { SAMPLE_RECIPE, SAMPLE_TRACK } from "@/lib/desktop/sample";
+import { usePlannerSync } from "@/lib/planner/use-planner-sync";
 import { pluralPl } from "@/lib/plural";
+import { nextReminder, SNOOZE_MINUTES, type Reminder } from "@/lib/reminders/reminders";
+import { remainingCount } from "@/lib/shopping/list";
 import { SCENE_MEDIA, SCENES, type WeatherState } from "@/lib/scenes";
 import type { OrbMode, OrbState } from "@/lib/orb/states";
-import { dateIn, hourIn } from "@/lib/time";
+import { dateIn, formatTime, hourIn } from "@/lib/time";
 import { useNow, useUserTimeZone } from "@/lib/use-now";
 import type { WeatherData } from "@/lib/weather/schema";
 import { useWeather } from "@/lib/weather/use-weather";
+import { nextWakeAt, useRemindersStore } from "@/store/reminders";
+import { useShoppingStore } from "@/store/shopping";
 import { Clock } from "./Clock";
 import { Dock } from "./Dock";
 import { Logo } from "./Logo";
@@ -55,12 +55,15 @@ export function Desktop({ initialWeather, override, initialNow, orbState, orbMod
   const { weather, locating, locationError, locate } = useWeather(initialWeather);
   const scene = override ?? weather.current.state;
   const tokens = SCENES[scene].tokens;
-  const now = useNow(initialNow);
+  const now = useNow(initialNow, nextWakeAt);
   const timeZone = useUserTimeZone(weather.timezone);
+  const plannerReady = usePlannerSync(timeZone);
   const reduceMotion = useReducedMotion();
 
-  const [reminders] = useState(() => sampleReminders(new Date(initialNow)));
-  const [shopping, setShopping] = useState(SAMPLE_SHOPPING);
+  const reminders = useRemindersStore((state) => state.reminders);
+  const shopping = useShoppingStore((state) => state.items);
+  const [panel, setPanel] = useState<"shopping" | "reminders" | null>(null);
+  const closePanel = useCallback(() => setPanel(null), []);
   const [recipeAdded, setRecipeAdded] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [called, setCalled] = useState<string | null>(null);
@@ -100,9 +103,7 @@ export function Desktop({ initialWeather, override, initialNow, orbState, orbMod
   }, []);
 
   const addRecipe = () => {
-    const next = addIngredients(shopping, SAMPLE_RECIPE.ingredients);
-    const count = next.length - shopping.length;
-    setShopping(next);
+    const count = useShoppingStore.getState().add(SAMPLE_RECIPE.ingredients);
     setRecipeAdded(true);
     announce(
       count > 0
@@ -112,7 +113,17 @@ export function Desktop({ initialWeather, override, initialNow, orbState, orbMod
     call("shopping");
   };
 
-  const next = nextReminder(reminders, now);
+  const next = nextReminder(reminders);
+  const remaining = remainingCount(shopping);
+
+  const snooze = (reminder: Reminder) => {
+    // Odliczanie w pigułce liczy od `now` (tyka co 10 s): drzemka od tej samej chwili daje równe „Za 10 min”.
+    const snoozedAt = Date.now() - now.getTime() < 15_000 ? now : new Date();
+    const at = new Date(snoozedAt.getTime() + SNOOZE_MINUTES * 60_000);
+    useRemindersStore.getState().snooze(reminder.id, snoozedAt);
+    announce(`Odłożono: ${reminder.title}, o ${formatTime(at, timeZone)}`);
+  };
+  const complete = (reminder: Reminder) => useRemindersStore.getState().complete(reminder.id);
   const today = dateIn(now, weather.timezone);
   const previewDate = hoveredDay ?? pinnedDay;
   const previewDay = weather.daily.find((day) => day.date === previewDate) ?? null;
@@ -134,7 +145,15 @@ export function Desktop({ initialWeather, override, initialNow, orbState, orbMod
       >
         <header className="desktop-chrome">
           <Logo />
-          <Pill next={next} now={now} message={message} />
+          <Pill
+            next={next}
+            now={now}
+            message={message}
+            ready={plannerReady}
+            timeZone={timeZone}
+            onSnooze={snooze}
+            onComplete={complete}
+          />
           <Clock now={now} timeZone={timeZone} />
         </header>
 
@@ -145,7 +164,11 @@ export function Desktop({ initialWeather, override, initialNow, orbState, orbMod
           <DepthLayer depth="near">
             <Greeting
               title={greeting(hourIn(now, weather.timezone))}
-              brief={dayBrief(weather, now)}
+              brief={
+                plannerReady
+                  ? composeBrief(dayBrief(weather, now), { remaining, next, now, timeZone }, dayBrief(weather, now, true))
+                  : dayBrief(weather, now)
+              }
               recipeLabel={recipePrompt(scene, weather.daily[0]?.temperatureMaxC ?? null)}
               onPlan={() => call("reminders")}
               onRecipe={() => call("recipe")}
@@ -167,19 +190,38 @@ export function Desktop({ initialWeather, override, initialNow, orbState, orbMod
             onHoverDay={setHoveredDay}
             onTogglePin={(date) => setPinnedDay((current) => (current === date ? null : date))}
           />
-          <ShoppingList items={shopping} called={called === "shopping"} />
+          <ShoppingList items={shopping} called={called === "shopping"} onOpen={() => setPanel("shopping")} />
           <Reminders
             reminders={reminders}
             nextId={next?.id ?? null}
             now={now}
             timeZone={timeZone}
             called={called === "reminders"}
+            onOpen={() => setPanel("reminders")}
           />
           <RecipeOrb recipe={SAMPLE_RECIPE} added={recipeAdded} onAdd={addRecipe} called={called === "recipe"} />
           <PlayerCapsule track={SAMPLE_TRACK} cover={SCENE_MEDIA[SCENES[scene].video].poster} />
         </div>
 
         <Dock active="weather" onOpen={call} />
+
+        <ShoppingPanel
+          open={panel === "shopping"}
+          onClose={closePanel}
+          items={shopping}
+          onAdd={(name) => useShoppingStore.getState().add([name])}
+          onToggle={(id) => useShoppingStore.getState().toggle(id)}
+          onRemove={(id) => useShoppingStore.getState().remove(id)}
+        />
+        <RemindersPanel
+          open={panel === "reminders"}
+          onClose={closePanel}
+          reminders={reminders}
+          now={now}
+          timeZone={timeZone}
+          onAdd={(input) => useRemindersStore.getState().add(input)}
+          onRemove={(id) => useRemindersStore.getState().remove(id)}
+        />
       </div>
     </ParallaxProvider>
     </SceneSourceProvider>

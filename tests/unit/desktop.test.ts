@@ -1,5 +1,4 @@
 import { describe, expect, it } from "vitest";
-import { addIngredients, nextReminder, SAMPLE_SHOPPING, sampleReminders } from "@/lib/desktop/sample";
 import { PARALLAX_PX, parallaxOffset, pointerToUnit } from "@/lib/parallax";
 import { pluralPl } from "@/lib/plural";
 import { dateIn, formatClock, formatCountdown, formatTime, hourIn, minutesUntil, weekdayShort } from "@/lib/time";
@@ -92,24 +91,5 @@ describe("temperatureCurve", () => {
     const one = days.map((d, i) => ({ ...d, temperatureMaxC: i === 0 ? 10 : null }));
     expect(temperatureCurve(one, box)).toMatchObject({ path: "", area: "" });
     expect(temperatureCurve([], box).points).toEqual([]);
-  });
-});
-
-describe("dane przykładowe", () => {
-  it("przypomnienia liczone od chwili renderu; najbliższe = za 15 min", () => {
-    const reminders = sampleReminders(NOW);
-    const first = reminders[0];
-    if (!first) throw new Error("brak przypomnień");
-    expect(minutesUntil(first.at, NOW)).toBe(15);
-    expect(nextReminder(reminders, NOW)?.id).toBe("dentysta");
-    // Do 5 min po czasie wciąż „teraz”, potem kolejne.
-    expect(nextReminder(reminders, new Date(first.at.getTime() + 4 * 60_000))?.id).toBe("dentysta");
-    expect(nextReminder(reminders, new Date(first.at.getTime() + 6 * 60_000))?.id).toBe("zespol");
-  });
-
-  it("składniki: bez duplikatów, bez względu na wielkość liter", () => {
-    const next = addIngredients(SAMPLE_SHOPPING, ["Pomidory", "jajka", "Bazylia"]);
-    expect(next.map((i) => i.name)).toEqual(["Jajka", "Mleko", "Chleb", "Masło", "Pomidory", "Bazylia"]);
-    expect(next.filter((i) => !i.done)).toHaveLength(3);
   });
 });

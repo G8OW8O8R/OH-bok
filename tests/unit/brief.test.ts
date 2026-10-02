@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { dayBrief, greeting, isWetHour, recipePrompt } from "@/lib/brief";
+import { composeBrief, dayBrief, greeting, isWetHour, recipePrompt, type BriefContext } from "@/lib/brief";
+import type { Reminder } from "@/lib/reminders/reminders";
 import { demoWeather } from "@/lib/weather/demo";
 import type { HourlyForecast, WeatherData } from "@/lib/weather/schema";
 
@@ -86,14 +87,21 @@ describe("dayBrief", () => {
     expect(dayBrief(w, at(9))).toBe("Słonecznie i sucho, do 21°.");
   });
 
+  it("wariant zwięzły pomija dopiski o temperaturze", () => {
+    const evening = withDay(weather({ hourly: hours(19, [0, 0, 0]) }), 1, { temperatureMaxC: 19.6 });
+    expect(dayBrief(evening, at(19), true)).toBe("Wieczór bez deszczu.");
+    const sunny = withDay(weather({ hourly: hours(9, [0, 0, 0]) }, { state: "sunny" }), 0, { temperatureMaxC: 21.4 });
+    expect(dayBrief(sunny, at(9), true)).toBe("Słonecznie i sucho.");
+  });
+
   it("sucho wieczorem: jutrzejsze maksimum", () => {
     const w = withDay(weather({ hourly: hours(19, [0, 0, 0]) }), 1, { temperatureMaxC: 19.6 });
-    expect(dayBrief(w, at(19))).toBe("Wieczór bez deszczu. Jutro do 20°.");
+    expect(dayBrief(w, at(19))).toBe("Wieczór bez deszczu, jutro do 20°.");
   });
 
   it("brak prognozy godzinowej (stara kopia): sygnał z prognozy dziennej", () => {
     const w = withDay(weather({ hourly: [] }), 0, { precipitationSumMm: 6, temperatureMaxC: 12 });
-    expect(dayBrief(w, at(9))).toBe("Dziś deszczowo, do 12°. Weź parasol.");
+    expect(dayBrief(w, at(9))).toBe("Dziś deszczowo, weź parasol, do 12°.");
   });
 
   it("godziny w strefie lokalizacji pogody, nie serwera", () => {
@@ -111,5 +119,61 @@ describe("recipePrompt", () => {
     expect(recipePrompt("cloudy", 5)).toBe("Przepis na chłód");
     expect(recipePrompt("sunny", 24)).toBe("Przepis na słońce");
     expect(recipePrompt("cloudy", 15)).toBe("Przepis na dziś");
+  });
+});
+
+describe("composeBrief", () => {
+  const now = at(9);
+  const reminder = (title: string, plusMin: number, done = false): Reminder => ({
+    id: title,
+    title,
+    at: new Date(now.getTime() + plusMin * 60_000).toISOString(),
+    done,
+  });
+  const ctx = (patch: Partial<BriefContext> = {}): BriefContext => ({
+    remaining: 0,
+    next: null,
+    now,
+    timeZone: "Europe/Warsaw",
+    ...patch,
+  });
+
+  it("bez niczego do dodania zostaje samo zdanie o pogodzie", () => {
+    expect(composeBrief("Dziś bez deszczu.", ctx())).toBe("Dziś bez deszczu.");
+  });
+
+  it("przypomnienie po terminie ma pierwszeństwo przed wszystkim", () => {
+    expect(composeBrief("Pada.", ctx({ next: reminder("Dentysta", -3), remaining: 4 }))).toBe("Pada. Teraz: Dentysta.");
+  });
+
+  it("najbliższe przypomnienie dziś ma pierwszeństwo przed listą", () => {
+    expect(composeBrief("Pada.", ctx({ next: reminder("Dentysta", 90), remaining: 4 }))).toBe("Pada. Dentysta o 10:40.");
+  });
+
+  it("przypomnienie jutro ustępuje liście; lista z odmianą", () => {
+    const tomorrow = reminder("Paczka", 24 * 60);
+    expect(composeBrief("Pada.", ctx({ next: tomorrow, remaining: 1 }))).toBe("Pada. Do kupienia 1 rzecz.");
+    expect(composeBrief("Pada.", ctx({ next: tomorrow, remaining: 3 }))).toBe("Pada. Do kupienia 3 rzeczy.");
+    expect(composeBrief("Pada.", ctx({ next: tomorrow, remaining: 7 }))).toBe("Pada. Do kupienia 7 rzeczy.");
+    expect(composeBrief("Pada.", ctx({ next: tomorrow }))).toBe("Pada.");
+  });
+
+  it("budżet znaków: długi tytuł jest skracany, a gdy brak miejsca zostaje sama pogoda", () => {
+    const long = reminder("Bardzo długi tytuł przypomnienia o spotkaniu", 90);
+    const short = composeBrief("Pada.", ctx({ next: long }));
+    expect(short).toBe("Pada. Bardzo długi tytuł przypomnienia o s… o 10:40.");
+    expect(short.length).toBeLessThanOrEqual(52);
+    const storm = "Od 11:00 burza, lepiej zostań w środku.";
+    expect(composeBrief(storm, ctx({ next: reminder("Dentysta", 90) }))).toBe(storm);
+    expect(composeBrief(storm, ctx({ next: reminder("Dentysta", -3) }))).toBe(storm);
+    expect(composeBrief(storm, ctx({ remaining: 3 }))).toBe(storm);
+  });
+
+  it("gdy pełne zdanie o pogodzie się nie mieści, używa krótszego", () => {
+    const full = "Wieczór bez deszczu, jutro do 19°.";
+    expect(composeBrief(full, ctx({ remaining: 2 }), "Wieczór bez deszczu.")).toBe(
+      "Wieczór bez deszczu. Do kupienia 2 rzeczy.",
+    );
+    expect(composeBrief(full, ctx(), "Wieczór bez deszczu.")).toBe(full);
   });
 });
