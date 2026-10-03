@@ -12,13 +12,23 @@ export const SCENE_MEDIA_SIZE = { width: 1280, height: 720 } as const;
 
 export const SCENE_ASPECT = SCENE_MEDIA_SIZE.width / SCENE_MEDIA_SIZE.height;
 
-/** Punkt kadru, który zostaje widoczny przy przycinaniu (0–1). */
+/** Jak przycinać kadr, gdy okno ma inne proporcje niż 16:9. */
 export interface SceneFocus {
+  /** Położenie przycięcia (0–1, 0,5 = symetrycznie) przy oknach poziomych. */
   x: number;
   y: number;
+  /** Punkt kadru (ułamek szerokości), który w oknach pionowych ma zostać widoczny: latarnia. */
+  anchorX: number;
+  /** Gdzie w oknie (ułamek szerokości) ma stać ten punkt. */
+  anchorViewX: number;
 }
 
-export const SCENE_FOCUS: SceneFocus = { x: 0.5, y: 0.5 };
+/**
+ * Poziomo: kadr wyśrodkowany (kompozycja pulpitu). Pionowo (telefon, tablet): przycięcie
+ * przesuwa się tak, żeby latarnia (77,7% szerokości kadru) stała na 86% szerokości ekranu –
+ * widoczna, ale z boku kolumny tekstu – zamiast wypaść poza ekran. Przejście płynne między proporcjami 4:3 a 1:1.
+ */
+export const SCENE_FOCUS: SceneFocus = { x: 0.5, y: 0.5, anchorX: 0.777, anchorViewX: 0.86 };
 
 /** Prostokąt w pikselach CSS, wyrównany do pikseli fizycznych. */
 export interface SceneFit {
@@ -49,7 +59,11 @@ export function computeSceneFit(
   const boxW = Math.ceil(Math.max(viewW, viewH * aspect));
   const boxH = Math.max(Math.ceil(viewH), Math.round(boxW / aspect));
 
-  const left = Math.round((viewW - boxW) * focus.x);
+  // 0 przy proporcjach ≥ 4:3 (kadr wyśrodkowany), 1 przy ≤ 1:1 (kotwica na latarni).
+  const portrait = Math.min(1, Math.max(0, (4 / 3 - viewW / viewH) * 3));
+  const centered = (viewW - boxW) * focus.x;
+  const anchored = Math.min(0, Math.max(viewW - boxW, viewW * focus.anchorViewX - boxW * focus.anchorX));
+  const left = Math.round(centered + (anchored - centered) * portrait);
   const top = Math.round((viewH - boxH) * focus.y);
 
   return {

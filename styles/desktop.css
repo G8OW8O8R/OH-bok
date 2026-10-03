@@ -54,21 +54,67 @@
     max-width: 36rem;
   }
 
+  /*
+   * Układ kolumnowy (telefon, tablet, wąskie okno): jedna kolumna w kolejności DOM –
+   * łuk pogody, lista, przypomnienia, przepis, odtwarzacz. Kafelki prostokątne na szerokość
+   * kolumny (`--column-width`), koła i łuk w swoim kształcie, wyśrodkowane.
+   */
+  /*
+   * W kolumnie kafelki leżą nad jasnym niebem i białą wieżą latarni (na desktopie – nisko, nad
+   * ciemną ziemią), więc szkło dostaje dodatkowe przyciemnienie (pomiar kontrastu 390×844, 768×1024).
+   */
+  .desktop {
+    --column-width: min(100%, 34rem);
+    --glass-boost: rgb(8 10 14 / 0.24);
+    overflow-x: clip;
+  }
+
+  /* Atrybucja Open-Meteo w kolumnie stoi na jasnym niebie: ciemna kapsuła pod tekstem. */
+  .weather-credit {
+    border-radius: var(--radius-pill);
+    background: rgb(8 10 14 / 0.66);
+    padding: 0.125rem 0.625rem;
+  }
+
   .desktop-objects {
     display: flex;
-    flex-wrap: wrap;
-    align-items: flex-end;
-    justify-content: center;
+    flex-direction: column;
+    align-items: center;
     gap: calc(var(--u) * 1.5);
   }
 
-  /* position: fixed przez utility (szkło ustawia relative w tej samej warstwie). */
+  /*
+   * Dock przyklejony u dołu (position: fixed przez utility – szkło ustawia relative w tej samej
+   * warstwie). Nigdy szerszy niż ekran: w układzie kolumnowym rząd przycisków przewija się
+   * poziomo wewnątrz kapsuły, a krawędzie wygasają maską.
+   */
   .desktop-dock {
-    bottom: calc(var(--u) * 0.9);
+    bottom: max(calc(var(--u) * 0.9), env(safe-area-inset-bottom));
     left: 50%;
     z-index: 10;
     max-width: calc(100vw - var(--u) * 2);
     translate: -50% 0;
+  }
+
+  .dock-row {
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scroll-snap-type: x proximity;
+    scrollbar-width: none;
+    mask-image: linear-gradient(90deg, transparent, #000 calc(var(--u) * 1.25), #000 calc(100% - var(--u) * 1.25), transparent);
+  }
+
+  .dock-row::-webkit-scrollbar {
+    display: none;
+  }
+
+  .dock-row > li {
+    scroll-snap-align: center;
+  }
+
+  /* Podpowiedź „wkrótce” tylko przy kursorze: w przewijanym rzędzie byłaby przycięta (opis zostaje w aria-describedby). */
+  .dock-hint {
+    display: none;
   }
 
   @media (max-width: 639px) {
@@ -87,7 +133,9 @@
     .desktop {
       /* Pionowy zapas ponad 54u (np. 16:10): rozdzielany między strefy, żeby nic nie kleiło się do krawędzi. */
       --extra: max(0px, 100dvh - var(--u) * 54);
+      --glass-boost: transparent;
       position: fixed;
+      overflow-x: visible;
       inset: 0;
       display: block;
       width: calc(var(--u) * 96);
@@ -124,9 +172,25 @@
       position: absolute;
       bottom: calc(var(--u) * 8.75);
       left: calc(var(--u) * 3.7);
+      flex-direction: row;
       flex-wrap: nowrap;
+      align-items: flex-end;
       justify-content: flex-start;
       gap: calc(var(--u) * 2.4);
+    }
+
+    .dock-row {
+      overflow: visible;
+      mask-image: none;
+    }
+
+    .dock-hint {
+      display: block;
+    }
+
+    .weather-credit {
+      background: none;
+      padding: 0;
     }
   }
 

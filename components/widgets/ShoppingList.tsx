@@ -34,7 +34,7 @@ export function ShoppingList({ items, called, onOpen }: ShoppingListProps) {
       data-testid="shopping-list"
       data-called={called || undefined}
       onDoubleClick={onOpen}
-      className="flex size-53.5 shrink-0 flex-col items-center rounded-widget px-4 pt-5 pb-4"
+      className="flex h-53.5 w-(--column-width) shrink-0 flex-col items-center rounded-widget px-4 pt-5 pb-4 desk:w-53.5"
     >
       <h2 id="shopping-title" className="text-title font-medium text-text-primary">
         Lista zakupów
@@ -44,7 +44,7 @@ export function ShoppingList({ items, called, onOpen }: ShoppingListProps) {
         onClick={onOpen}
         aria-label="Otwórz listę zakupów"
         title="Otwórz listę zakupów"
-        className="absolute top-3 right-3 grid size-8 place-items-center rounded-full text-text-secondary transition-colors duration-(--dur-feedback) hover:bg-white/10 hover:text-text-primary"
+        className="absolute top-2 right-2 grid size-8 place-items-center rounded-full text-text-secondary transition-colors duration-(--dur-feedback) hover:bg-white/10 hover:text-text-primary"
       >
         <Plus aria-hidden className="size-4.5" strokeWidth={1.75} />
       </button>

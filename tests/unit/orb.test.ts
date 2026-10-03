@@ -137,6 +137,15 @@ describe("geometria kuli", () => {
     expect(backingSize(400, 3)).toBe(800);
     expect(backingSize(400, 0)).toBe(400);
   });
+
+  it("mały ekran: maks. 1,5× gęstości i 480 px bufora", () => {
+    // iPhone 390×844 @3×: płótno kuli ~197 px CSS.
+    expect(backingSize(197, 3, 390)).toBe(296);
+    expect(backingSize(400, 3, 390)).toBe(480);
+    expect(backingSize(197, 1, 390)).toBe(197);
+    // Od 768 px szerokości zwykły limit 2×.
+    expect(backingSize(197, 3, 768)).toBe(394);
+  });
 });
 
 describe("stany kuli", () => {

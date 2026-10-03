@@ -84,10 +84,18 @@ export function orbDiameter(canvasCssSize: number): number {
   return canvasCssSize / (1 + 2 * ORB_CANVAS_PAD);
 }
 
-/** Bufor płótna w pikselach urządzenia. */
-export function backingSize(cssSize: number, devicePixelRatio: number): number {
+/**
+ * Mały ekran (telefon, okno < 768 px szer.): płótno maks. 1,5× gęstości i maks. 480 px bufora.
+ * Kula jest tam mała i miękka, a GPU i bateria słabsze; różnicy przy 3× ekranie nie widać.
+ */
+export const SMALL_SCREEN = { maxWidth: 768, maxDpr: 1.5, maxBacking: 480 } as const;
+
+/** Bufor płótna w pikselach urządzenia; `viewportWidth` (px CSS) włącza limity małego ekranu. */
+export function backingSize(cssSize: number, devicePixelRatio: number, viewportWidth = Number.POSITIVE_INFINITY): number {
   const dpr = devicePixelRatio > 0 ? devicePixelRatio : 1;
-  return Math.max(1, Math.round(cssSize * Math.min(dpr, MAX_ORB_DPR)));
+  const small = viewportWidth < SMALL_SCREEN.maxWidth;
+  const backing = Math.round(cssSize * Math.min(dpr, small ? SMALL_SCREEN.maxDpr : MAX_ORB_DPR));
+  return Math.max(1, small ? Math.min(backing, SMALL_SCREEN.maxBacking) : backing);
 }
 
 /**

@@ -137,7 +137,7 @@ export function OrbCanvas({ state, preview, rain, reduceMotion, forced, visible,
       const rect = canvas.getBoundingClientRect();
       origin = layoutOrigin(rect, { x: window.scrollX, y: window.scrollY }, { x: parallax.x.get(), y: parallax.y.get() });
       size = canvas.clientWidth;
-      const backing = backingSize(size, window.devicePixelRatio);
+      const backing = backingSize(size, window.devicePixelRatio, window.innerWidth);
       scale = size > 0 ? backing / size : 1;
       renderer.resize(backing, backing);
       const root = document.documentElement;

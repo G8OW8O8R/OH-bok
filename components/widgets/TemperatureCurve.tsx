@@ -7,6 +7,7 @@ import { ease } from "@/lib/motion";
 import { useBootState } from "@/lib/use-boot";
 import { weekdayShort } from "@/lib/time";
 import { temperatureCurve } from "@/lib/weather/curve";
+import { dayTapAction } from "@/lib/weather/day-tap";
 import type { DailyForecast } from "@/lib/weather/schema";
 
 interface TemperatureCurveProps {
@@ -38,8 +39,24 @@ export function TemperatureCurve({ days, today, selectedDate, onHoverDay, onSele
   const hoverTimer = useRef(0);
   /** Podgląd już widać: przejście na sąsiedni dzień zmienia go od razu, bez ponownego czekania. */
   const previewing = useRef(false);
+  /** Dotyk: dzień podglądany po pierwszym dotknięciu (drugie przypina), lib/weather/day-tap.ts. */
+  const touchPreview = useRef<string | null>(null);
+  /** Rodzaj wskaźnika ostatniego naciśnięcia; klik z klawiatury nie ma pointerdown. */
+  const pointerType = useRef("");
+  const listRef = useRef<HTMLOListElement>(null);
 
   useEffect(() => () => window.clearTimeout(hoverTimer.current), []);
+
+  // Dotknięcie poza rzędem dni chowa podgląd (Safari nie daje przyciskom fokusu, więc bez blur).
+  useEffect(() => {
+    const onDown = (event: PointerEvent) => {
+      if (touchPreview.current === null || listRef.current?.contains(event.target as Node)) return;
+      touchPreview.current = null;
+      onHoverDay(null);
+    };
+    document.addEventListener("pointerdown", onDown);
+    return () => document.removeEventListener("pointerdown", onDown);
+  }, [onHoverDay]);
 
   const enterDay = (date: string) => {
     window.clearTimeout(hoverTimer.current);
@@ -127,9 +144,13 @@ export function TemperatureCurve({ days, today, selectedDate, onHoverDay, onSele
       </svg>
 
       <ol
+        ref={listRef}
         className="mt-3 grid"
         style={{ gridTemplateColumns: `repeat(${days.length}, minmax(0, 1fr))` }}
-        onPointerLeave={leaveDays}
+        // Dotyk też wysyła pointerleave (po podniesieniu palca): podgląd z dotyku zostaje.
+        onPointerLeave={(event) => {
+          if (event.pointerType === "mouse" || event.pointerType === "pen") leaveDays();
+        }}
       >
         {days.map((day, i) => {
           const isToday = day.date === today;
@@ -147,15 +168,33 @@ export function TemperatureCurve({ days, today, selectedDate, onHoverDay, onSele
                 style={{ "--i": i }}
                 // Wybrany inny dzień: jasne tło i biały napis. Dziś wyróżnia bursztyn – jasne tło
                 // pod bursztynem obniżałoby kontrast poniżej 4,5:1 w jasnych scenach.
-                className={`group flex flex-col items-center gap-1.5 rounded-pill px-1.5 py-1 transition-colors duration-(--dur-feedback) hover:bg-white/8 ${isToday ? "" : "aria-pressed:bg-white/10"}`}
+                className={`group flex flex-col items-center justify-center gap-1.5 rounded-pill px-1.5 py-1 transition-colors pointer-coarse:min-h-11 pointer-coarse:min-w-11 duration-(--dur-feedback) hover:bg-white/8 ${isToday ? "" : "aria-pressed:bg-white/10"}`}
                 onPointerEnter={(event) => {
                   if (event.pointerType === "mouse" || event.pointerType === "pen") enterDay(day.date);
                 }}
+                onPointerDown={(event) => {
+                  pointerType.current = event.pointerType;
+                }}
                 onFocus={() => onHoverDay(day.date)}
-                onBlur={() => onHoverDay(null)}
+                onBlur={() => {
+                  if (touchPreview.current === null) onHoverDay(null);
+                }}
                 onClick={() => {
-                  // Wybrany dzień jest już w scenie: podgląd w kuli zbędny.
                   window.clearTimeout(hoverTimer.current);
+                  const touch = pointerType.current === "touch";
+                  pointerType.current = "";
+                  if (touch) {
+                    const action = dayTapAction(day.date, { previewed: touchPreview.current, shown: selectedDate, today });
+                    if (action === "preview") {
+                      // Pierwsze dotknięcie: tylko podgląd w kuli (odpowiednik tekstowy w role="status").
+                      touchPreview.current = day.date;
+                      onHoverDay(day.date);
+                      return;
+                    }
+                    touchPreview.current = null;
+                    onHoverDay(null);
+                  }
+                  // Wybrany dzień jest już w scenie: podgląd w kuli zbędny.
                   onSelectDay(day.date);
                 }}
               >

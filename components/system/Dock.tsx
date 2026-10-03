@@ -50,7 +50,7 @@ export function Dock({ active, onOpen }: DockProps) {
       data-testid="dock"
       className="desktop-dock fixed rounded-pill p-2"
     >
-      <ul className="flex gap-3.25">
+      <ul className="dock-row flex gap-3.25">
         {APPS.map(({ id, label, icon: Icon, ready }) => {
           const hintId = `dock-hint-${id}`;
           return (
@@ -72,7 +72,7 @@ export function Dock({ active, onOpen }: DockProps) {
               <span
                 id={hintId}
                 role="tooltip"
-                className="pointer-events-none absolute bottom-full left-1/2 mb-3 -translate-x-1/2 translate-y-1 rounded-pill bg-[rgb(14_16_20/0.82)] px-3 py-1 text-caption whitespace-nowrap text-text-primary opacity-0 transition-[opacity,translate] duration-(--dur-feedback) ease-out group-focus-within:translate-y-0 group-focus-within:opacity-100 group-hover:translate-y-0 group-hover:opacity-100"
+                className="dock-hint pointer-events-none absolute bottom-full left-1/2 mb-3 -translate-x-1/2 translate-y-1 rounded-pill bg-[rgb(14_16_20/0.82)] px-3 py-1 text-caption whitespace-nowrap text-text-primary opacity-0 transition-[opacity,translate] duration-(--dur-feedback) ease-out group-focus-within:translate-y-0 group-focus-within:opacity-100 group-hover:translate-y-0 group-hover:opacity-100"
               >
                 {ready ? label : `${label} · wkrótce`}
               </span>

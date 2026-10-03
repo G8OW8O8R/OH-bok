@@ -122,8 +122,12 @@ vec3 grade(vec3 c, float brightness, mat3 saturateMatrix) {
   return clamp(saturateMatrix * c, 0.0, 1.0);
 }
 
+// Poza kadrem odbicie lustrzane zamiast przycięcia: szerokokątny wycinek kuli stojącej wysoko
+// (telefon) sięga ponad górną krawędź kadru, a powielony skrajny wiersz dawał poziome smugi.
 vec2 frameUv(vec2 screen) {
-  return clamp((screen - uFit.xy) / uFit.zw, 0.0, 1.0);
+  vec2 uv = (screen - uFit.xy) / uFit.zw;
+  vec2 m = mod(uv, 2.0);
+  return mix(m, 2.0 - m, step(1.0, m));
 }
 
 vec3 sceneAt(vec2 screen) {
@@ -248,6 +252,11 @@ vec4 bigOrb(vec2 p, vec3 orb) {
   s += uThink * 0.02 * sin(r * 26.0 - uTime * 3.4) * (1.0 - r);
 
   vec2 center = uOrigin + orb.xy + VIEW_SHIFT * uFit.zw - uCursor * CURSOR_SHIFT * uFit.w;
+  // Cały widok (promień VIEW_SPAN wysokości klatki) zostaje w kadrze w poziomie. Na desktopie
+  // środek i tak w nim leży; na telefonie kadr jest szeroki (pionowy ekran), a przesunięcie
+  // o VIEW_SHIFT wyprowadzało widok poza prawą krawędź i latarnia odbijała się lustrzanie.
+  float margin = VIEW_SPAN * uFit.w;
+  center.x = clamp(center.x, uFit.x + margin, uFit.x + uFit.z - margin);
   vec4 drops = rainDrops(d, uTime, uRain);
   vec2 offset = dir * s * uFit.w;
   float ca = CHROMATIC * rr * rr;

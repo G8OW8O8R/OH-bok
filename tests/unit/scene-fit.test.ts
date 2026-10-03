@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { computeSceneFit, SCENE_ASPECT, sceneFitCssVars, sceneFitInlineScript } from "@/lib/scene-fit";
+import { computeSceneFit, SCENE_ASPECT, SCENE_FOCUS, sceneFitCssVars, sceneFitInlineScript } from "@/lib/scene-fit";
 
 const VIEWPORTS = [
   [1280, 720, 1],
@@ -40,11 +40,22 @@ describe("computeSceneFit", () => {
     expect(computeSceneFit(1280, 720, 1)).toEqual({ width: 1280, height: 720, left: 0, top: 0 });
   });
 
-  it("wąskie okno przycina boki symetrycznie", () => {
-    const fit = computeSceneFit(800, 800, 1);
-    expect(fit.height).toBe(800);
-    expect(fit.width).toBe(Math.ceil(800 * SCENE_ASPECT));
-    expect(Math.abs(fit.left * 2 + fit.width - 800)).toBeLessThanOrEqual(1);
+  it("okno poziome węższe niż 16:9 (16:10, 4:3) przycina boki symetrycznie", () => {
+    for (const [w, h] of [[1440, 900], [1600, 1200]] as const) {
+      const fit = computeSceneFit(w, h, 1);
+      expect(fit.height).toBe(h);
+      expect(Math.abs(fit.left * 2 + fit.width - w)).toBeLessThanOrEqual(1);
+    }
+  });
+
+  it.each([
+    [390, 844],
+    [768, 1024],
+    [800, 800],
+  ] as const)("okno pionowe/kwadratowe %ix%i: latarnia (77,7% kadru) na 86% szerokości ekranu", (w, h) => {
+    const fit = computeSceneFit(w, h, 1);
+    const lighthouseX = fit.left + fit.width * SCENE_FOCUS.anchorX;
+    expect(lighthouseX / w).toBeCloseTo(SCENE_FOCUS.anchorViewX, 2);
   });
 
   it("nieprawidłowe devicePixelRatio traktuje jak 1", () => {

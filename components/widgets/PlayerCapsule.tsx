@@ -37,7 +37,7 @@ export function PlayerCapsule({ track, cover }: PlayerCapsuleProps) {
       aria-label="Odtwarzacz"
       data-testid="player"
       data-playing={playing}
-      className="flex h-21 w-[max(calc(var(--u)*21.75),19.5rem)] shrink-0 items-center gap-4 rounded-pill py-2 pr-2.5 pl-2.5"
+      className="flex h-21 w-(--column-width) shrink-0 desk:w-[max(calc(var(--u)*21.75),19.5rem)] items-center gap-4 rounded-pill py-2 pr-2.5 pl-2.5"
     >
       <div className="relative size-15 shrink-0 overflow-hidden rounded-[calc(var(--u)*0.9)]">
         <Image src={cover} alt="" fill sizes="80px" className="object-cover object-[70%_50%]" />

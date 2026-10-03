@@ -45,7 +45,11 @@ export function PanelScroll({ children, className }: { children: ReactNode; clas
 
 /** Stopka poza przewijaniem: główna akcja panelu jest zawsze widoczna. */
 export function PanelFooter({ children }: { children: ReactNode }) {
-  return <div className="flex shrink-0 items-center gap-3 border-t border-white/10 px-6 py-4">{children}</div>;
+  return (
+    <div className="flex shrink-0 items-center gap-3 border-t border-white/10 px-6 py-4 max-lg:pb-[max(1rem,env(safe-area-inset-bottom))]">
+      {children}
+    </div>
+  );
 }
 
 function PanelBody({ onClose, layoutId, id, title, wide, children }: Omit<WidgetPanelProps, "open">) {
@@ -58,6 +62,10 @@ function PanelBody({ onClose, layoutId, id, title, wide, children }: Omit<Widget
     const panel = panelRef.current;
     const first = panel?.querySelector<HTMLElement>("[data-autofocus]") ?? panel?.querySelector<HTMLElement>(FOCUSABLE);
     first?.focus({ preventScroll: true });
+    // Strona pod panelem nie przewija się (na telefonie panel zajmuje cały ekran).
+    const root = document.documentElement;
+    const previousOverflow = root.style.overflow;
+    root.style.overflow = "hidden";
 
     const onKey = (event: KeyboardEvent) => {
       // Esc obsłużony głębiej (np. zwinięcie wyboru daty) nie zamyka panelu.
@@ -86,6 +94,7 @@ function PanelBody({ onClose, layoutId, id, title, wide, children }: Omit<Widget
     window.addEventListener("keydown", onKey);
     return () => {
       window.removeEventListener("keydown", onKey);
+      root.style.overflow = previousOverflow;
       if (opener?.isConnected) opener.focus({ preventScroll: true });
     };
   }, [onClose]);
@@ -95,7 +104,8 @@ function PanelBody({ onClose, layoutId, id, title, wide, children }: Omit<Widget
 
   return (
     <motion.div
-      className="fixed inset-0 z-40 grid place-items-center p-4"
+      // Telefon i tablet (< 1024 px): panel na pełny ekran; szerzej: okno nad pulpitem.
+      className="fixed inset-0 z-40 grid place-items-center lg:p-4"
       initial={{ opacity: 1 }}
       exit={{ opacity: 1 }}
       transition={{ duration: duration.feedback }}
@@ -122,7 +132,7 @@ function PanelBody({ onClose, layoutId, id, title, wide, children }: Omit<Widget
         aria-modal="true"
         aria-labelledby={titleId}
         data-testid={`${id}-panel`}
-        className={`relative flex max-h-[min(calc(100dvh-2rem),calc(var(--u)*46))] flex-col overflow-hidden rounded-window ${wide ? "w-[min(calc(var(--u)*38),calc(100vw-2rem))]" : "w-[min(calc(var(--u)*34),calc(100vw-2rem))]"}`}
+        className={`relative flex max-h-[min(calc(100dvh-2rem),calc(var(--u)*46))] flex-col overflow-hidden rounded-window max-lg:h-dvh max-lg:max-h-dvh max-lg:w-screen max-lg:rounded-none max-lg:border-0 ${wide ? "lg:w-[min(calc(var(--u)*38),calc(100vw-2rem))]" : "lg:w-[min(calc(var(--u)*34),calc(100vw-2rem))]"}`}
       >
         <motion.div
           ref={panelRef}
@@ -131,7 +141,7 @@ function PanelBody({ onClose, layoutId, id, title, wide, children }: Omit<Widget
           animate={{ opacity: 1, transition: { delay: reduceMotion ? 0 : 0.12, duration: duration.feedback } }}
           exit={{ opacity: 0, transition: { duration: 0.1 } }}
         >
-          <header className="flex shrink-0 items-center justify-between gap-3 px-6 pt-5 pb-3">
+          <header className="flex shrink-0 items-center justify-between gap-3 px-6 pt-5 pb-3 max-lg:pt-[max(1.25rem,env(safe-area-inset-top))]">
             <h2 id={titleId} className="text-title font-medium text-text-primary">
               {title}
             </h2>
@@ -139,7 +149,7 @@ function PanelBody({ onClose, layoutId, id, title, wide, children }: Omit<Widget
               type="button"
               onClick={onClose}
               aria-label="Zamknij"
-              className="-mr-2 grid size-9 place-items-center rounded-full text-text-secondary transition-colors duration-(--dur-feedback) hover:bg-white/10 hover:text-text-primary"
+              className="-mr-2 grid size-9 place-items-center rounded-full text-text-secondary pointer-coarse:size-11 transition-colors duration-(--dur-feedback) hover:bg-white/10 hover:text-text-primary"
             >
               <X aria-hidden className="size-5" strokeWidth={1.75} />
             </button>

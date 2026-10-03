@@ -124,7 +124,8 @@ test("podróż w czasie: najechanie = podgląd w kuli, klik = scena i szczegół
   await expect(details).toBeVisible();
   await expect(details.getByTestId("day-precipitation")).toHaveText(/\d+%|mm|brak danych/);
   await expect(details.getByTestId("day-wind")).toHaveText(/km\/h|brak danych/);
-  await expect(details).toContainText(/\d+°.*\/.*\d+°/);
+  // Maks. i min. w jednej linii, bez „/” (etykiety dla czytników ekranu).
+  await expect(details).toContainText(/najwyżej -?\d+°, najniżej -?\d+°/i);
   await expect(page.getByTestId("weather-day-announcement")).toContainText(/do -?\d+°, od -?\d+°/);
   // Wybrany dzień jest w scenie: kula nie dubluje go podglądem.
   await expect(preview).toHaveAttribute("data-visible", "false");

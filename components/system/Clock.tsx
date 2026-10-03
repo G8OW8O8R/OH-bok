@@ -10,7 +10,7 @@ interface ClockProps {
 /** Data · godzina w prawym górnym rogu, bez paska. Czytelność zapewnia winieta narożnika (Scrim). */
 export function Clock({ now, timeZone }: ClockProps) {
   return (
-    <p className="scene-text justify-self-end text-body font-medium text-text-primary tabular-nums">
+    <p className="scene-text justify-self-end text-body font-medium whitespace-nowrap text-text-primary tabular-nums max-sm:text-caption">
       <time dateTime={now.toISOString()}>
         {formatClock(now, timeZone)}
       </time>

@@ -1,7 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
-import { SceneFitScript } from "@/components/scene/SceneFitScript";
-import { BootScript } from "@/components/system/BootScript";
+import { InitScript } from "@/components/system/InitScript";
 import "./globals.css";
 
 const inter = Inter({
@@ -23,11 +22,10 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     // Skrypt startu ustawia na <html> plan i czasy sekwencji przed hydracją (data-boot, zmienne CSS).
     <html lang="pl" className={`${inter.variable} h-full`} suppressHydrationWarning>
-      <head>
-        <SceneFitScript />
-        <BootScript />
-      </head>
-      <body className="min-h-full">{children}</body>
+      <body className="min-h-full">
+        <InitScript />
+        {children}
+      </body>
     </html>
   );
 }

@@ -71,12 +71,16 @@
     mask-composite: intersect;
   }
 
-  /* Szum rasteryzowany raz (SVG feTurbulence, kafel bezszwowy); dryf o pełny kafel = pętla bez szwu. */
+  /*
+   * Szum rasteryzowany raz (SVG feTurbulence, kafel bezszwowy); dryf o pełny kafel = pętla bez szwu.
+   * Region filtra = dokładnie kafel (x/y 0, 100%): domyślny (-10%…120%) przesuwał zszycie
+   * `stitchTiles` poza krawędź kafla i na styku kafli widać było proste krawędzie.
+   */
   .fog-drift {
     --tile: 900px;
     position: absolute;
     inset: 0 calc(var(--tile) * -1) 0 0;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='900' height='540'%3E%3Cfilter id='f'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.0028 0.0068' numOctaves='4' seed='7' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.86 0 0 0 0 0.89 0 0 0 0 0.92 1.6 0 0 0 -0.62'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23f)'/%3E%3C/svg%3E");
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='900' height='540'%3E%3Cfilter id='f' x='0' y='0' width='100%25' height='100%25'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.0028 0.0068' numOctaves='4' seed='7' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.86 0 0 0 0 0.89 0 0 0 0 0.92 1.6 0 0 0 -0.62'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23f)'/%3E%3C/svg%3E");
     background-size: var(--tile) calc(var(--tile) * 0.6);
     will-change: transform;
     animation: fog-drift 140s linear infinite;

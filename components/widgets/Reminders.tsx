@@ -40,7 +40,7 @@ export function Reminders({ reminders, nextId, now, timeZone, called, onOpen }: 
       data-testid="reminders"
       data-called={called || undefined}
       onDoubleClick={onOpen}
-      className="flex h-53.5 w-50 shrink-0 flex-col rounded-widget px-5 pt-5 pb-4"
+      className="flex h-53.5 w-(--column-width) shrink-0 flex-col rounded-widget px-5 pt-5 pb-4 desk:w-54"
     >
       <h2 id="reminders-title" className="text-center text-title font-medium text-text-primary">
         Przypomnienia
@@ -50,7 +50,7 @@ export function Reminders({ reminders, nextId, now, timeZone, called, onOpen }: 
         onClick={onOpen}
         aria-label="Otwórz przypomnienia"
         title="Otwórz przypomnienia"
-        className="absolute top-3 right-3 grid size-8 place-items-center rounded-full text-text-secondary transition-colors duration-(--dur-feedback) hover:bg-white/10 hover:text-text-primary"
+        className="absolute top-2 right-2 grid size-8 place-items-center rounded-full text-text-secondary transition-colors duration-(--dur-feedback) hover:bg-white/10 hover:text-text-primary"
       >
         <Plus aria-hidden className="size-4.5" strokeWidth={1.75} />
       </button>
@@ -77,7 +77,13 @@ export function Reminders({ reminders, nextId, now, timeZone, called, onOpen }: 
                   </span>
                   <span className={`block text-caption tabular-nums ${isNext ? "text-amber" : "text-text-secondary"}`}>
                     <time dateTime={reminder.at}>{formatWhen(at, now, timeZone)}</time>
-                    {isNext && ` · ${formatCountdown(minutes).toLowerCase()}`}
+                    {/* Odliczanie przenosi się w całości („za 7 h 57 min”), bez samotnego „min” w nowej linii. */}
+                    {isNext && (
+                      <>
+                        {" · "}
+                        <span className="whitespace-nowrap">{formatCountdown(minutes).toLowerCase()}</span>
+                      </>
+                    )}
                   </span>
                 </span>
               </li>

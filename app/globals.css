@@ -119,7 +119,11 @@ body {
   /* Dymne szkło. Głębia (cień) przez data-depth, patrz components/ui/Glass.tsx. */
   .glass {
     position: relative;
-    background: linear-gradient(var(--glass-milk), var(--glass-milk)), var(--glass-bg);
+    /* --glass-boost: dodatkowe przyciemnienie w układzie kolumnowym (styles/desktop.css). */
+    background:
+      linear-gradient(var(--glass-milk), var(--glass-milk)),
+      linear-gradient(var(--glass-boost, transparent), var(--glass-boost, transparent)),
+      var(--glass-bg);
     backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
     border: 1px solid var(--glass-border);
     box-shadow: var(--glass-highlight), var(--glass-depth, var(--depth-far));

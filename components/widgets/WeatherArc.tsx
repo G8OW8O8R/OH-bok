@@ -7,7 +7,7 @@ import { Glass } from "@/components/ui/Glass";
 import { duration, ease } from "@/lib/motion";
 import { compassDirection } from "@/lib/scene-conditions";
 import { WEATHER_LABELS, weatherLabel, type WeatherState } from "@/lib/scenes";
-import { dateIn, formatTime, weekdayLong } from "@/lib/time";
+import { dateIn, formatTime, weekdayLong, weekdayShort } from "@/lib/time";
 import type { DailyForecast, WeatherData } from "@/lib/weather/schema";
 import { TemperatureCurve } from "./TemperatureCurve";
 
@@ -44,7 +44,19 @@ function formatTemperature(celsius: number | null): string {
 }
 
 function formatMm(mm: number): string {
-  return `${mm.toLocaleString("pl-PL", { maximumFractionDigits: 1 })} mm`;
+  // Od 10 mm bez części dziesiętnej: rząd ikon w łuku ma stałą, wąską szerokość.
+  return `${mm.toLocaleString("pl-PL", { maximumFractionDigits: mm >= 10 ? 0 : 1 })} mm`;
+}
+
+/**
+ * Szerokość pary „maks. min.” w em czcionki maks. (cyfry tabelaryczne Inter ≈ 0,58 em, „°” ≈ 0,4 em,
+ * minus ≈ 0,4 em); min. ma 0,36 em, odstęp 0,14 em. Z tego rozmiar czcionki, przy którym para
+ * mieści się w łuku przy każdej długości (np. „-12°” i „-20°”).
+ */
+function temperaturePairEm(max: string, min: string): number {
+  const width = (text: string) =>
+    [...text].reduce((sum, ch) => sum + (/\d/.test(ch) ? 0.58 : ch === "°" ? 0.4 : 0.42), 0);
+  return width(max) + 0.14 + 0.36 * width(min);
 }
 
 /** „80% · 4,2 mm”; bez prawdopodobieństwa (starsze dane) sama suma opadu. */
@@ -124,26 +136,48 @@ export function WeatherArc({
       >
         <AnimatePresence mode="wait" initial={false}>
           {selectedDay ? (
-            <motion.div key={selectedDay.date} {...swap} className="flex flex-col items-center" data-testid="weather-day-details">
-              <p className="text-temp font-medium text-text-primary tabular-nums">
-                {formatTemperature(selectedDay.temperatureMaxC)}
-                <span className="text-lead font-normal tracking-normal text-text-secondary">
-                  {" / "}
+            <motion.div
+              key={selectedDay.date}
+              {...swap}
+              className="flex w-full min-w-0 flex-col items-center [container-type:inline-size]"
+              data-testid="weather-day-details"
+            >
+              {/* Maks. duże, min. mniejsze obok w tej samej linii; rozmiar dopasowany do szerokości łuku. */}
+              <p
+                className="flex items-baseline justify-center gap-[0.14em] font-medium whitespace-nowrap text-text-primary tabular-nums"
+                style={{
+                  fontSize: `min(var(--text-temp), calc(100cqi / ${temperaturePairEm(
+                    formatTemperature(selectedDay.temperatureMaxC),
+                    formatTemperature(selectedDay.temperatureMinC),
+                  ).toFixed(2)}))`,
+                  lineHeight: 1,
+                  letterSpacing: "-0.045em",
+                }}
+              >
+                <span>
+                  <span className="sr-only">Najwyżej </span>
+                  {formatTemperature(selectedDay.temperatureMaxC)}
+                </span>
+                <span className="text-[0.36em] font-normal tracking-normal text-text-secondary">
+                  <span className="sr-only">, najniżej </span>
                   {formatTemperature(selectedDay.temperatureMinC)}
                 </span>
               </p>
-              <p className="mt-4 text-title font-medium text-text-primary">
-                {weekdayLong(selectedDay.date)} · {WEATHER_LABELS[selectedDay.state].toLowerCase()}
+              <p className="mt-4 max-w-full truncate text-title font-medium text-text-primary">
+                <span aria-hidden>{weekdayShort(selectedDay.date)}</span>
+                <span className="sr-only">{weekdayLong(selectedDay.date)}</span>
+                {" · "}
+                {WEATHER_LABELS[selectedDay.state].toLowerCase()}
               </p>
-              <dl className="mt-1 flex items-center gap-4 text-caption text-text-secondary tabular-nums">
-                <div className="flex items-center gap-1.5">
+              <dl className="mt-1.5 flex max-w-full items-center justify-center gap-3 text-caption whitespace-nowrap text-text-secondary tabular-nums">
+                <div className="flex min-w-0 items-center gap-1">
                   <dt>
                     <Umbrella aria-hidden className="size-4" strokeWidth={1.75} />
                     <span className="sr-only">Szansa opadów</span>
                   </dt>
                   <dd data-testid="day-precipitation">{formatPrecipitation(selectedDay)}</dd>
                 </div>
-                <div className="flex items-center gap-1.5">
+                <div className="flex min-w-0 items-center gap-1">
                   <dt>
                     {/* Strzałka wskazuje, dokąd wieje (kierunek meteorologiczny + 180°). */}
                     <Navigation2
@@ -159,7 +193,9 @@ export function WeatherArc({
                   </dt>
                   <dd data-testid="day-wind">
                     {selectedDay.windMaxKmh === null ? "brak danych" : `${Math.round(selectedDay.windMaxKmh)} km/h`}
-                    {selectedDay.windDirectionDeg !== null && ` ${compassDirection(selectedDay.windDirectionDeg).short}`}
+                    {selectedDay.windDirectionDeg !== null && (
+                      <span className="sr-only">, {compassDirection(selectedDay.windDirectionDeg).long}</span>
+                    )}
                   </dd>
                 </div>
               </dl>
@@ -228,7 +264,7 @@ export function WeatherArc({
         </div>
       </Glass>
 
-      <p className="scene-text absolute top-full left-1/2 mt-2 -translate-x-1/2 text-center text-micro whitespace-nowrap text-text-secondary">
+      <p className="weather-credit scene-text absolute top-full left-1/2 mt-2 -translate-x-1/2 text-center text-micro whitespace-nowrap text-text-secondary">
         Dane pogodowe:{" "}
         <a
           href="https://open-meteo.com/"
