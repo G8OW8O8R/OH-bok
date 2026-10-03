@@ -84,10 +84,30 @@ export interface SceneTokens {
   glassTextShadow: string;
 }
 
+/** Opad rysowany w kodzie (components/scene/PrecipitationLayer.tsx). */
+export type PrecipitationKind = "rain" | "snow";
+
+/**
+ * Warstwy pogody nad wideo (tabela stanów). Siłę opadu wyznacza osobno
+ * intensywność w mm/h (lib/scene-conditions.ts), tu tylko co jest widoczne.
+ */
+export interface SceneEffects {
+  precipitation: PrecipitationKind | null;
+  lightning: boolean;
+  fog: boolean;
+  /** Snop latarni (tylko deszcz i burza). */
+  beam: boolean;
+  /** Pyłki w słońcu. */
+  motes: boolean;
+}
+
 export interface SceneDefinition {
   video: SceneVideoId;
   tokens: SceneTokens;
+  effects: SceneEffects;
 }
+
+const NO_EFFECTS: SceneEffects = { precipitation: null, lightning: false, fog: false, beam: false, motes: false };
 
 const NEUTRAL_FILTER: VideoFilter = { brightness: 1, saturate: 1 };
 const SOFT_SHADOW = "0 1px 2px rgba(0, 0, 0, 0.25), 0 2px 16px rgba(0, 0, 0, 0.2)";
@@ -112,6 +132,7 @@ export const SCENES: Record<WeatherState, SceneDefinition> = {
       glassBlur: 38,
       glassTextShadow: BRIGHT_GLASS_TEXT_SHADOW,
     },
+    effects: { ...NO_EFFECTS, motes: true },
   },
   cloudy: {
     video: "cloudy",
@@ -125,6 +146,7 @@ export const SCENES: Record<WeatherState, SceneDefinition> = {
       glassBlur: 40,
       glassTextShadow: BRIGHT_GLASS_TEXT_SHADOW,
     },
+    effects: NO_EFFECTS,
   },
   fog: {
     video: "cloudy",
@@ -138,6 +160,7 @@ export const SCENES: Record<WeatherState, SceneDefinition> = {
       glassBlur: 40,
       glassTextShadow: BRIGHT_GLASS_TEXT_SHADOW,
     },
+    effects: { ...NO_EFFECTS, fog: true },
   },
   drizzle: {
     video: "rain",
@@ -151,6 +174,7 @@ export const SCENES: Record<WeatherState, SceneDefinition> = {
       glassBlur: 36,
       glassTextShadow: GLASS_TEXT_SHADOW,
     },
+    effects: { ...NO_EFFECTS, precipitation: "rain" },
   },
   rain: {
     video: "rain",
@@ -164,6 +188,7 @@ export const SCENES: Record<WeatherState, SceneDefinition> = {
       glassBlur: 36,
       glassTextShadow: GLASS_TEXT_SHADOW,
     },
+    effects: { ...NO_EFFECTS, precipitation: "rain", beam: true },
   },
   snow: {
     video: "cloudy",
@@ -177,6 +202,7 @@ export const SCENES: Record<WeatherState, SceneDefinition> = {
       glassBlur: 40,
       glassTextShadow: BRIGHT_GLASS_TEXT_SHADOW,
     },
+    effects: { ...NO_EFFECTS, precipitation: "snow" },
   },
   storm: {
     video: "rain",
@@ -190,6 +216,7 @@ export const SCENES: Record<WeatherState, SceneDefinition> = {
       glassBlur: 36,
       glassTextShadow: GLASS_TEXT_SHADOW,
     },
+    effects: { ...NO_EFFECTS, precipitation: "rain", lightning: true, beam: true },
   },
 };
 

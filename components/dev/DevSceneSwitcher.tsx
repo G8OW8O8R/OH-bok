@@ -25,6 +25,18 @@ function hrefWith(current: DevOverrides, patch: Partial<DevOverrides>): string {
   return query ? `?${query}` : "/";
 }
 
+/** Powtórka sekwencji startowej: pełne przeładowanie (plan wybiera skrypt w <head>, lib/boot.ts). */
+function bootHref(current: DevOverrides, plan: "first" | "wake"): string {
+  const params = new URLSearchParams(hrefWith(current, {}).replace(/^[/?]+/, ""));
+  params.set("boot", plan);
+  return `?${params.toString()}`;
+}
+
+const BOOT_LINKS = [
+  { label: "start", plan: "first" },
+  { label: "wybudzenie", plan: "wake" },
+] as const;
+
 const link =
   "rounded-pill px-2.5 py-1 text-text-secondary transition-colors duration-(--dur-feedback) hover:text-text-primary focus-visible:outline-2 focus-visible:outline-amber aria-[current=page]:bg-white/10 aria-[current=page]:text-amber";
 
@@ -83,6 +95,14 @@ export function DevSceneSwitcher({ weather, orbState, orbMode }: DevSceneSwitche
 
   return (
     <div className="fixed right-4 bottom-4 flex flex-col items-end gap-1.5 text-xs">
+      <nav aria-label="Start (dev)" className="flex gap-1 rounded-pill border border-glass-border bg-glass p-1 backdrop-blur-xl">
+        {BOOT_LINKS.map(({ label, plan }) => (
+          // Zwykły <a>: nawigacja po stronie klienta nie uruchomiłaby skryptu startu.
+          <a key={plan} href={bootHref(current, plan)} className={link}>
+            {label}
+          </a>
+        ))}
+      </nav>
       <nav aria-label="Kula (dev)" className="flex gap-1 rounded-pill border border-glass-border bg-glass p-1 backdrop-blur-xl">
         {ORB_STATES.map((state) => (
           <Link

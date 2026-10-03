@@ -11,7 +11,7 @@ const ANNOUNCEMENT = /^(Dziś|Poniedziałek|Wtorek|Środa|Czwartek|Piątek|Sobot
 
 test("kula w CSS: podgląd dnia w kuli z odpowiednikiem tekstowym, także z klawiatury", async ({ page }) => {
   const errors = collectErrors(page);
-  await page.goto("/?weather=rain&orb-mode=fallback&orb=speaking");
+  await page.goto("/?boot=off&weather=rain&orb-mode=fallback&orb=speaking");
 
   const orb = page.getByTestId("orb");
   await expect(orb).toHaveAttribute("data-mode", "fallback");
@@ -29,20 +29,19 @@ test("kula w CSS: podgląd dnia w kuli z odpowiednikiem tekstowym, także z klaw
   await expect(page.getByTestId("orb-preview")).toHaveAttribute("data-visible", "false");
   await expect(announcement).toHaveText("");
 
-  // Klawiatura: fokus pokazuje podgląd, klik przypina go na stałe.
+  // Klawiatura: fokus pokazuje podgląd; Enter wybiera dzień – jest w całej scenie, więc kula go nie dubluje.
   await days.nth(2).focus();
   await expect(announcement).toHaveText(ANNOUNCEMENT);
   await days.nth(2).press("Enter");
   await expect(days.nth(2)).toHaveAttribute("aria-pressed", "true");
-  await days.nth(2).blur();
-  await expect(announcement).toHaveText(ANNOUNCEMENT);
+  await expect(announcement).toHaveText("");
 
   expect(errors).toEqual([]);
 });
 
 test("kula WebGL: pojawia się nad kulą CSS i pauzuje przy ukrytej karcie", async ({ page }) => {
   const errors = collectErrors(page);
-  await page.goto("/?weather=rain&orb-mode=webgl");
+  await page.goto("/?boot=off&weather=rain&orb-mode=webgl");
   const webgl2 = await page.evaluate(() => Boolean(document.createElement("canvas").getContext("webgl2")));
   test.skip(!webgl2, "przeglądarka testowa bez WebGL2");
 

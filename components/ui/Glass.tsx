@@ -31,6 +31,8 @@ export function Glass({ depth, parallax = true, className, style, children, ...p
       {children}
       {/* Refleks na osobnym liściu: zmiana --mx/--my przelicza jeden element, nie całą treść panelu. */}
       <span ref={lightRef} aria-hidden className="glass-light" />
+      {/* Koda sekwencji startowej: jeden przebieg refleksu (widoczny tylko w trakcie startu). */}
+      <span aria-hidden className="glass-sweep" />
     </motion.div>
   );
 }

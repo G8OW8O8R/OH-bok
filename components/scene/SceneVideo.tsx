@@ -2,9 +2,9 @@
 
 import { animate, motion, useMotionValue, useReducedMotion, useTransform, type MotionValue } from "motion/react";
 import Image from "next/image";
-import { useEffect, useEffectEvent, useMemo, useRef, useState } from "react";
+import { useEffect, useEffectEvent, useMemo, useRef, useState, type ReactNode } from "react";
 import { preload } from "react-dom";
-import { scheduleBootDone } from "@/lib/boot";
+import { reportBootSignal } from "@/lib/boot";
 import { duration, ease } from "@/lib/motion";
 import { SCENE_MEDIA_SIZE } from "@/lib/scene-fit";
 import { sceneFilterCss } from "@/lib/scene-grading";
@@ -26,6 +26,8 @@ const READY_TIMEOUT_MS = 4000;
 
 interface SceneVideoProps {
   weather: WeatherState;
+  /** Warstwy pogody nad wideo (poza filtrem gradingu, w tym samym pudełku sceny). */
+  children?: ReactNode;
 }
 
 type Crossfade = { duration: number; ease: typeof ease.dissolve };
@@ -37,7 +39,7 @@ type Crossfade = { duration: number; ease: typeof ease.dissolve };
  * Krycie warstw i grading to motion values ze wspólnego źródła sceny (SceneSource):
  * kula próbkuje te same klatki z tym samym postępem, więc obraz w niej zgadza się z tłem.
  */
-export function SceneVideo({ weather }: SceneVideoProps) {
+export function SceneVideo({ weather, children }: SceneVideoProps) {
   const scene = SCENES[weather];
   const reduceMotion = useReducedMotion();
   const stageRef = useSceneFit<HTMLDivElement>();
@@ -90,6 +92,7 @@ export function SceneVideo({ weather }: SceneVideoProps) {
           />
         ))}
       </motion.div>
+      {children}
     </div>
   );
 }
@@ -161,8 +164,8 @@ function SceneLayerMedia({ layerId, video, opacity, onReady }: SceneLayerMediaPr
       element: videoRef.current,
       revealed: revealedAt !== null,
     });
-    // Pierwsza klatka sceny: tymczasowy koniec sekwencji startowej (lib/boot.ts).
-    if (revealedAt !== null) scheduleBootDone();
+    // Pierwsza klatka sceny startowej wypełnia pasek postępu sekwencji (lib/boot.ts).
+    if (revealedAt !== null && layerId === 0) reportBootSignal("video");
   }, [layers, layerId, video, opacity, revealedAt]);
 
   useEffect(() => () => layers.remove(layerId), [layers, layerId]);
@@ -173,6 +176,7 @@ function SceneLayerMedia({ layerId, video, opacity, onReady }: SceneLayerMediaPr
     let cancelled = false;
     poster.decode().then(
       () => {
+        if (layerId === 0) reportBootSignal("poster");
         if (!cancelled) handleReady();
       },
       () => {
@@ -184,7 +188,7 @@ function SceneLayerMedia({ layerId, video, opacity, onReady }: SceneLayerMediaPr
       cancelled = true;
       window.clearTimeout(timeout);
     };
-  }, [media.poster]);
+  }, [media.poster, layerId]);
 
   useEffect(() => {
     const el = videoRef.current;

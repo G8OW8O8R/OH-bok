@@ -10,6 +10,7 @@ import {
   type MotionValue,
 } from "motion/react";
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useSyncExternalStore, type ReactNode, type RefObject } from "react";
+import { isBootDone, onBootDone } from "@/lib/boot";
 import { spring } from "@/lib/motion";
 import { parallaxOffset, pointerToUnit, type Depth } from "@/lib/parallax";
 
@@ -40,6 +41,13 @@ function useFinePointer(): boolean {
   );
 }
 
+const serverBootDone = () => false;
+
+/** Do końca startu parallax stoi: cel przelotu kul z logo nie może uciekać za kursorem. */
+function useBootDone(): boolean {
+  return useSyncExternalStore(onBootDone, isBootDone, serverBootDone);
+}
+
 /**
  * Jeden nasłuch kursora dla całego pulpitu: parallax obiektów i refleks
  * światła na krawędziach szkła. Wyłączony przy prefers-reduced-motion i bez precyzyjnego wskaźnika.
@@ -47,7 +55,8 @@ function useFinePointer(): boolean {
 export function ParallaxProvider({ children }: { children: ReactNode }) {
   const reduceMotion = useReducedMotion();
   const finePointer = useFinePointer();
-  const enabled = finePointer && !reduceMotion;
+  const bootDone = useBootDone();
+  const enabled = finePointer && !reduceMotion && bootDone;
 
   const rawX = useMotionValue(0);
   const rawY = useMotionValue(0);

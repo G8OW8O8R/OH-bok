@@ -1,8 +1,10 @@
 "use client";
 
-import { motion, useReducedMotion } from "motion/react";
-import { useId } from "react";
-import { duration, ease } from "@/lib/motion";
+import { animate, motion, useMotionValue } from "motion/react";
+import { useEffect, useId, useRef } from "react";
+import { BOOT_MARK, curveTiming } from "@/lib/boot";
+import { ease } from "@/lib/motion";
+import { useBootState } from "@/lib/use-boot";
 import { weekdayShort } from "@/lib/time";
 import { temperatureCurve } from "@/lib/weather/curve";
 import type { DailyForecast } from "@/lib/weather/schema";
@@ -11,19 +13,18 @@ interface TemperatureCurveProps {
   days: DailyForecast[];
   /** Dzisiejsza data w strefie lokalizacji (`YYYY-MM-DD`): „dziś” w bursztynie. */
   today: string;
-  /** Dzień przypięty do podglądu w kuli. */
-  pinnedDay: string | null;
+  /** Dzień pokazany w scenie (kliknięty albo dziś). */
+  selectedDate: string;
   /** Najechanie / fokus na dzień (null = wyjście): podgląd pogody tego dnia w kuli. */
   onHoverDay: (date: string | null) => void;
-  /** Kliknięcie przypina podgląd (albo go odpina). */
-  onTogglePin: (date: string) => void;
+  /** Kliknięcie: cała scena i szczegóły tego dnia (podróż w czasie). */
+  onSelectDay: (date: string) => void;
 }
 
 const W = 230;
 const H = 60;
-const DRAW_S = 1.4;
-/** Wypełnienie idzie 220 ms za „piórem”. */
-const FILL_LAG_S = 0.22;
+/** Przejechanie kursorem przez rząd dni nie zapala podglądu; dopiero zatrzymanie na dniu. */
+export const HOVER_INTENT_MS = 180;
 
 function formatTemp(value: number | null): string {
   if (value === null) return "brak danych";
@@ -32,15 +33,67 @@ function formatTemp(value: number | null): string {
 }
 
 /** Mini krzywa maksymalnych temperatur z prawdziwej prognozy + dni pod spodem. */
-export function TemperatureCurve({ days, today, pinnedDay, onHoverDay, onTogglePin }: TemperatureCurveProps) {
-  const reduceMotion = useReducedMotion();
+export function TemperatureCurve({ days, today, selectedDate, onHoverDay, onSelectDay }: TemperatureCurveProps) {
   const gradientId = useId();
+  const hoverTimer = useRef(0);
+  /** Podgląd już widać: przejście na sąsiedni dzień zmienia go od razu, bez ponownego czekania. */
+  const previewing = useRef(false);
+
+  useEffect(() => () => window.clearTimeout(hoverTimer.current), []);
+
+  const enterDay = (date: string) => {
+    window.clearTimeout(hoverTimer.current);
+    if (previewing.current) {
+      onHoverDay(date);
+      return;
+    }
+    hoverTimer.current = window.setTimeout(() => {
+      previewing.current = true;
+      onHoverDay(date);
+    }, HOVER_INTENT_MS);
+  };
+
+  const leaveDays = () => {
+    window.clearTimeout(hoverTimer.current);
+    previewing.current = false;
+    onHoverDay(null);
+  };
   const curve = temperatureCurve(days, { width: W, height: H, inset: 8 });
   const todayPoint = curve.points.find((p) => p.date === today);
 
-  const draw = reduceMotion
-    ? { duration: 0 }
-    : { duration: DRAW_S, ease: ease.pen, delay: duration.feedback };
+  // Krzywa rysuje się w rytmie sekwencji startowej: pióro, a wypełnienie 220 ms za nim.
+  // Po starcie, po pominięciu i przy reduced motion jest od razu narysowana.
+  const line = useMotionValue(0);
+  const fill = useMotionValue(0);
+  const timing = curveTiming(useBootState());
+  const startAt = timing.kind === "draw" ? timing.startAt : 0;
+  const drawMs = timing.kind === "draw" ? timing.duration : 0;
+  const lagMs = timing.kind === "draw" ? timing.fillLag : 0;
+
+  useEffect(() => {
+    if (timing.kind === "wait") return;
+    if (timing.kind === "instant") {
+      line.jump(1);
+      fill.jump(1);
+      return;
+    }
+    const delay = Math.max(0, startAt - performance.now()) / 1000;
+    let marked = false;
+    const controls = [
+      animate(line, 1, {
+        duration: drawMs / 1000,
+        ease: ease.pen,
+        delay,
+        onUpdate: (value) => {
+          if (marked || value <= 0) return;
+          marked = true;
+          performance.mark(BOOT_MARK.curve);
+        },
+      }),
+      animate(fill, 1, { duration: drawMs / 1000, ease: ease.soft, delay: delay + lagMs / 1000 }),
+    ];
+    return () => controls.forEach((control) => control.stop());
+  }, [timing.kind, startAt, drawMs, lagMs, line, fill]);
 
   return (
     <div className="w-full">
@@ -55,9 +108,7 @@ export function TemperatureCurve({ days, today, pinnedDay, onHoverDay, onToggleP
           <motion.path
             d={curve.area}
             fill={`url(#${gradientId})`}
-            initial={{ opacity: reduceMotion ? 1 : 0 }}
-            animate={{ opacity: 1 }}
-            transition={reduceMotion ? { duration: 0 } : { duration: DRAW_S, ease: ease.soft, delay: duration.feedback + FILL_LAG_S }}
+            style={{ opacity: fill }}
           />
         )}
         {curve.path && (
@@ -67,9 +118,7 @@ export function TemperatureCurve({ days, today, pinnedDay, onHoverDay, onToggleP
             stroke="var(--accent-amber)"
             strokeWidth="2.5"
             strokeLinecap="round"
-            initial={{ pathLength: reduceMotion ? 1 : 0 }}
-            animate={{ pathLength: 1 }}
-            transition={draw}
+            style={{ pathLength: line }}
           />
         )}
         {todayPoint && (
@@ -80,30 +129,39 @@ export function TemperatureCurve({ days, today, pinnedDay, onHoverDay, onToggleP
       <ol
         className="mt-3 grid"
         style={{ gridTemplateColumns: `repeat(${days.length}, minmax(0, 1fr))` }}
-        onPointerLeave={() => onHoverDay(null)}
+        onPointerLeave={leaveDays}
       >
-        {days.map((day) => {
+        {days.map((day, i) => {
           const isToday = day.date === today;
-          const pinned = day.date === pinnedDay;
+          const selected = day.date === selectedDate;
           return (
             <li key={day.date} className="flex justify-center">
-              {/* Najechanie i fokus: pogoda tego dnia w kuli; klik przypina podgląd. */}
+              {/* Najechanie i fokus: pogoda tego dnia w kuli; klik: cała scena i szczegóły w łuku. */}
               <button
                 type="button"
-                aria-pressed={pinned}
-                title="Pokaż pogodę tego dnia w kuli"
+                aria-pressed={selected}
+                title={isToday ? "Pogoda dziś" : "Pokaż pogodę tego dnia"}
                 data-testid="forecast-day"
-                className="group flex flex-col items-center gap-1.5 rounded-pill px-1.5 py-1 transition-colors duration-(--dur-feedback) hover:bg-white/8 aria-pressed:bg-white/10"
+                data-today={isToday || undefined}
+                data-state={day.state}
+                style={{ "--i": i }}
+                // Wybrany inny dzień: jasne tło i biały napis. Dziś wyróżnia bursztyn – jasne tło
+                // pod bursztynem obniżałoby kontrast poniżej 4,5:1 w jasnych scenach.
+                className={`group flex flex-col items-center gap-1.5 rounded-pill px-1.5 py-1 transition-colors duration-(--dur-feedback) hover:bg-white/8 ${isToday ? "" : "aria-pressed:bg-white/10"}`}
                 onPointerEnter={(event) => {
-                  if (event.pointerType === "mouse" || event.pointerType === "pen") onHoverDay(day.date);
+                  if (event.pointerType === "mouse" || event.pointerType === "pen") enterDay(day.date);
                 }}
                 onFocus={() => onHoverDay(day.date)}
                 onBlur={() => onHoverDay(null)}
-                onClick={() => onTogglePin(day.date)}
+                onClick={() => {
+                  // Wybrany dzień jest już w scenie: podgląd w kuli zbędny.
+                  window.clearTimeout(hoverTimer.current);
+                  onSelectDay(day.date);
+                }}
               >
                 <span aria-hidden className={`size-2 rounded-full ${isToday ? "bg-amber" : "bg-white/35"}`} />
                 <span
-                  className={`text-caption ${isToday ? "text-amber" : "text-text-secondary group-hover:text-text-primary"}`}
+                  className={`text-caption ${isToday ? "text-amber" : "text-text-secondary group-hover:text-text-primary group-aria-pressed:text-text-primary"}`}
                 >
                   {weekdayShort(day.date)}
                   <span className="sr-only">

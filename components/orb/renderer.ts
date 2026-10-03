@@ -22,6 +22,8 @@ export interface OrbFrame {
   think: number;
   speak: number;
   flash: number;
+  /** Krople deszczu na szkle, 0–1. */
+  rain: number;
   /** Tekstury warstw sceny od spodu; druga tylko w trakcie przenikania. */
   scene: readonly [TextureSlot, TextureSlot | null];
   sceneMix: number;
@@ -44,6 +46,7 @@ const UNIFORMS = [
   "uThink",
   "uSpeak",
   "uFlash",
+  "uRain",
   "uScene0",
   "uScene1",
   "uSceneMix",
@@ -201,6 +204,7 @@ export class OrbRenderer {
     gl.uniform1f(u.uThink, frame.think);
     gl.uniform1f(u.uSpeak, frame.speak);
     gl.uniform1f(u.uFlash, frame.flash);
+    gl.uniform1f(u.uRain, frame.rain);
 
     const [base, incoming] = frame.scene;
     gl.uniform1i(u.uScene0, SLOTS.indexOf(base));

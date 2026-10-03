@@ -52,6 +52,8 @@ export function buildForecastUrl(coords: Coords): string {
       "temperature_2m_min",
       "precipitation_sum",
       "wind_speed_10m_max",
+      "precipitation_probability_max",
+      "wind_direction_10m_dominant",
       "sunrise",
       "sunset",
     ].join(","),

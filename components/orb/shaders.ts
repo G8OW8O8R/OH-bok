@@ -41,6 +41,11 @@ export const ORB_OPTICS = {
   brightDamp: 0.75,
   /** Bursztynowy rim light po prawej. */
   rim: 0.7,
+
+  /** Krople na szkle: przesunięcie obrazu w kropli (wysokości klatki), cień brzegu, refleks. */
+  dropLens: 0.05,
+  dropShade: 0.22,
+  dropSpecular: 0.3,
 } as const;
 
 /** Liczba zmiennoprzecinkowa zapisana dla GLSL (zawsze z kropką). */
@@ -72,6 +77,7 @@ uniform float uTime;        // czas animacji (s), zamrożony przy reduced motion
 uniform float uThink;       // fale „myśli”, 0–1
 uniform float uSpeak;       // światło „mówi”, 0–1
 uniform float uFlash;       // błysk pioruna, 0–1
+uniform float uRain;        // krople na szkle, 0–1 (siła z mm/h, lib/scene-conditions.ts)
 
 uniform sampler2D uScene0;  // warstwa bazowa sceny
 uniform sampler2D uScene1;  // warstwa wchodząca (przenikanie)
@@ -106,6 +112,9 @@ const float FRESNEL = ${f(O.fresnel)};
 const float HIGHLIGHT = ${f(O.highlight)};
 const float BRIGHT_DAMP = ${f(O.brightDamp)};
 const float RIM = ${f(O.rim)};
+const float DROP_LENS = ${f(O.dropLens)};
+const float DROP_SHADE = ${f(O.dropShade)};
+const float DROP_SPECULAR = ${f(O.dropSpecular)};
 
 // Kolejność jak w CSS: brightness(), potem saturate(); każdy krok przycięty jak w filtrach SVG.
 vec3 grade(vec3 c, float brightness, mat3 saturateMatrix) {
@@ -137,6 +146,72 @@ vec3 sample3(vec2 r, vec2 g, vec2 b, float preview) {
   vec3 c = vec3(sceneAt(r).r, sceneAt(g).g, sceneAt(b).b);
   if (preview > 0.0) c = mix(c, vec3(previewAt(r).r, previewAt(g).g, previewAt(b).b), preview);
   return c;
+}
+
+float hash11(float p) {
+  p = fract(p * 0.1031);
+  p *= p + 33.33;
+  p *= p + p;
+  return fract(p);
+}
+
+float hash12(vec2 p) {
+  vec3 p3 = fract(vec3(p.xyx) * 0.1031);
+  p3 += dot(p3, p3.yzx + 33.33);
+  return fract((p3.x + p3.y) * p3.z);
+}
+
+// Jedna kropla; v = punkt względem środka kropli w jej promieniach.
+// acc: xy = soczewka (odwrócony obraz, stąd minus), z = krycie kropli, w = refleks.
+void addDrop(inout vec4 acc, vec2 v, float alpha) {
+  float m = 1.0 - dot(v, v);
+  if (m <= 0.0 || alpha <= 0.0) return;
+  float edge = smoothstep(0.0, 0.25, m) * alpha;
+  acc.xy -= v * edge;
+  acc.z = max(acc.z, edge);
+  vec2 s = v - vec2(-0.35, -0.4);
+  acc.w += exp(-dot(s, s) * 14.0) * edge;
+}
+
+// Krople deszczu na powierzchni (d: punkt kuli w jej promieniach, y w dół).
+// Statyczna „tekstura” kropli z siatki komórek + kilka kropli powoli spływających ze śladem.
+vec4 rainDrops(vec2 d, float t, float amount) {
+  vec4 acc = vec4(0.0);
+  if (amount <= 0.0) return acc;
+
+  vec2 g = d * 5.0;
+  vec2 id = floor(g);
+  vec2 f = g - id - 0.5;
+  float present = step(hash12(id), mix(0.18, 0.62, amount));
+  vec2 c = (vec2(hash12(id + 3.1), hash12(id + 7.7)) - 0.5) * 0.45;
+  float r = mix(0.1, 0.24, hash12(id + 5.3));
+  addDrop(acc, (f - c) / r, present);
+
+  const float COLS = 8.0;
+  float col = floor((d.x + 1.0) * 0.5 * COLS);
+  if (hash11(col + 1.3) < 0.2 + 0.6 * amount) {
+    float speed = mix(0.05, 0.11, hash11(col + 2.9));
+    float y = fract(t * speed + hash11(col + 4.4)) * 2.8 - 1.4;
+    float x = (col + 0.5 + (hash11(col + 6.2) - 0.5) * 0.4) / COLS * 2.0 - 1.0 + sin(d.y * 7.0 + col) * 0.015;
+    float rd = mix(0.045, 0.065, hash11(col + 8.1));
+    addDrop(acc, vec2(d.x - x, (d.y - y) * 0.85) / rd, 1.0);
+    // Ślad: drobne kropelki nad spływającą kroplą, znikające z odległością.
+    float above = y - d.y;
+    if (above > rd && above < 0.45) {
+      float cell = floor(d.y * 22.0);
+      float fy = (fract(d.y * 22.0) - 0.5) / 22.0;
+      float tiny = rd * 0.32;
+      float keep = step(hash11(cell + col * 13.0), 0.55) * (1.0 - above / 0.45);
+      addDrop(acc, vec2(d.x - x, fy) / tiny, keep);
+    }
+  }
+  return acc * min(1.0, amount * 2.0 + 0.4);
+}
+
+// Cień brzegu i refleks kropli na gotowym kolorze.
+vec3 shadeDrops(vec3 col, vec4 drops) {
+  col *= 1.0 - DROP_SHADE * 4.0 * drops.z * (1.0 - drops.z);
+  return col + DROP_SPECULAR * drops.w * (1.0 - 0.6 * dot(col, LUMA));
 }
 
 // Szkło wspólne dla obu kul: tint, poświata tłumiona w jasnych partiach, refleks, rim, krawędź.
@@ -173,11 +248,13 @@ vec4 bigOrb(vec2 p, vec3 orb) {
   s += uThink * 0.02 * sin(r * 26.0 - uTime * 3.4) * (1.0 - r);
 
   vec2 center = uOrigin + orb.xy + VIEW_SHIFT * uFit.zw - uCursor * CURSOR_SHIFT * uFit.w;
+  vec4 drops = rainDrops(d, uTime, uRain);
   vec2 offset = dir * s * uFit.w;
   float ca = CHROMATIC * rr * rr;
-  vec3 col = sample3(center + offset * (1.0 + ca), center + offset, center + offset * (1.0 - ca), uPreviewMix);
+  vec2 lens = drops.xy * DROP_LENS * uFit.w;
+  vec3 col = sample3(center + offset * (1.0 + ca) + lens, center + offset + lens, center + offset * (1.0 - ca) + lens, uPreviewMix);
 
-  col = glass(col, d, r, z, aa, uSpeak);
+  col = shadeDrops(glass(col, d, r, z, aa, uSpeak), drops);
   float alpha = 1.0 - smoothstep(1.0 - aa, 1.0 + aa, r);
   return vec4(clamp(col, 0.0, 1.0) * alpha, alpha);
 }
@@ -191,12 +268,14 @@ vec4 smallOrb(vec2 p, vec3 orb) {
   float z = sqrt(max(0.0, 1.0 - r * r));
 
   float m = mix(1.0, mix(0.56, 1.34, pow(r, 2.2)), 0.8);
-  vec2 dir = d * m - uCursor * 0.11 * z;
+  // Krople w tej samej skali co na dużej kuli (mała ma ok. 0,21 jej promienia), inny wzór.
+  vec4 drops = rainDrops(d * 0.21 + vec2(3.7, 1.3), uTime, uRain);
+  vec2 dir = d * m - uCursor * 0.11 * z + drops.xy * 0.35;
   float ca = 0.016 * r * r;
   vec2 screen = uOrigin + orb.xy;
   vec3 col = sample3(screen + dir * (1.0 + ca) * orb.z, screen + dir * orb.z, screen + dir * (1.0 - ca) * orb.z, 0.0);
 
-  col = glass(col, d, r, z, aa, uSpeak * 1.4);
+  col = shadeDrops(glass(col, d, r, z, aa, uSpeak * 1.4), drops);
   float alpha = 1.0 - smoothstep(1.0 - aa, 1.0 + aa, r);
   return vec4(clamp(col, 0.0, 1.0) * alpha, alpha);
 }

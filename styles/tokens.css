@@ -32,6 +32,9 @@
   --radius-window: calc(var(--u) * 1.5);
   --radius-pill: 999px;
 
+  /* Kula „Obok” (pulpit i logo startowe, które w nią przechodzi). */
+  --orb-size: calc(var(--u) * 11);
+
   /* Tekst */
   --text-primary: rgba(255, 255, 255, 0.96);
   --text-secondary: rgba(255, 255, 255, 0.7);
@@ -54,6 +57,7 @@
 @media (min-width: 1200px) and (min-height: 640px) and (min-aspect-ratio: 4/3) {
   :root {
     --u: clamp(0.75rem, min(100vw / 96, 100dvh / 54), 1.5rem);
+    --orb-size: calc(var(--u) * 18.1);
   }
 }
 

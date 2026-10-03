@@ -29,7 +29,7 @@ for (const [width, height] of [
   test(`pulpit ${width}×${height}: wszystkie obiekty w kadrze, bez nachodzenia, latarnia wolna`, async ({ page }) => {
     const errors = collectErrors(page);
     await page.setViewportSize({ width, height });
-    await page.goto("/?weather=rain");
+    await page.goto("/?boot=off&weather=rain");
 
     for (const id of OBJECTS) {
       const b = await box(page.getByTestId(id));
@@ -62,7 +62,7 @@ for (const [width, height] of [
 
 test("tablet 820×1180: kolumny, kula u góry, bez poziomego przewijania", async ({ page }) => {
   await page.setViewportSize({ width: 820, height: 1180 });
-  await page.goto("/?weather=rain");
+  await page.goto("/?boot=off&weather=rain");
   const orb = await box(page.getByTestId("orb"));
   for (const id of ["weather-arc", "shopping-list", "reminders", "recipe", "player"]) {
     const b = await box(page.getByTestId(id));
@@ -76,7 +76,7 @@ test("zoom 200% (1440×900 → 720×450 CSS px): tekst rośnie fizycznie", async
   const measure = async (width: number, height: number, deviceScaleFactor: number) => {
     const context = await browser.newContext({ viewport: { width, height }, deviceScaleFactor });
     const page = await context.newPage();
-    await page.goto("/?weather=rain");
+    await page.goto("/?boot=off&weather=rain");
     const px = await page
       .getByTestId("reminders")
       .getByText("Zespół")
@@ -91,7 +91,7 @@ test("zoom 200% (1440×900 → 720×450 CSS px): tekst rośnie fizycznie", async
 
 test("dock: klawiatura, aktywna aplikacja, niegotowe oznaczone „wkrótce”", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
-  await page.goto("/?weather=rain");
+  await page.goto("/?boot=off&weather=rain");
   const dock = page.getByRole("navigation", { name: "Aplikacje" });
   const weather = dock.getByRole("button", { name: "Pogoda" });
   await expect(weather).toHaveAttribute("aria-current", "true");
@@ -105,7 +105,7 @@ test("dock: klawiatura, aktywna aplikacja, niegotowe oznaczone „wkrótce”", 
 
 test("„+” przepisu dodaje składniki do listy i ogłasza to w pigułce", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
-  await page.goto("/?weather=rain");
+  await page.goto("/?boot=off&weather=rain");
   await expect(page.getByTestId("shopping-list")).toContainText("Kupione 3 z 4");
   await page.getByRole("button", { name: /Dodaj składniki do listy/ }).click();
   await expect(page.getByTestId("shopping-list")).toContainText("Kupione 3 z 7");
@@ -116,7 +116,7 @@ test("„+” przepisu dodaje składniki do listy i ogłasza to w pigułce", asy
 test("prefers-reduced-motion: kursor nie przesuwa obiektów", async ({ browser }) => {
   const context = await browser.newContext({ viewport: { width: 1440, height: 900 }, reducedMotion: "reduce" });
   const page = await context.newPage();
-  await page.goto("/?weather=rain");
+  await page.goto("/?boot=off&weather=rain");
   const arc = page.getByTestId("weather-arc");
   const before = await box(arc);
   await page.mouse.move(10, 10);
@@ -128,7 +128,7 @@ test("prefers-reduced-motion: kursor nie przesuwa obiektów", async ({ browser }
 
 test("parallax: bliższe obiekty przesuwają się mocniej niż dalsze", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
-  await page.goto("/?weather=rain");
+  await page.goto("/?boot=off&weather=rain");
   const far = page.getByTestId("weather-arc");
   const near = page.getByTestId("recipe");
   await page.mouse.move(720, 450);

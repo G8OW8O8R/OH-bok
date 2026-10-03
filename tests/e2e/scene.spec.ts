@@ -27,7 +27,7 @@ test("scena deszczowa: poster w HTML z serwera, wideo wczytywane dopiero po hydr
   expect(videoTag).toMatch(/playsInline/i);
   expect(videoTag).not.toMatch(/autoplay/i);
 
-  await page.goto("/?weather=rain");
+  await page.goto("/?boot=off&weather=rain");
   await expect(page.getByTestId("scene")).toHaveAttribute("data-weather", "rain");
   await expect(layerVideo(page)).toHaveCount(1);
   await expect(layerVideo(page)).toHaveAttribute("src", "/scenes/rain-lighthouse/loop-720.mp4");
@@ -37,7 +37,7 @@ test("scena deszczowa: poster w HTML z serwera, wideo wczytywane dopiero po hydr
 
 test("wideo zakrywa poster dopiero na klatce 0", async ({ page }) => {
   const errors = collectConsoleErrors(page);
-  await page.goto("/");
+  await page.goto("/?boot=off");
   const video = layerVideo(page);
   await expect(video).toHaveAttribute("data-handoff", "video", { timeout: 15_000 });
   const firstFrameTime = Number(await video.getAttribute("data-first-frame-time"));
@@ -53,7 +53,7 @@ for (const [weather, folder] of [
 ] as const) {
   test(`?weather=${weather} wybiera właściwą scenę`, async ({ page }) => {
     const errors = collectConsoleErrors(page);
-    await page.goto(`/?weather=${weather}`);
+    await page.goto(`/?boot=off&weather=${weather}`);
     await expect(page.getByTestId("scene")).toHaveAttribute("data-weather", weather);
     await expect(layerVideo(page)).toHaveAttribute("src", `/scenes/${folder}/loop-720.mp4`);
     await expect(layerPoster(page)).toHaveAttribute("src", `/scenes/${folder}/poster.jpg`);
@@ -70,7 +70,7 @@ async function box(locator: Locator) {
 test("poster i wideo mają identyczne pudełko kadru, przeliczane przy zmianie rozmiaru okna", async ({
   page,
 }) => {
-  await page.goto("/");
+  await page.goto("/?boot=off");
   for (const viewport of [
     { width: 1280, height: 720 },
     { width: 800, height: 800 },
@@ -100,7 +100,7 @@ test("pudełko kadru ze skryptu inline = pudełko po hydracji (poster nie przesk
 }) => {
   const errors = collectConsoleErrors(page);
   await page.setViewportSize({ width: 1366, height: 768 });
-  await page.goto("/");
+  await page.goto("/?boot=off");
   await expect(layerVideo(page)).toHaveAttribute("data-handoff", "video", { timeout: 15_000 });
   const { inline, hydrated } = await page.evaluate(() => {
     const names = ["--scene-width", "--scene-height", "--scene-left", "--scene-top"];
@@ -120,7 +120,7 @@ test("prefers-reduced-motion: przekazanie i zmiana sceny działają z krótkimi 
   page,
 }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
-  await page.goto("/?weather=rain");
+  await page.goto("/?boot=off&weather=rain");
   await expect(layerVideo(page)).toHaveAttribute("data-handoff", "video", { timeout: 15_000 });
 
   await page.getByRole("link", { name: "cloudy" }).click();
@@ -131,7 +131,7 @@ test("prefers-reduced-motion: przekazanie i zmiana sceny działają z krótkimi 
 
 test("przełączenie sceny przenika bez przesunięcia layoutu", async ({ page }) => {
   const errors = collectConsoleErrors(page);
-  await page.goto("/?weather=rain");
+  await page.goto("/?boot=off&weather=rain");
   await page.evaluate(() => {
     const w = window as Window & { __cls?: number };
     w.__cls = 0;

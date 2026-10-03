@@ -41,6 +41,7 @@ export function normalizeOpenMeteo(raw: OpenMeteoResponse, options: NormalizeOpt
 
   const days: DailyForecast[] = daily.time.slice(0, FORECAST_DAYS).map((date, i) => {
     const code = daily.weather_code[i] ?? null;
+    const probability = daily.precipitation_probability_max[i] ?? null;
     return {
       date,
       weatherCode: code,
@@ -49,6 +50,8 @@ export function normalizeOpenMeteo(raw: OpenMeteoResponse, options: NormalizeOpt
       temperatureMinC: daily.temperature_2m_min[i] ?? null,
       precipitationSumMm: daily.precipitation_sum[i] ?? null,
       windMaxKmh: daily.wind_speed_10m_max[i] ?? null,
+      precipitationProbabilityMax: probability === null ? null : Math.min(100, Math.max(0, probability)),
+      windDirectionDeg: daily.wind_direction_10m_dominant[i] ?? null,
       sunrise: optionalIso(daily.sunrise[i]),
       sunset: optionalIso(daily.sunset[i]),
     };

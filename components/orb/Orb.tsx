@@ -13,6 +13,8 @@ interface OrbProps {
   state: OrbState;
   /** Dzień z prognozy, którego pogodę pokazuje kula (kryształowa kula); null = scena. */
   preview: DailyForecast | null;
+  /** Krople deszczu na szkle kuli WebGL, 0–1 (kula CSS ich nie ma). */
+  rain: number;
   /** Dzisiejsza data w strefie lokalizacji (`YYYY-MM-DD`). */
   today: string;
   /** `?orb-mode=` */
@@ -41,7 +43,7 @@ function clientDecision(override: OrbMode | null): OrbModeDecision {
  * daje radę, nad nią pojawia się płótno WebGL2 z refrakcją sceny. Każdy problem
  * (brak WebGL2, utrata kontekstu, za wolne klatki) wraca do kuli w CSS.
  */
-export function Orb({ state, preview, today, modeOverride }: OrbProps) {
+export function Orb({ state, preview, rain, today, modeOverride }: OrbProps) {
   const reduceMotion = useReducedMotion() ?? false;
   const decision = useSyncExternalStore(
     noopSubscribe,
@@ -62,6 +64,7 @@ export function Orb({ state, preview, today, modeOverride }: OrbProps) {
       data-testid="orb"
       data-mode={mode}
       data-state={state}
+      data-rain={rain > 0 ? rain.toFixed(2) : undefined}
       data-ready={canvasShown}
       data-fallback-reason={reason}
       className="orb-root relative size-(--orb-size) shrink-0"
@@ -74,6 +77,7 @@ export function Orb({ state, preview, today, modeOverride }: OrbProps) {
         <OrbCanvas
           state={state}
           preview={image}
+          rain={rain}
           reduceMotion={reduceMotion}
           forced={decision.forced}
           visible={canvasShown}

@@ -32,6 +32,8 @@ import { OrbRenderer, type TextureSlot, type TextureSource } from "./renderer";
 interface OrbCanvasProps {
   state: OrbState;
   preview: OrbPreviewImage | null;
+  /** Krople deszczu na szkle, 0–1 (lib/scene-conditions.ts `orbRainStrength`). */
+  rain: number;
   reduceMotion: boolean;
   /** `?orb-mode=webgl`: bez heurystyk, watchdoga i wymogu sprzętowego GPU. */
   forced: boolean;
@@ -70,18 +72,18 @@ function layerSource(layer: SceneLayerHandle): TextureSource | null {
  * Płótno WebGL2 kuli i jego pętla klatek. Rysuje tylko, gdy coś się zmienia (przy
  * reduced motion) albo w rytmie ekranu (oddech, fale); staje poza ekranem i przy ukrytej karcie.
  */
-export function OrbCanvas({ state, preview, reduceMotion, forced, visible, onReady, onFail }: OrbCanvasProps) {
+export function OrbCanvas({ state, preview, rain, reduceMotion, forced, visible, onReady, onFail }: OrbCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const source = useSceneSource();
   const parallax = useParallax("near");
   const pointer = usePointerUnits();
-  const live = useRef({ state, preview, reduceMotion });
+  const live = useRef({ state, preview, rain, reduceMotion });
   const handleReady = useEffectEvent(onReady);
   const handleFail = useEffectEvent(onFail);
 
   useEffect(() => {
-    live.current = { state, preview, reduceMotion };
-  }, [state, preview, reduceMotion]);
+    live.current = { state, preview, rain, reduceMotion };
+  }, [state, preview, rain, reduceMotion]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -124,7 +126,7 @@ export function OrbCanvas({ state, preview, reduceMotion, forced, visible, onRea
     let activePreview: PreviewIndex = 0;
     let loadingPoster: string | null = null;
 
-    const fx = { think: 0, speak: 0, previewMix: 0, previewBlend: 0 };
+    const fx = { think: 0, speak: 0, previewMix: 0, previewBlend: 0, rain: live.current.rain };
     let lastSignature = "";
 
     const watchdog = new FpsWatchdog();
@@ -259,7 +261,7 @@ export function OrbCanvas({ state, preview, reduceMotion, forced, visible, onRea
       raf = requestAnimationFrame(frame);
       const dt = lastFrameAt ? Math.min((now - lastFrameAt) / 1000, 0.1) : 0;
       lastFrameAt = now;
-      const { state, preview, reduceMotion } = live.current;
+      const { state, preview, rain, reduceMotion } = live.current;
       if (!reduceMotion) time += dt;
 
       if (watching && !reduceMotion) {
@@ -286,6 +288,8 @@ export function OrbCanvas({ state, preview, reduceMotion, forced, visible, onRea
       const targets = orbTargets(state);
       fx.think = approach(fx.think, targets.think, dt, tau);
       fx.speak = approach(fx.speak, targets.speak, dt, tau);
+      // Krople pojawiają się i wysychają w rytmie przenikania scen.
+      fx.rain = approach(fx.rain, rain, dt, reduceMotion ? ORB_TAU_S.reduced : ORB_TAU_S.rain);
       stepPreview(preview, dt, reduceMotion ? ORB_TAU_S.reduced : ORB_TAU_S.preview);
 
       const pulse = speakPulse(time, reduceMotion);
@@ -301,7 +305,7 @@ export function OrbCanvas({ state, preview, reduceMotion, forced, visible, onRea
 
       // Przy reduced motion rysujemy tylko wtedy, gdy zmieniło się cokolwiek widocznego.
       const signature = [
-        screen.x, screen.y, cursor.x, cursor.y, sceneMix, flash, fx.think, fx.speak,
+        screen.x, screen.y, cursor.x, cursor.y, sceneMix, flash, fx.think, fx.speak, fx.rain,
         fx.previewMix, fx.previewBlend, source.brightness.get(), source.saturate.get(), size, scale,
         fit.left, fit.top, fit.width, fit.height,
       ].join();
@@ -320,6 +324,7 @@ export function OrbCanvas({ state, preview, reduceMotion, forced, visible, onRea
         think: fx.think,
         speak: glow,
         flash,
+        rain: fx.rain,
         scene: [baseSlot, hasIncoming && incomingSlot ? incomingSlot : null],
         sceneMix,
         brightness: flashBrightness(source.brightness.get(), flash),

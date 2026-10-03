@@ -16,6 +16,8 @@ declare module "react" {
     "--glass-text-shadow"?: string;
     /** Cień swobodnego tekstu zależny od sceny (`textShadow`). */
     "--scene-text-shadow"?: string;
+    /** Kolejność elementu w sekwencji startowej (styles/boot.css). */
+    "--i"?: number;
     /** Przesunięcie fazy animacji (fala dźwięku). */
     "--delay"?: string;
   }

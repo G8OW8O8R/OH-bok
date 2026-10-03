@@ -28,6 +28,8 @@ export const openMeteoResponseSchema = z.object({
     temperature_2m_min: z.array(z.number().nullable()),
     precipitation_sum: z.array(z.number().nullable()),
     wind_speed_10m_max: z.array(z.number().nullable()),
+    precipitation_probability_max: z.array(z.number().nullable()),
+    wind_direction_10m_dominant: z.array(z.number().nullable()),
     // Noc polarna / dzień polarny: brak wschodu lub zachodu.
     sunrise: z.array(z.string().nullable()),
     sunset: z.array(z.string().nullable()),
@@ -56,6 +58,10 @@ export const dailyForecastSchema = z.object({
   temperatureMinC: z.number().nullable(),
   precipitationSumMm: z.number().nullable(),
   windMaxKmh: z.number().nullable(),
+  /** Maks. prawdopodobieństwo opadu w %. Starsze kopie w localStorage go nie mają. */
+  precipitationProbabilityMax: z.number().min(0).max(100).nullable().default(null),
+  /** Dominujący kierunek wiatru (skąd wieje, stopnie). Starsze kopie go nie mają. */
+  windDirectionDeg: z.number().nullable().default(null),
   sunrise: isoDateTime.nullable(),
   sunset: isoDateTime.nullable(),
 });

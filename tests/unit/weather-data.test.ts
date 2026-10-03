@@ -12,7 +12,7 @@ import {
 import { demoWeather } from "@/lib/weather/demo";
 import { createLastKnownStore } from "@/lib/weather/last-known";
 import { formatUtcOffset, localToIso, normalizeOpenMeteo, toMmPerHour } from "@/lib/weather/normalize";
-import { openMeteoResponseSchema, weatherDataSchema, type WeatherData } from "@/lib/weather/schema";
+import { dailyForecastSchema, openMeteoResponseSchema, weatherDataSchema, type WeatherData } from "@/lib/weather/schema";
 
 const NOW = new Date("2026-09-29T18:05:00Z");
 
@@ -91,7 +91,17 @@ describe("normalize", () => {
       state: "cloudy",
       sunrise: "2026-09-29T06:43:00+02:00",
       sunset: "2026-09-29T18:26:00+02:00",
+      precipitationProbabilityMax: 78,
+      windDirectionDeg: 245,
     });
+  });
+
+  it("kopia dnia bez szansy opadu i kierunku wiatru (starszy zapis) przechodzi walidację", () => {
+    const { precipitationProbabilityMax, windDirectionDeg, ...legacy } = liveData().daily[0]!;
+    expect([precipitationProbabilityMax, windDirectionDeg]).not.toContain(undefined);
+    const parsed = dailyForecastSchema.parse(legacy);
+    expect(parsed.precipitationProbabilityMax).toBeNull();
+    expect(parsed.windDirectionDeg).toBeNull();
   });
 
   it("prognoza godzinowa: czasy ze strefą, stany WMO, opad", () => {

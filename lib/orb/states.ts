@@ -41,8 +41,11 @@ export function orbTargets(state: OrbState): OrbTargets {
   };
 }
 
-/** Stałe czasowe dochodzenia (s): ok. 3τ do celu. Przy reduced motion ≤ 150 ms. */
-export const ORB_TAU_S = { state: 0.18, preview: 0.12, reduced: 0.045 } as const;
+/**
+ * Stałe czasowe dochodzenia (s): ok. 3τ do celu. Przy reduced motion ≤ 150 ms.
+ * `rain`: krople pojawiają się i wysychają w rytmie przenikania scen (1,4 s ≈ 3τ).
+ */
+export const ORB_TAU_S = { state: 0.18, preview: 0.12, rain: 0.45, reduced: 0.045 } as const;
 
 /**
  * Wykładnicze dochodzenie do celu, niezależne od liczby klatek na sekundę.

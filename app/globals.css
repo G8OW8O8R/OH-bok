@@ -1,6 +1,8 @@
 @import "tailwindcss";
 @import "../styles/tokens.css";
 @import "../styles/desktop.css";
+@import "../styles/boot.css";
+@import "../styles/weather.css";
 
 /* Układ desktopowy pulpitu (lustro media query z tokens.css, gdzie zmienia się --u). */
 @custom-variant desk (@media (min-width: 1200px) and (min-height: 640px) and (min-aspect-ratio: 4/3));

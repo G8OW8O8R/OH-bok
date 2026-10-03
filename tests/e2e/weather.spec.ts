@@ -30,7 +30,7 @@ test("bez override scena odpowiada prawdziwej pogodzie; atrybucja Open-Meteo jes
   const errors = collectConsoleErrors(page);
   const api = weatherDataSchema.parse(await (await request.get("/api/weather")).json());
 
-  await page.goto("/");
+  await page.goto("/?boot=off");
   await expect(page.getByTestId("scene")).toHaveAttribute("data-weather", api.current.state);
   await expect(page.getByTestId("weather-place")).toHaveText("Gdańsk");
   const attribution = page.getByRole("link", { name: "Open-Meteo.com" });
@@ -40,7 +40,7 @@ test("bez override scena odpowiada prawdziwej pogodzie; atrybucja Open-Meteo jes
 });
 
 test("override ?weather= ma pierwszeństwo przed prawdziwą pogodą", async ({ page }) => {
-  await page.goto("/?weather=storm");
+  await page.goto("/?boot=off&weather=storm");
   await expect(page.getByTestId("scene")).toHaveAttribute("data-weather", "storm");
   await expect(arc(page)).toContainText("Scena wymuszona: burza");
 });
@@ -49,7 +49,7 @@ test("odmowa geolokalizacji nie psuje strony: zostaje Gdańsk i czytelny komunik
   const context = await browser.newContext(); // bez uprawnień: przeglądarka odmawia
   const page = await context.newPage();
   const errors = collectConsoleErrors(page);
-  await page.goto("/");
+  await page.goto("/?boot=off");
 
   await arc(page).getByRole("button", { name: "Użyj mojej lokalizacji" }).click();
   await expect(arc(page)).toContainText("Brak zgody na lokalizację");
@@ -68,7 +68,7 @@ test("zgoda na lokalizację: pogoda dla użytkownika, ciasteczko z zaokrągloną
     geolocation: { latitude: 52.229676, longitude: 21.012229 },
   });
   const page = await context.newPage();
-  await page.goto("/");
+  await page.goto("/?boot=off");
 
   // Zgoda już jest, więc lokalizacja pobiera się bez klikania (i bez okna uprawnień).
   await expect(page.getByTestId("weather-place")).toHaveText("Twoja lokalizacja");
@@ -82,7 +82,7 @@ test("zgoda na lokalizację: pogoda dla użytkownika, ciasteczko z zaokrągloną
 });
 
 test("wyłączenie sieci: dane z pamięci z oznaczeniem, powrót sieci: dane na żywo", async ({ page, context }) => {
-  await page.goto("/");
+  await page.goto("/?boot=off");
   // Jeśli SSR dostał nieświeży wpis cache, klient po chwili pobiera świeży.
   await expect(arc(page)).toHaveAttribute("data-source", "live", { timeout: 10_000 });
   // Ostatnie dobre dane trafiają do localStorage po hydracji.

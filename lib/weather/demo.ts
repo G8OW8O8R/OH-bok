@@ -53,6 +53,8 @@ export function demoWeather(now: Date, coords: Coords | null = null): WeatherDat
       temperatureMinC: min,
       precipitationSumMm: code >= 61 ? 4.2 : 0,
       windMaxKmh: 22,
+      precipitationProbabilityMax: code >= 61 ? 80 : 15,
+      windDirectionDeg: 250,
       sunrise: `${date}T06:45:00${tz}`,
       sunset: `${date}T18:20:00${tz}`,
     };

@@ -43,7 +43,15 @@
     align-items: center;
     justify-content: center;
     gap: calc(var(--u) * 2);
-    --orb-size: calc(var(--u) * 11);
+  }
+
+  /*
+   * Szerokość powitania niezależna od treści: brief dostaje przypomnienie dopiero po hydracji,
+   * a szerokość z treści zawijała wtedy hero (CLS ~0,1 na tablecie).
+   */
+  .desktop-hero-text {
+    flex: 1 1 22rem;
+    max-width: 36rem;
   }
 
   .desktop-objects {
@@ -105,7 +113,11 @@
       align-items: flex-start;
       justify-content: flex-start;
       gap: calc(var(--u) * 4);
-      --orb-size: calc(var(--u) * 18.1);
+    }
+
+    .desktop-hero-text {
+      flex: none;
+      max-width: none;
     }
 
     .desktop-objects {

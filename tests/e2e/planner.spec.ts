@@ -29,7 +29,7 @@ test.describe("lista zakupów", () => {
 
   test("dodawanie, odhaczanie, usuwanie; dane przetrwają odświeżenie", async ({ page }) => {
     await seed(page, { items: [{ id: "a", name: "Jajka", done: false }] });
-    await page.goto("/?weather=rain");
+    await page.goto("/?boot=off&weather=rain");
     const tile = page.getByTestId("shopping-list");
     await expect(tile).toContainText("Kupione 0 z 1");
 
@@ -66,7 +66,7 @@ test.describe("lista zakupów", () => {
         { id: "b", name: "Ser", done: false },
       ],
     });
-    await page.goto("/?weather=rain");
+    await page.goto("/?boot=off&weather=rain");
     await expect(page.locator(".brief")).toContainText(/Do\s+kupienia\s+2\s+rzeczy/);
   });
 
@@ -74,7 +74,7 @@ test.describe("lista zakupów", () => {
     const context = await browser.newContext({ viewport: VIEWPORT, reducedMotion: "reduce" });
     const page = await context.newPage();
     await seed(page, { items: [{ id: "a", name: "Jajka", done: false }] });
-    await page.goto("/?weather=rain");
+    await page.goto("/?boot=off&weather=rain");
     await page.getByRole("button", { name: "Otwórz listę zakupów" }).click();
     const panel = page.getByRole("dialog", { name: "Lista zakupów" });
     // Bez rysowania i zsuwania: pozycja przechodzi do „Kupione” od razu (stara wersja znika w ≤ 150 ms).
@@ -89,7 +89,7 @@ test.describe("przypomnienia i pigułka", () => {
 
   test("pigułka pokazuje to samo, co pierwsza pozycja listy; dodanie i usunięcie je zmienia", async ({ page }) => {
     await seed(page, { reminders: [reminder("r1", "Dentysta", 3 * 3600_000)] });
-    await page.goto("/?weather=rain");
+    await page.goto("/?boot=off&weather=rain");
     const pill = page.getByTestId("pill");
     const tile = page.getByTestId("reminders");
     await expect(pill).toContainText("Dentysta");
@@ -125,7 +125,7 @@ test.describe("przypomnienia i pigułka", () => {
 
   test("w chwili terminu pigułka się rozwija; drzemka przyciskiem odkłada o 10 min", async ({ page }) => {
     await seed(page, { reminders: [reminder("r1", "Dentysta", 3000)] });
-    await page.goto("/?weather=rain");
+    await page.goto("/?boot=off&weather=rain");
     const pill = page.getByTestId("pill");
     await expect(pill).not.toHaveAttribute("data-due", "true");
     await expect(pill).toHaveAttribute("data-due", "true", { timeout: 15_000 });
@@ -142,7 +142,7 @@ test.describe("przypomnienia i pigułka", () => {
 
   test("swipe w bok na rozwiniętej pigułce = drzemka", async ({ page }) => {
     await seed(page, { reminders: [reminder("r1", "Dentysta", -1000)] });
-    await page.goto("/?weather=rain");
+    await page.goto("/?boot=off&weather=rain");
     const pill = page.getByTestId("pill");
     await expect(pill).toHaveAttribute("data-due", "true");
     const box = await pill.boundingBox();
@@ -160,7 +160,7 @@ test.describe("przypomnienia i pigułka", () => {
     const context = await browser.newContext({ viewport: VIEWPORT, reducedMotion: "reduce" });
     const page = await context.newPage();
     await seed(page, { reminders: [reminder("r1", "Dentysta", -1000)] });
-    await page.goto("/?weather=rain");
+    await page.goto("/?boot=off&weather=rain");
     const pill = page.getByTestId("pill");
     await expect(pill).toHaveAttribute("data-due", "true");
     await pill.getByRole("button", { name: "Gotowe" }).focus();
@@ -171,7 +171,7 @@ test.describe("przypomnienia i pigułka", () => {
   });
 
   test("pierwsza wizyta: przykładowe przypomnienia w rozsądnych godzinach", async ({ page }) => {
-    await page.goto("/?weather=rain");
+    await page.goto("/?boot=off&weather=rain");
     const times = page.getByTestId("reminders").locator("time");
     await expect(times).toHaveCount(3);
     for (const text of await times.allInnerTexts()) {
@@ -187,7 +187,7 @@ test.describe("panel: tło, własny termin, niskie ekrany", () => {
 
   test("tło przyciemnia pulpit, klik w tło zamyka panel; pole ma stały wskaźnik i bursztynowy kursor", async ({ page }) => {
     await seed(page, { items: [{ id: "a", name: "Jajka", done: false }] });
-    await page.goto("/?weather=cloudy");
+    await page.goto("/?boot=off&weather=cloudy");
     await page.getByRole("button", { name: "Otwórz listę zakupów" }).click();
     const panel = page.getByRole("dialog", { name: "Lista zakupów" });
     const field = panel.getByRole("textbox", { name: "Nowa pozycja" });
@@ -211,7 +211,7 @@ test.describe("panel: tło, własny termin, niskie ekrany", () => {
 
   test("własny termin z klawiatury: kalendarz i godzina; Esc zwija tylko wybór", async ({ page }) => {
     await seed(page, { reminders: [] });
-    await page.goto("/?weather=rain");
+    await page.goto("/?boot=off&weather=rain");
     await page.getByRole("button", { name: "Otwórz przypomnienia" }).click();
     const panel = page.getByRole("dialog", { name: "Przypomnienia" });
     await panel.getByRole("textbox", { name: "O czym przypomnieć" }).fill("Paczka");
@@ -264,7 +264,7 @@ test.describe("panel: tło, własny termin, niskie ekrany", () => {
       const context = await browser.newContext({ viewport, reducedMotion: "reduce" });
       const page = await context.newPage();
       await seed(page, { reminders: many });
-      await page.goto("/?weather=rain");
+      await page.goto("/?boot=off&weather=rain");
       await page.getByRole("button", { name: "Otwórz przypomnienia" }).click();
       const panel = page.getByRole("dialog", { name: "Przypomnienia" });
       await panel.getByRole("button", { name: "Inna data" }).click();

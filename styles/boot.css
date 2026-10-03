@@ -1,0 +1,445 @@
+/*
+ * Sekwencja startowa. Plan i czasy ustawia skrypt inline
+ * (lib/boot.ts) na <html>: data-boot="first|wake|reduced" i zmienne --boot-*.
+ *
+ * Pierwsza wizyta: logo, wordmark i pasek ruszają od pierwszej klatki; kroki pulpitu czekają
+ * wstrzymane (animation-play-state: paused, stan z klatki „from”) do data-boot-step="reveal",
+ * które Boot ustawia po bramce postępu; od tej chwili liczą się ich opóźnienia.
+ * Klatki mają tylko „from”: koniec animacji = naturalny styl, więc zdjęcie atrybutów
+ * po sekwencji niczego nie przesuwa. Animowane są transform (translate/scale) i opacity,
+ * scena dodatkowo filter, a linie tekstu maskę (odsłanianie linia po linii).
+ */
+
+@property --boot-l1 {
+  syntax: "<percentage>";
+  inherits: false;
+  initial-value: 130%;
+}
+
+@property --boot-l2 {
+  syntax: "<percentage>";
+  inherits: false;
+  initial-value: 130%;
+}
+
+@property --boot-l3 {
+  syntax: "<percentage>";
+  inherits: false;
+  initial-value: 130%;
+}
+
+@layer components {
+  /* ---------- Nakładka z logo (tylko pierwsza wizyta) ---------- */
+
+  .boot {
+    display: none;
+  }
+
+  html[data-boot="first"] .boot {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 100;
+    /* Logo: kule mają rozmiar docelowej kuli „Obok” i są pomniejszone (przelot = scale → 1). */
+    --boot-logo-scale: 0.5;
+    --boot-logo-d: calc(var(--orb-size) * var(--boot-logo-scale));
+    --boot-logo-y: calc(50% - var(--u) * 1.5);
+  }
+
+  @media (min-width: 1200px) and (min-height: 640px) and (min-aspect-ratio: 4/3) {
+    html[data-boot="first"] .boot {
+      --boot-logo-scale: 0.3;
+    }
+  }
+
+  .boot-orb {
+    position: absolute;
+    scale: var(--boot-logo-scale);
+  }
+
+  /*
+   * Lecące kule bez backdrop-filter: pierwsze złożenie go z wyłaniającym się wideo w ruchu dawało
+   * na GPU klatki 24–30 ms. Kula docelowa ma pełne szkło i przejmuje je przenikaniem.
+   */
+  .boot .orb {
+    animation: none;
+    backdrop-filter: none;
+  }
+
+  /* Duża „O” i mała „o” obok niej (jak znak logo), grupa wyśrodkowana. */
+  .boot-orb-big {
+    top: var(--boot-logo-y);
+    left: calc(50% - var(--boot-logo-d) * 0.165);
+    width: var(--orb-size);
+    height: var(--orb-size);
+    margin: calc(var(--orb-size) / -2) 0 0 calc(var(--orb-size) / -2);
+  }
+
+  .boot-orb-small {
+    top: var(--boot-logo-y);
+    left: calc(50% + var(--boot-logo-d) * 0.56);
+    width: calc(var(--orb-size) * 0.21);
+    height: calc(var(--orb-size) * 0.21);
+    margin: calc(var(--orb-size) * -0.105) 0 0 calc(var(--orb-size) * -0.105);
+  }
+
+  .boot-wordmark {
+    position: absolute;
+    top: calc(var(--boot-logo-y) + var(--boot-logo-d) / 2 + var(--u) * 1.4);
+    right: 0;
+    left: 0;
+    text-align: center;
+    font-size: var(--text-wordmark);
+    line-height: 1;
+    letter-spacing: -0.035em;
+    font-weight: 600;
+    color: var(--text-primary);
+  }
+
+  .boot-bar {
+    position: absolute;
+    top: calc(var(--boot-logo-y) + var(--boot-logo-d) / 2 + var(--u) * 5);
+    left: 50%;
+    width: calc(var(--u) * 8);
+    height: 2px;
+    margin-left: calc(var(--u) * -4);
+    overflow: hidden;
+    border-radius: var(--radius-pill);
+    background: rgb(255 255 255 / 0.14);
+  }
+
+  .boot-bar-fill {
+    display: block;
+    height: 100%;
+    background: var(--accent-amber);
+    transform: scaleX(0);
+    transform-origin: left;
+  }
+
+  html[data-boot="first"] .boot-orb-big {
+    animation: boot-logo var(--boot-logo-dur) var(--ease-out) var(--boot-logo-delay) backwards;
+  }
+
+  html[data-boot="first"] .boot-orb-small {
+    animation: boot-logo-small var(--boot-small-dur) var(--boot-spring) var(--boot-small-delay) backwards;
+  }
+
+  html[data-boot="first"] .boot-wordmark {
+    animation:
+      boot-rise var(--boot-wordmark-dur) var(--ease-soft) var(--boot-wordmark-delay) backwards,
+      boot-out var(--boot-out-dur) var(--ease-soft) var(--boot-out-delay) forwards paused;
+  }
+
+  html[data-boot="first"] .boot-bar {
+    animation:
+      boot-fade var(--dur-fade) var(--ease-soft) var(--boot-bar-delay) backwards,
+      boot-out var(--boot-out-dur) var(--ease-soft) var(--boot-out-delay) forwards paused;
+  }
+
+  html[data-boot="first"][data-boot-step="reveal"] :is(.boot-wordmark, .boot-bar) {
+    animation-play-state: running;
+  }
+
+  /* Kula docelowa (WebGL albo CSS) przejmuje lecące kule przenikaniem 200 ms. */
+  html[data-boot="first"] .orb-root {
+    transition: opacity 200ms var(--ease-soft);
+  }
+
+  html[data-boot="first"]:not([data-boot-orb="landed"]) .orb-root {
+    opacity: 0;
+  }
+
+  html[data-boot-orb="landed"] .boot-orb {
+    opacity: 0;
+    transition: opacity 200ms var(--ease-soft);
+  }
+
+  /* ---------- Kroki pulpitu (pierwsza wizyta i wybudzenie) ---------- */
+
+  /*
+   * Wyłanianie sceny: blur(40px) brightness(0) scale(1.08) → normalnie. Rozmycie ma stały promień
+   * (warstwa backdrop-filter nad wideo, która gaśnie): animowany promień kompilował na GPU nowy
+   * shader dla kolejnych rozmiarów jądra (zacięcia 30–60 ms przy zimnym cache shaderów).
+   */
+  html:is([data-boot="first"], [data-boot="wake"]) .scene-stage::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    backdrop-filter: blur(var(--boot-scene-blur));
+    animation: boot-unblur var(--boot-scene-dur) var(--ease-out) var(--boot-scene-delay) both;
+  }
+
+  html[data-boot="first"] .scene-stage {
+    --boot-scene-blur: 40px;
+    animation: boot-scene var(--boot-scene-dur) var(--ease-out) var(--boot-scene-delay) both;
+    will-change: filter, scale;
+  }
+
+  html[data-boot="wake"] .scene-stage {
+    --boot-scene-blur: 20px;
+  }
+
+  html:is([data-boot="first"], [data-boot="wake"]) {
+    .desktop-chrome {
+      animation: boot-drop var(--boot-chrome-dur) var(--ease-out) var(--boot-chrome-delay) both;
+    }
+
+    /* Powitanie i brief: linie unoszą się i przenikają (przy pierwszej wizycie zamiast tego maska, niżej). */
+    [data-boot-wipe] {
+      --wipe-delay: var(--boot-greeting-delay);
+      --wipe-dur: var(--boot-greeting-dur);
+      animation: boot-rise var(--wipe-dur) var(--ease-out) var(--wipe-delay) both;
+    }
+
+    [data-boot-wipe="headline"] {
+      --wipe-delay: var(--boot-headline-delay);
+      --wipe-dur: var(--boot-headline-dur);
+    }
+
+    /* Kapsuły akcji wchodzą razem z pierwszym obiektem. */
+    [data-boot-part="actions"],
+    .desktop-objects > * {
+      animation: boot-slide var(--boot-widgets-dur) var(--ease-out)
+        calc(var(--boot-widgets-delay) + var(--boot-widgets-step) * var(--n, 0)) both;
+    }
+
+    .desktop-objects > :nth-child(2) {
+      --n: 1;
+    }
+    .desktop-objects > :nth-child(3) {
+      --n: 2;
+    }
+    .desktop-objects > :nth-child(4) {
+      --n: 3;
+    }
+    .desktop-objects > :nth-child(5) {
+      --n: 4;
+    }
+    .desktop-objects > :nth-child(6) {
+      --n: 5;
+    }
+
+    /* Karty dni wskakują jedna po drugiej (--i z TemperatureCurve). */
+    [data-testid="forecast-day"] {
+      animation: boot-pop var(--boot-days-dur) var(--boot-spring, var(--ease-out))
+        calc(var(--boot-days-delay) + var(--boot-days-step) * var(--i, 0)) both;
+    }
+
+    /*
+     * Dock wynurza się od dołu: szkło przenika, przyciski wjeżdżają. Przesuwanie samego szkła
+     * (backdrop-filter) zza krawędzi ekranu dawało na GPU klatki 30–40 ms.
+     */
+    .desktop-dock {
+      animation: boot-fade var(--boot-dock-dur) var(--ease-soft) var(--boot-dock-delay) both;
+    }
+
+    .desktop-dock > ul {
+      animation: boot-dock var(--boot-dock-dur) var(--ease-out) var(--boot-dock-delay) both;
+    }
+  }
+
+  /*
+   * Pierwsza wizyta: odsłanianie maską linia po linii, każda linia (1lh) ma własny pasek maski.
+   * Maska animuje się na wątku głównym, więc przy wybudzeniu (w trakcie hydracji) jej nie ma.
+   */
+  html[data-boot="first"] [data-boot-wipe] {
+    mask-image:
+      linear-gradient(90deg, #000 calc(var(--boot-l1) - 30%), transparent var(--boot-l1)),
+      linear-gradient(90deg, #000 calc(var(--boot-l2) - 30%), transparent var(--boot-l2)),
+      linear-gradient(90deg, #000 calc(var(--boot-l3) - 30%), transparent var(--boot-l3)),
+      linear-gradient(90deg, #000 calc(var(--boot-l3) - 30%), transparent var(--boot-l3));
+    mask-size:
+      100% 1lh,
+      100% 1lh,
+      100% 1lh,
+      100% 100%;
+    mask-position:
+      0 0,
+      0 1lh,
+      0 2lh,
+      0 3lh;
+    mask-repeat: no-repeat;
+    animation:
+      boot-l1 var(--wipe-dur) var(--ease-soft) var(--wipe-delay) both,
+      boot-l2 var(--wipe-dur) var(--ease-soft) calc(var(--wipe-delay) + var(--boot-line-step)) both,
+      boot-l3 var(--wipe-dur) var(--ease-soft) calc(var(--wipe-delay) + var(--boot-line-step) * 2) both,
+      boot-lift var(--wipe-dur) var(--ease-out) var(--wipe-delay) both;
+  }
+
+  /* Wybudzenie: kula wchodzi razem z powitaniem (przy pierwszej wizycie przylatuje z logo). */
+  html[data-boot="wake"] .orb-root {
+    animation: boot-rise var(--boot-greeting-dur) var(--ease-out) var(--boot-greeting-delay) both;
+  }
+
+  /* Koda: refleks światła przechodzi raz po panelach, od lewej do prawej. */
+  .glass-sweep {
+    display: none;
+  }
+
+  html[data-boot="first"] .glass-sweep {
+    display: block;
+    position: absolute;
+    inset: -1px;
+    overflow: hidden;
+    border-radius: inherit;
+    pointer-events: none;
+  }
+
+  html[data-boot="first"] .glass-sweep::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      105deg,
+      rgb(255 255 255 / 0) 30%,
+      rgb(255 255 255 / 0.1) 46%,
+      rgb(255 255 255 / 0.2) 50%,
+      rgb(255 255 255 / 0.1) 54%,
+      rgb(255 255 255 / 0) 70%
+    );
+    translate: 101% 0;
+    animation: boot-sweep var(--boot-coda-dur) var(--ease-soft)
+      calc(var(--boot-coda-delay) + var(--boot-coda-travel) * var(--sweep-offset, 0)) both paused;
+  }
+
+  html[data-boot="first"][data-boot-step="reveal"] .glass-sweep::before {
+    animation-play-state: running;
+  }
+
+  /* Do bramki wszystko stoi w stanie „from” (czarny ekran z logo). */
+  html[data-boot="first"]:not([data-boot-step="reveal"]) {
+    .scene-stage,
+    .scene-stage::after,
+    .desktop-chrome,
+    [data-boot-wipe],
+    [data-boot-part],
+    .desktop-objects > *,
+    [data-testid="forecast-day"],
+    .desktop-dock,
+    .desktop-dock > ul {
+      animation-play-state: paused;
+    }
+  }
+
+  /* ---------- Reduced motion: jedno przenikanie ≤ 150 ms ---------- */
+
+  html[data-boot="reduced"] main {
+    animation: boot-fade var(--dur-fade) var(--ease-soft) both paused;
+  }
+
+  html[data-boot="reduced"][data-boot-step="reveal"] main {
+    animation-play-state: running;
+  }
+
+  /* Pominięcie: stan końcowy przez krótkie przenikanie (View Transitions). */
+  html[data-boot-skip]::view-transition-old(root),
+  html[data-boot-skip]::view-transition-new(root) {
+    animation-duration: var(--dur-fade);
+  }
+}
+
+@keyframes boot-logo {
+  from {
+    opacity: 0;
+    scale: calc(var(--boot-logo-scale) * 0.82);
+  }
+}
+
+@keyframes boot-logo-small {
+  from {
+    opacity: 0;
+    translate: calc(var(--boot-logo-d) * -0.725) 0;
+  }
+}
+
+@keyframes boot-fade {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes boot-out {
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes boot-rise {
+  from {
+    opacity: 0;
+    translate: 0 calc(var(--u) * 0.6);
+  }
+}
+
+@keyframes boot-scene {
+  from {
+    filter: brightness(0);
+    scale: 1.08;
+  }
+}
+
+@keyframes boot-unblur {
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes boot-drop {
+  from {
+    opacity: 0;
+    translate: 0 calc(var(--u) * -3);
+  }
+}
+
+@keyframes boot-slide {
+  from {
+    opacity: 0;
+    translate: calc(var(--u) * -3) 0;
+  }
+}
+
+@keyframes boot-pop {
+  from {
+    opacity: 0;
+    scale: 0.6;
+    translate: 0 calc(var(--u) * 0.5);
+  }
+}
+
+@keyframes boot-dock {
+  from {
+    opacity: 0;
+    translate: 0 120%;
+  }
+}
+
+@keyframes boot-lift {
+  from {
+    translate: 0 0.2em;
+  }
+}
+
+@keyframes boot-l1 {
+  from {
+    --boot-l1: 0%;
+  }
+}
+
+@keyframes boot-l2 {
+  from {
+    --boot-l2: 0%;
+  }
+}
+
+@keyframes boot-l3 {
+  from {
+    --boot-l3: 0%;
+  }
+}
+
+@keyframes boot-sweep {
+  from {
+    translate: -101% 0;
+  }
+}

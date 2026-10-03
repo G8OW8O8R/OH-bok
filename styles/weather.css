@@ -1,0 +1,204 @@
+/*
+ * Warstwy pogody nad wideo (components/scene/WeatherLayers.tsx). Tylko transform
+ * i opacity w animacjach; przy ukrytej karcie i reduced motion animacje stoją.
+ */
+
+@layer components {
+  .weather-layers[data-paused] * {
+    animation-play-state: paused !important;
+  }
+
+  /* Opad słabnie za powitaniem: elipsa mierzona przez PrecipitationLayer (--mask-*). */
+  .precip-layer {
+    mask-image: radial-gradient(
+      var(--mask-rx, 30vw) var(--mask-ry, 22vh) at var(--mask-x, 42%) var(--mask-y, 40%),
+      rgb(0 0 0 / 0.28),
+      rgb(0 0 0 / 0.55) 60%,
+      #000 100%
+    );
+  }
+
+  /* ---------- Mgła ---------- */
+
+  /*
+   * Gęstnieje w pasie horyzontu (~49% kadru) i po prawej; po lewej, za tekstem, rzadsza
+   * (kontrast tekstu). Dwie maski przecinają się.
+   */
+  .fog-layer {
+    overflow: hidden;
+    mask-image:
+      linear-gradient(180deg, rgb(0 0 0 / 0.15) 0%, rgb(0 0 0 / 0.5) 30%, #000 46%, #000 64%, rgb(0 0 0 / 0.6) 100%),
+      linear-gradient(90deg, rgb(0 0 0 / 0.35) 0%, rgb(0 0 0 / 0.55) 40%, #000 70%);
+    mask-composite: intersect;
+  }
+
+  /* Szum rasteryzowany raz (SVG feTurbulence, kafel bezszwowy); dryf o pełny kafel = pętla bez szwu. */
+  .fog-drift {
+    --tile: 900px;
+    position: absolute;
+    inset: 0 calc(var(--tile) * -1) 0 0;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='900' height='540'%3E%3Cfilter id='f'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.0028 0.0068' numOctaves='4' seed='7' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.86 0 0 0 0 0.89 0 0 0 0 0.92 1.6 0 0 0 -0.62'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23f)'/%3E%3C/svg%3E");
+    background-size: var(--tile) calc(var(--tile) * 0.6);
+    will-change: transform;
+    animation: fog-drift 140s linear infinite;
+  }
+
+  .fog-drift-far {
+    opacity: 0.55;
+  }
+
+  .fog-drift-near {
+    --tile: 1400px;
+    opacity: 0.4;
+    animation-duration: 90s;
+    animation-direction: reverse;
+  }
+
+  /* ---------- Snop latarni ---------- */
+
+  .beam-layer {
+    overflow: hidden;
+  }
+
+  /* Lampa w kadrze 1280×720: (995, 160) px → 77,7% × 22,2%. */
+  .beam-sweep {
+    position: absolute;
+    left: 77.7%;
+    top: 7.2%;
+    width: 52%;
+    height: 30%;
+    transform-origin: 0 50%;
+    will-change: transform, opacity;
+    animation: beam-sweep 11s infinite;
+  }
+
+  .beam-cone {
+    position: absolute;
+    inset: 0;
+    filter: blur(6px);
+  }
+
+  .beam-shape {
+    position: absolute;
+    inset: 0;
+    clip-path: polygon(0 48.6%, 100% 22%, 100% 78%, 0 51.4%);
+    background: linear-gradient(
+      90deg,
+      rgb(255 214 160 / 0.5),
+      rgb(255 214 160 / 0.16) 40%,
+      rgb(255 214 160 / 0) 95%
+    );
+  }
+
+  .beam-glow {
+    position: absolute;
+    left: 77.7%;
+    top: 22.2%;
+    width: 12%;
+    aspect-ratio: 1;
+    translate: -50% -50%;
+    border-radius: 50%;
+    background: radial-gradient(closest-side, rgb(255 222 175 / 0.55), rgb(255 200 140 / 0.16) 45%, rgb(255 200 140 / 0));
+    opacity: 0.25;
+    will-change: transform, opacity;
+    animation: beam-glow 11s infinite;
+  }
+
+  /*
+   * Obrót wokół osi wieży: w prawo → do widza (snop skrócony, lampa rozbłyska) → w lewo →
+   * od widza (za wieżą, przygaszony). Krzywe ease-in/ease-out przybliżają cosinus.
+   */
+  @keyframes beam-sweep {
+    0% {
+      transform: scaleX(1);
+      opacity: 0.85;
+      animation-timing-function: ease-in;
+    }
+    25% {
+      transform: scaleX(0.04);
+      opacity: 0.3;
+      animation-timing-function: ease-out;
+    }
+    50% {
+      transform: scaleX(-1);
+      opacity: 0.85;
+      animation-timing-function: ease-in;
+    }
+    75% {
+      transform: scaleX(-0.04);
+      opacity: 0.12;
+      animation-timing-function: ease-out;
+    }
+    100% {
+      transform: scaleX(1);
+      opacity: 0.85;
+    }
+  }
+
+  @keyframes beam-glow {
+    0%,
+    17%,
+    33%,
+    100% {
+      opacity: 0.25;
+      transform: scale(0.85);
+    }
+    25% {
+      opacity: 1;
+      transform: scale(1.15);
+    }
+    75% {
+      opacity: 0.1;
+      transform: scale(0.8);
+    }
+  }
+
+  /* ---------- Pyłki ---------- */
+
+  .mote {
+    position: absolute;
+    border-radius: 50%;
+    background: radial-gradient(closest-side, rgb(255 248 230 / 0.9), rgb(255 248 230 / 0));
+    opacity: 0;
+    will-change: transform, opacity;
+    animation: mote-float linear infinite;
+  }
+
+  @keyframes mote-float {
+    0% {
+      transform: translate3d(0, 0, 0);
+      opacity: 0;
+    }
+    20% {
+      opacity: 0.55;
+    }
+    80% {
+      opacity: 0.4;
+    }
+    100% {
+      transform: translate3d(3vw, -9vh, 0);
+      opacity: 0;
+    }
+  }
+
+  @keyframes fog-drift {
+    to {
+      transform: translate3d(calc(var(--tile) * -1), 0, 0);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .fog-drift,
+    .beam-sweep,
+    .beam-glow,
+    .mote {
+      animation: none;
+    }
+    .beam-sweep {
+      opacity: 0.6;
+    }
+    .mote {
+      opacity: 0.35;
+    }
+  }
+}
