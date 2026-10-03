@@ -16,6 +16,8 @@ declare module "react" {
     "--glass-text-shadow"?: string;
     /** Cień swobodnego tekstu zależny od sceny (`textShadow`). */
     "--scene-text-shadow"?: string;
+    /** Czas przenikania sceny; nadpisywany przy wolnym przejściu pory dnia (styles/tokens.css). */
+    "--dur-scene"?: string;
     /** Kolejność elementu w sekwencji startowej (styles/boot.css). */
     "--i"?: number;
     /** Przesunięcie fazy animacji (fala dźwięku). */

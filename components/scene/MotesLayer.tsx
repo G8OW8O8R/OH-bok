@@ -10,13 +10,18 @@ const MOTES = Array.from({ length: 14 }, (_, i) => {
   };
 });
 
+interface MotesLayerProps {
+  /** Złota godzina: ciepła barwa (przechodzi razem z porą dnia). */
+  warm: boolean;
+}
+
 /**
  * Pyłki w słońcu (subtelne): kilkanaście punktów unoszących się animacją CSS
  * na kompozytorze. Przy reduced motion stoją.
  */
-export function MotesLayer() {
+export function MotesLayer({ warm }: MotesLayerProps) {
   return (
-    <div aria-hidden data-testid="motes-layer" className="motes-layer absolute inset-0">
+    <div aria-hidden data-testid="motes-layer" data-warm={warm || undefined} className="motes-layer absolute inset-0">
       {MOTES.map((mote, i) => (
         <span
           key={i}

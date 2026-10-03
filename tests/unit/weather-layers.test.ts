@@ -27,7 +27,7 @@ import {
   effectiveIntensity,
   orbRainStrength,
 } from "@/lib/scene-conditions";
-import { SCENES, WEATHER_STATES } from "@/lib/scenes";
+import { resolveScene, SCENES, WEATHER_STATES } from "@/lib/scenes";
 import { demoWeather } from "@/lib/weather/demo";
 
 /** Deterministyczny generator (mulberry32). */
@@ -124,6 +124,41 @@ describe("zestaw warstw sceny", () => {
     );
     expect(summary).toEqual({
       sunny: "pyłki",
+      cloudy: "",
+      fog: "mgła",
+      drizzle: "opad:rain",
+      rain: "opad:rain snop",
+      snow: "opad:snow",
+      storm: "opad:rain pioruny snop",
+    });
+  });
+
+  it("pora dnia: pyłki w dzień i w złotą godzinę, snop przy deszczu i burzy także nocą", () => {
+    const summary = (period: "golden" | "night") =>
+      Object.fromEntries(
+        WEATHER_STATES.map((state) => {
+          const e = resolveScene(state, period).effects;
+          const on = [
+            e.precipitation && `opad:${e.precipitation}`,
+            e.lightning && "pioruny",
+            e.fog && "mgła",
+            e.beam && "snop",
+            e.motes && "pyłki",
+          ].filter(Boolean);
+          return [state, on.join(" ")];
+        }),
+      );
+    expect(summary("golden")).toEqual({
+      sunny: "pyłki",
+      cloudy: "",
+      fog: "mgła",
+      drizzle: "opad:rain",
+      rain: "opad:rain snop",
+      snow: "opad:snow",
+      storm: "opad:rain pioruny snop",
+    });
+    expect(summary("night")).toEqual({
+      sunny: "",
       cloudy: "",
       fog: "mgła",
       drizzle: "opad:rain",

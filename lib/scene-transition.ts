@@ -1,4 +1,6 @@
-import type { SceneVideoId } from "@/lib/scenes";
+import type { DayPeriod } from "@/lib/day-period";
+import { duration } from "@/lib/motion";
+import type { SceneVideoId, WeatherState } from "@/lib/scenes";
 
 /**
  * Stos warstw wideo sceny. Nigdy więcej niż dwie: widoczna scena (dół)
@@ -55,4 +57,38 @@ export function settleLayers(layers: SceneLayers, id: number): SceneLayers {
   const [, incoming] = layers;
   if (incoming.id !== id || !incoming.ready) return layers;
   return [incoming];
+}
+
+/** Co wyznacza scenę: pogoda, pora, przypięty dzień prognozy i override `?time=`. */
+export interface SceneKey {
+  state: WeatherState;
+  period: DayPeriod;
+  /** Data przypiętego dnia (podróż w czasie) albo null = dziś. */
+  pinned: string | null;
+  timeOverride: DayPeriod | null;
+}
+
+/**
+ * Tempo przejścia: „period” (ok. 15 s), gdy zmieniła się tylko pora dnia z zegara,
+ * „scene” (1,4 s) przy każdej innej zmianie: pogoda, przypięty dzień, override.
+ */
+export type ScenePace = "scene" | "period";
+
+export function sameSceneKey(a: SceneKey, b: SceneKey): boolean {
+  return a.state === b.state && a.period === b.period && a.pinned === b.pinned && a.timeOverride === b.timeOverride;
+}
+
+export function scenePace(previous: SceneKey, next: SceneKey): ScenePace {
+  const onlyClock =
+    previous.period !== next.period &&
+    previous.state === next.state &&
+    previous.pinned === next.pinned &&
+    previous.timeOverride === next.timeOverride;
+  return onlyClock ? "period" : "scene";
+}
+
+/** Czas przenikania sceny w sekundach; reduced motion zawsze ≤ 150 ms. */
+export function sceneDuration(pace: ScenePace, reduceMotion: boolean): number {
+  if (reduceMotion) return duration.reducedFade;
+  return pace === "period" ? duration.periodCrossfade : duration.sceneCrossfade;
 }

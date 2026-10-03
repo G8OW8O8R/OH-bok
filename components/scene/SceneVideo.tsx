@@ -7,7 +7,8 @@ import { preload } from "react-dom";
 import { reportBootSignal } from "@/lib/boot";
 import { duration, ease } from "@/lib/motion";
 import { SCENE_MEDIA_SIZE } from "@/lib/scene-fit";
-import { sceneFilterCss } from "@/lib/scene-grading";
+import type { DayPeriod } from "@/lib/day-period";
+import { sceneFilterCss, tintCss } from "@/lib/scene-grading";
 import {
   initialLayers,
   markLayerReady,
@@ -16,7 +17,7 @@ import {
   type SceneLayer,
   type SceneLayers,
 } from "@/lib/scene-transition";
-import { SCENE_MEDIA, SCENES, type SceneVideoId, type WeatherState } from "@/lib/scenes";
+import { SCENE_MEDIA, type SceneDefinition, type SceneVideoId, type WeatherState } from "@/lib/scenes";
 import { handoffStep } from "@/lib/video-handoff";
 import { useSceneSource } from "./SceneSource";
 import { useSceneFit } from "./useSceneFit";
@@ -26,6 +27,13 @@ const READY_TIMEOUT_MS = 4000;
 
 interface SceneVideoProps {
   weather: WeatherState;
+  period: DayPeriod;
+  /** Najbliższa zmiana pory z zegara (ISO) – diagnostyka i testy e2e; null przy override i podróży w czasie. */
+  periodEnds: string | null;
+  /** Scena pogoda × pora (`resolveScene`). */
+  scene: SceneDefinition;
+  /** Czas przenikania w sekundach (`sceneDuration`): 1,4 s, 15 s przy zmianie pory, ≤ 150 ms przy reduced motion. */
+  transitionS: number;
   /** Warstwy pogody nad wideo (poza filtrem gradingu, w tym samym pudełku sceny). */
   children?: ReactNode;
 }
@@ -39,11 +47,9 @@ type Crossfade = { duration: number; ease: typeof ease.dissolve };
  * Krycie warstw i grading to motion values ze wspólnego źródła sceny (SceneSource):
  * kula próbkuje te same klatki z tym samym postępem, więc obraz w niej zgadza się z tłem.
  */
-export function SceneVideo({ weather, children }: SceneVideoProps) {
-  const scene = SCENES[weather];
-  const reduceMotion = useReducedMotion();
+export function SceneVideo({ weather, period, periodEnds, scene, transitionS, children }: SceneVideoProps) {
   const stageRef = useSceneFit<HTMLDivElement>();
-  const { brightness, saturate, flash } = useSceneSource();
+  const { brightness, saturate, tintR, tintG, tintB, warmth, flash } = useSceneSource();
   const [layers, setLayers] = useState<SceneLayers>(() => initialLayers(scene.video));
 
   // Poster to LCP. Wywołane podczas SSR trafia jako <link rel="preload"> do <head>;
@@ -54,24 +60,29 @@ export function SceneVideo({ weather, children }: SceneVideoProps) {
   const reconciled = reconcileLayers(layers, scene.video);
   if (reconciled !== layers) setLayers(reconciled);
 
-  const crossfade = useMemo<Crossfade>(
-    () => ({ duration: reduceMotion ? duration.reducedFade : duration.sceneCrossfade, ease: ease.dissolve }),
-    [reduceMotion],
-  );
+  const crossfade = useMemo<Crossfade>(() => ({ duration: transitionS, ease: ease.dissolve }), [transitionS]);
 
-  // Grading przechodzi razem ze sceną (dawniej CSS `transition: filter`, te same czas i krzywa).
-  const target = scene.tokens.videoFilter;
+  // Grading przechodzi razem ze sceną (te same czas i krzywa co przenikanie warstw).
+  // Szybka zmiana w trakcie wolnego przejścia pory podejmuje animację od bieżącej wartości.
+  const { videoFilter: target, tint, warmth: targetWarmth } = scene.tokens;
   useEffect(() => {
     const controls = [
       animate(brightness, target.brightness, crossfade),
       animate(saturate, target.saturate, crossfade),
+      animate(tintR, tint[0], crossfade),
+      animate(tintG, tint[1], crossfade),
+      animate(tintB, tint[2], crossfade),
+      animate(warmth, targetWarmth, crossfade),
     ];
     return () => controls.forEach((control) => control.stop());
-  }, [brightness, saturate, target.brightness, target.saturate, crossfade]);
+  }, [brightness, saturate, tintR, tintG, tintB, warmth, target.brightness, target.saturate, tint, targetWarmth, crossfade]);
 
   const filter = useTransform(() =>
     sceneFilterCss({ brightness: brightness.get(), saturate: saturate.get() }, flash.get()),
   );
+  const tintColor = useTransform(() => tintCss([tintR.get(), tintG.get(), tintB.get()]));
+  // Neutralna barwa: warstwa mnożenia znika (krycie 0 = przeglądarka jej nie komponuje).
+  const tintOpacity = useTransform(() => (tintR.get() < 0.999 || tintG.get() < 0.999 || tintB.get() < 0.999 ? 1 : 0));
 
   return (
     <div
@@ -79,6 +90,9 @@ export function SceneVideo({ weather, children }: SceneVideoProps) {
       aria-hidden
       data-testid="scene"
       data-weather={weather}
+      data-period={period}
+      data-period-ends={periodEnds ?? undefined}
+      data-video={scene.video}
       className="scene-stage fixed inset-0 -z-10 overflow-hidden bg-black"
     >
       <motion.div className="absolute inset-0" style={{ filter }}>
@@ -91,6 +105,18 @@ export function SceneVideo({ weather, children }: SceneVideoProps) {
             onSettled={() => setLayers((current) => settleLayers(current, layer.id))}
           />
         ))}
+        {/*
+          Barwa i złota godzina leżą pod filtrem gradingu (tint → brightness → saturate, jak w kuli).
+          Każda warstwa mieszania ma własne krycie: krycie na wspólnym opakowaniu izolowałoby
+          mieszanie od obrazu pod spodem.
+        */}
+        <motion.div
+          data-testid="scene-tint"
+          className="pointer-events-none absolute inset-0 mix-blend-multiply"
+          style={{ backgroundColor: tintColor, opacity: tintOpacity }}
+        />
+        <motion.div className="scene-golden scene-golden-warm scene-media pointer-events-none" style={{ opacity: warmth }} />
+        <motion.div className="scene-golden scene-golden-cool scene-media pointer-events-none" style={{ opacity: warmth }} />
       </motion.div>
       {children}
     </div>

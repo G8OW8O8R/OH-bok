@@ -1,4 +1,5 @@
 import { z } from "zod";
+import type { DayPeriod } from "@/lib/day-period";
 
 /** Stany pogody rozróżniane przez UI. */
 export const WEATHER_STATES = [
@@ -14,8 +15,8 @@ export const WEATHER_STATES = [
 export const weatherStateSchema = z.enum(WEATHER_STATES);
 export type WeatherState = z.infer<typeof weatherStateSchema>;
 
-/** Nagrane pętle wideo: kilka stanów pogody dzieli jedno nagranie. */
-export type SceneVideoId = "sunny" | "cloudy" | "rain";
+/** Nagrane pętle wideo: kilka stanów pogody (i pór dnia) dzieli jedno nagranie. */
+export type SceneVideoId = "sunny" | "cloudy" | "rain" | "night-clear" | "night-cloudy";
 
 export const DEFAULT_WEATHER: WeatherState = "rain";
 
@@ -54,6 +55,15 @@ export const SCENE_MEDIA: Record<SceneVideoId, SceneMedia> = {
     video: "/scenes/rain-lighthouse/loop-720.mp4",
     poster: "/scenes/rain-lighthouse/poster.jpg",
   },
+  // Plansze nocne: lampa pulsuje w samym filmie (bez snopa w kodzie poza deszczem i burzą).
+  "night-clear": {
+    video: "/scenes/night-clear/loop-720.mp4",
+    poster: "/scenes/night-clear/poster.jpg",
+  },
+  "night-cloudy": {
+    video: "/scenes/night-cloudy/loop-720.mp4",
+    poster: "/scenes/night-cloudy/poster.jpg",
+  },
 };
 
 /** Filtr wideo w stałej postaci, żeby CSS mógł płynnie interpolować między scenami. */
@@ -61,6 +71,11 @@ export interface VideoFilter {
   brightness: number;
   saturate: number;
 }
+
+/** Kolor jako mnożniki kanałów (0–1 w CSS, w kuli także > 1). */
+export type Rgb = readonly [number, number, number];
+
+export const NEUTRAL_TINT: Rgb = [1, 1, 1];
 
 export interface SceneTokens {
   /** Siła winiety pod tekstem po lewej (0–1). */
@@ -82,6 +97,16 @@ export interface SceneTokens {
   glassBlur: number;
   /** Cień tekstu wewnątrz paneli szkła: dociąga kontrast w jasnych scenach bez ciężkiego tintu. */
   glassTextShadow: string;
+  /**
+   * Barwa całego obrazu (mnożenie, przed `videoFilter`): chłodniejsza noc na planszy
+   * deszczowej. Neutralna = [1, 1, 1].
+   */
+  tint: Rgb;
+  /**
+   * Siła ciepłego gradientu złotej godziny (0–1): ciepło przy horyzoncie i nisko na niebie,
+   * prawie neutralnie u góry, lekko chłodniejsze cienie (`.scene-golden`).
+   */
+  warmth: number;
 }
 
 /** Opad rysowany w kodzie (components/scene/PrecipitationLayer.tsx). */
@@ -119,6 +144,7 @@ const BRIGHT_SKY_GLASS = "rgba(14, 16, 20, 0.58)";
 const GLASS_TEXT_SHADOW = "0 1px 2px rgba(0, 0, 0, 0.3)";
 const BRIGHT_GLASS_TEXT_SHADOW = "0 1px 2px rgba(0, 0, 0, 0.5), 0 0 14px rgba(0, 0, 0, 0.45)";
 
+/** Sceny dzienne (baza); złota godzina i noc w `resolveScene`. */
 export const SCENES: Record<WeatherState, SceneDefinition> = {
   sunny: {
     video: "sunny",
@@ -131,6 +157,8 @@ export const SCENES: Record<WeatherState, SceneDefinition> = {
       glassTint: "rgba(14, 16, 20, 0.46)",
       glassBlur: 38,
       glassTextShadow: BRIGHT_GLASS_TEXT_SHADOW,
+      tint: NEUTRAL_TINT,
+      warmth: 0,
     },
     effects: { ...NO_EFFECTS, motes: true },
   },
@@ -138,13 +166,15 @@ export const SCENES: Record<WeatherState, SceneDefinition> = {
     video: "cloudy",
     tokens: {
       scrimStrength: 0.2,
-      haloStrength: 0.8,
+      haloStrength: 0.95,
       vignetteStrength: 1,
       videoFilter: NEUTRAL_FILTER,
       textShadow: STRONG_SHADOW,
       glassTint: BRIGHT_SKY_GLASS,
       glassBlur: 40,
       glassTextShadow: BRIGHT_GLASS_TEXT_SHADOW,
+      tint: NEUTRAL_TINT,
+      warmth: 0,
     },
     effects: NO_EFFECTS,
   },
@@ -152,13 +182,15 @@ export const SCENES: Record<WeatherState, SceneDefinition> = {
     video: "cloudy",
     tokens: {
       scrimStrength: 0.2,
-      haloStrength: 0.8,
+      haloStrength: 0.95,
       vignetteStrength: 1,
       videoFilter: NEUTRAL_FILTER,
       textShadow: STRONG_SHADOW,
       glassTint: BRIGHT_SKY_GLASS,
       glassBlur: 40,
       glassTextShadow: BRIGHT_GLASS_TEXT_SHADOW,
+      tint: NEUTRAL_TINT,
+      warmth: 0,
     },
     effects: { ...NO_EFFECTS, fog: true },
   },
@@ -173,6 +205,8 @@ export const SCENES: Record<WeatherState, SceneDefinition> = {
       glassTint: "rgba(14, 16, 20, 0.4)",
       glassBlur: 36,
       glassTextShadow: GLASS_TEXT_SHADOW,
+      tint: NEUTRAL_TINT,
+      warmth: 0,
     },
     effects: { ...NO_EFFECTS, precipitation: "rain" },
   },
@@ -187,6 +221,8 @@ export const SCENES: Record<WeatherState, SceneDefinition> = {
       glassTint: "rgba(14, 16, 20, 0.4)",
       glassBlur: 36,
       glassTextShadow: GLASS_TEXT_SHADOW,
+      tint: NEUTRAL_TINT,
+      warmth: 0,
     },
     effects: { ...NO_EFFECTS, precipitation: "rain", beam: true },
   },
@@ -194,13 +230,15 @@ export const SCENES: Record<WeatherState, SceneDefinition> = {
     video: "cloudy",
     tokens: {
       scrimStrength: 0.2,
-      haloStrength: 0.8,
+      haloStrength: 0.95,
       vignetteStrength: 1,
       videoFilter: NEUTRAL_FILTER,
       textShadow: STRONG_SHADOW,
       glassTint: BRIGHT_SKY_GLASS,
       glassBlur: 40,
       glassTextShadow: BRIGHT_GLASS_TEXT_SHADOW,
+      tint: NEUTRAL_TINT,
+      warmth: 0,
     },
     effects: { ...NO_EFFECTS, precipitation: "snow" },
   },
@@ -215,10 +253,101 @@ export const SCENES: Record<WeatherState, SceneDefinition> = {
       glassTint: "rgba(12, 14, 18, 0.44)",
       glassBlur: 36,
       glassTextShadow: GLASS_TEXT_SHADOW,
+      tint: NEUTRAL_TINT,
+      warmth: 0,
     },
     effects: { ...NO_EFFECTS, precipitation: "rain", lightning: true, beam: true },
   },
 };
+
+/** Plansza nocna dla stanu: deszczowe stany zostają na planszy rain (z ciemniejszym gradingiem). */
+export const NIGHT_VIDEO: Record<WeatherState, SceneVideoId> = {
+  sunny: "night-clear",
+  cloudy: "night-cloudy",
+  fog: "night-cloudy",
+  snow: "night-cloudy",
+  drizzle: "rain",
+  rain: "rain",
+  storm: "rain",
+};
+
+/** Złota godzina: siła ciepłego gradientu; za chmurami słońce grzeje słabiej. */
+const GOLDEN_WARMTH: Record<WeatherState, number> = {
+  sunny: 1,
+  cloudy: 0.6,
+  fog: 0.5,
+  snow: 0.5,
+  drizzle: 0.45,
+  rain: 0.4,
+  storm: 0.3,
+};
+
+/** Noc na planszy deszczowej: ciemniej, mniej koloru, chłodniej. */
+const NIGHT_RAIN_TINT: Rgb = [0.86, 0.92, 1];
+
+/**
+ * Plansze nocne są ciemne: biały tekst ma zapas kontrastu (≥ 7:1 przy tokenach jasnego nieba),
+ * więc przyciemnienia i szkło jak przy deszczu – noc nie wygląda na przydymioną.
+ */
+const NIGHT_SKY: Partial<SceneTokens> = {
+  scrimStrength: 0.12,
+  haloStrength: 0.25,
+  vignetteStrength: 0.5,
+  textShadow: SOFT_SHADOW,
+  glassTint: "rgba(14, 16, 20, 0.4)",
+  glassBlur: 36,
+  glassTextShadow: GLASS_TEXT_SHADOW,
+};
+
+/** Nadpisania tokenów złotej godziny i nocy (pomiar kontrastu, 2026-10-03). */
+const PERIOD_TOKENS: Record<Exclude<DayPeriod, "day">, Record<WeatherState, Partial<SceneTokens>>> = {
+  golden: {
+    sunny: { warmth: GOLDEN_WARMTH.sunny },
+    cloudy: { warmth: GOLDEN_WARMTH.cloudy },
+    fog: { warmth: GOLDEN_WARMTH.fog },
+    snow: { warmth: GOLDEN_WARMTH.snow },
+    drizzle: { warmth: GOLDEN_WARMTH.drizzle },
+    rain: { warmth: GOLDEN_WARMTH.rain },
+    storm: { warmth: GOLDEN_WARMTH.storm },
+  },
+  night: {
+    sunny: NIGHT_SKY,
+    cloudy: NIGHT_SKY,
+    fog: NIGHT_SKY,
+    snow: NIGHT_SKY,
+    drizzle: { videoFilter: { brightness: 0.62, saturate: 0.8 }, tint: NIGHT_RAIN_TINT },
+    rain: { videoFilter: { brightness: 0.62, saturate: 0.8 }, tint: NIGHT_RAIN_TINT },
+    storm: { videoFilter: { brightness: 0.5, saturate: 0.8 }, tint: NIGHT_RAIN_TINT },
+  },
+};
+
+/**
+ * Scena = pogoda × pora dnia. Złota godzina zostaje na planszy dziennej
+ * (ciepły gradient), noc przechodzi na plansze nocne albo ciemniejszą planszę deszczu.
+ * Pyłki tylko w dzień i złotą godzinę; snop tylko przy deszczu i burzy (nocne plansze
+ * mają lampę w filmie).
+ */
+export function resolveScene(state: WeatherState, period: DayPeriod): SceneDefinition {
+  return RESOLVED[period][state];
+}
+
+function buildScene(state: WeatherState, period: DayPeriod): SceneDefinition {
+  const day = SCENES[state];
+  if (period === "day") return day;
+  return {
+    video: period === "night" ? NIGHT_VIDEO[state] : day.video,
+    tokens: { ...day.tokens, ...PERIOD_TOKENS[period][state] },
+    effects: period === "night" ? { ...day.effects, motes: false } : day.effects,
+  };
+}
+
+/** Stałe obiekty dla każdej kombinacji: te same referencje między renderami. */
+const RESOLVED = Object.fromEntries(
+  (["day", "golden", "night"] as const).map((period) => [
+    period,
+    Object.fromEntries(WEATHER_STATES.map((state) => [state, buildScene(state, period)])),
+  ]),
+) as Record<DayPeriod, Record<WeatherState, SceneDefinition>>;
 
 export function toCssFilter({ brightness, saturate }: VideoFilter): string {
   return `brightness(${brightness}) saturate(${saturate})`;

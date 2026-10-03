@@ -1,7 +1,7 @@
 import type { Circle, Point } from "@/lib/orb/geometry";
 import type { SceneFit } from "@/lib/scene-fit";
-import { saturateMatrix } from "@/lib/scene-grading";
-import type { VideoFilter } from "@/lib/scenes";
+import { colorMatrix, saturateMatrix } from "@/lib/scene-grading";
+import type { Rgb, VideoFilter } from "@/lib/scenes";
 import { FRAGMENT_SHADER, VERTEX_SHADER } from "./shaders";
 
 /** Tekstury: dwie warstwy sceny (przenikanie) i dwa sloty podglądu dnia. */
@@ -29,6 +29,8 @@ export interface OrbFrame {
   sceneMix: number;
   brightness: number;
   saturate: number;
+  /** Barwa sceny dla kuli (`orbTint`): wchodzi do macierzy koloru razem z saturate. */
+  tint: Rgb;
   previewMix: number;
   previewBlend: number;
   previewGrading: readonly [VideoFilter, VideoFilter];
@@ -211,7 +213,7 @@ export class OrbRenderer {
     gl.uniform1i(u.uScene1, SLOTS.indexOf(incoming ?? base));
     gl.uniform1f(u.uSceneMix, incoming ? frame.sceneMix : 0);
     gl.uniform1f(u.uBrightness, frame.brightness);
-    gl.uniformMatrix3fv(u.uSaturate, false, saturateMatrix(frame.saturate));
+    gl.uniformMatrix3fv(u.uSaturate, false, colorMatrix(frame.saturate, frame.tint));
 
     gl.uniform1f(u.uPreviewMix, frame.previewMix);
     gl.uniform1f(u.uPreviewBlend, frame.previewBlend);

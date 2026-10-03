@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
   DEFAULT_WEATHER,
+  NEUTRAL_TINT,
   parseWeatherOverride,
+  resolveScene,
   SCENE_MEDIA,
   SCENES,
   toCssFilter,
@@ -80,6 +82,74 @@ describe("SCENES", () => {
       expect(SCENES[state].tokens.haloStrength).toBeGreaterThan(SCENES.rain.tokens.haloStrength);
       expect(SCENES[state].tokens.glassTint).toBe("rgba(14, 16, 20, 0.58)");
       expect(SCENES[state].tokens.glassBlur).toBeLessThanOrEqual(40);
+    }
+  });
+});
+
+describe("resolveScene (pogoda × pora dnia)", () => {
+  it("plansze według tabeli pór", () => {
+    const table = Object.fromEntries(
+      WEATHER_STATES.map((state) => [
+        state,
+        (["day", "golden", "night"] as const).map((period) => resolveScene(state, period).video).join(" / "),
+      ]),
+    );
+    expect(table).toEqual({
+      sunny: "sunny / sunny / night-clear",
+      cloudy: "cloudy / cloudy / night-cloudy",
+      fog: "cloudy / cloudy / night-cloudy",
+      snow: "cloudy / cloudy / night-cloudy",
+      drizzle: "rain / rain / rain",
+      rain: "rain / rain / rain",
+      storm: "rain / rain / rain",
+    });
+  });
+
+  it.each(["night-clear", "night-cloudy"] as const)("plansza nocna %s ma pliki", (video) => {
+    expect(SCENE_MEDIA[video]).toEqual({
+      video: `/scenes/${video}/loop-720.mp4`,
+      poster: `/scenes/${video}/poster.jpg`,
+    });
+  });
+
+  it("dzień to sceny bazowe; ta sama referencja przy każdym wywołaniu", () => {
+    for (const state of WEATHER_STATES) {
+      expect(resolveScene(state, "day")).toBe(SCENES[state]);
+      expect(resolveScene(state, "night")).toBe(resolveScene(state, "night"));
+      expect(SCENES[state].tokens.warmth).toBe(0);
+      expect(SCENES[state].tokens.tint).toEqual(NEUTRAL_TINT);
+    }
+  });
+
+  it("złota godzina: plansza dzienna, ciepły gradient, słońce najcieplejsze", () => {
+    for (const state of WEATHER_STATES) {
+      const golden = resolveScene(state, "golden");
+      expect(golden.video).toBe(SCENES[state].video);
+      expect(golden.tokens.warmth).toBeGreaterThan(0);
+      expect(golden.tokens.warmth).toBeLessThanOrEqual(resolveScene("sunny", "golden").tokens.warmth);
+      expect(golden.tokens.tint).toEqual(NEUTRAL_TINT);
+    }
+  });
+
+  it("noc na planszy deszczu: ciemniejszy i chłodniejszy grading niż w dzień", () => {
+    for (const state of ["drizzle", "rain", "storm"] as const) {
+      const night = resolveScene(state, "night").tokens;
+      expect(night.videoFilter.brightness).toBeLessThan(SCENES[state].tokens.videoFilter.brightness);
+      expect(night.tint[0]).toBeLessThan(night.tint[2]);
+      expect(night.warmth).toBe(0);
+    }
+  });
+
+  it("tokeny nocne i złotej godziny w zakresach", () => {
+    for (const state of WEATHER_STATES) {
+      for (const period of ["golden", "night"] as const) {
+        const { scrimStrength, haloStrength, vignetteStrength, tint, warmth, glassBlur } = resolveScene(state, period).tokens;
+        for (const value of [scrimStrength, haloStrength, vignetteStrength, warmth, ...tint]) {
+          expect(value).toBeGreaterThanOrEqual(0);
+          expect(value).toBeLessThanOrEqual(1);
+        }
+        expect(glassBlur).toBeLessThanOrEqual(40);
+      }
     }
   });
 });

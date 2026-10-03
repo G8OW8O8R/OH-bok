@@ -21,7 +21,16 @@ import {
   speakPulse,
 } from "@/lib/orb/states";
 import { computeSceneFit } from "@/lib/scene-fit";
-import { flashBrightness, gradePixel, saturateMatrix, sceneFilterCss } from "@/lib/scene-grading";
+import {
+  colorMatrix,
+  flashBrightness,
+  GOLDEN_ORB_TINT,
+  gradePixel,
+  orbTint,
+  saturateMatrix,
+  sceneFilterCss,
+  tintCss,
+} from "@/lib/scene-grading";
 import { weekdayLong } from "@/lib/time";
 
 describe("grading sceny", () => {
@@ -40,6 +49,29 @@ describe("grading sceny", () => {
     expect(b).toBeCloseTo(0.0213 * 0.576 + 0.0715 * 0.288 + 0.9072 * 0.144, 6);
     // Rozjaśnienie ponad biel jest przycinane przed saturacją.
     expect(gradePixel([0.9, 0.9, 0.9], 1.35, 1)).toEqual([1, 1, 1]);
+  });
+
+  it("macierz koloru = saturate · diag(barwa); neutralna barwa nic nie zmienia", () => {
+    expect(colorMatrix(0.9)).toEqual(saturateMatrix(0.9));
+    const m = colorMatrix(1, [0.5, 1, 2]);
+    [0.5, 0, 0, 0, 1, 0, 0, 0, 2].forEach((v, i) => expect(m[i]).toBeCloseTo(v, 10));
+  });
+
+  it("barwa działa jak warstwa multiply pod filtrem (tint → brightness → saturate)", () => {
+    const tint = [0.86, 0.92, 1] as const;
+    const pixel = [0.6, 0.5, 0.4] as const;
+    const css = gradePixel([pixel[0] * tint[0], pixel[1] * tint[1], pixel[2] * tint[2]], 0.62, 0.8);
+    const shader = gradePixel(pixel, 0.62, 0.8, tint);
+    shader.forEach((v, i) => expect(v).toBeCloseTo(css[i] ?? 0, 10));
+  });
+
+  it("złota godzina w kuli: uśredniony tint w sile warmth", () => {
+    expect(orbTint([1, 1, 1], 0)).toEqual([1, 1, 1]);
+    orbTint([1, 1, 1], 1).forEach((v, i) => expect(v).toBeCloseTo(GOLDEN_ORB_TINT[i] ?? 0, 10));
+    const half = orbTint([0.5, 1, 1], 0.5);
+    expect(half[0]).toBeCloseTo(0.5 * (1 + ((GOLDEN_ORB_TINT[0] - 1) / 2)), 10);
+    expect(tintCss([0.86, 0.92, 1])).toBe("rgb(219 235 255)");
+    expect(tintCss([1.2, -1, 0.5])).toBe("rgb(255 0 128)");
   });
 
   it("błysk rozjaśnia do 1,35× i jest ograniczony do [0, 1]", () => {

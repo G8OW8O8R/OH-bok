@@ -25,7 +25,7 @@ import {
   type OrbState,
 } from "@/lib/orb/states";
 import { computeSceneFit, type SceneFit } from "@/lib/scene-fit";
-import { flashBrightness } from "@/lib/scene-grading";
+import { flashBrightness, orbTint } from "@/lib/scene-grading";
 import type { VideoFilter } from "@/lib/scenes";
 import { OrbRenderer, type TextureSlot, type TextureSource } from "./renderer";
 
@@ -307,6 +307,7 @@ export function OrbCanvas({ state, preview, rain, reduceMotion, forced, visible,
       const signature = [
         screen.x, screen.y, cursor.x, cursor.y, sceneMix, flash, fx.think, fx.speak, fx.rain,
         fx.previewMix, fx.previewBlend, source.brightness.get(), source.saturate.get(), size, scale,
+        source.tintR.get(), source.tintG.get(), source.tintB.get(), source.warmth.get(),
         fit.left, fit.top, fit.width, fit.height,
       ].join();
       if (reduceMotion && !uploaded && signature === lastSignature) return;
@@ -329,6 +330,8 @@ export function OrbCanvas({ state, preview, rain, reduceMotion, forced, visible,
         sceneMix,
         brightness: flashBrightness(source.brightness.get(), flash),
         saturate: source.saturate.get(),
+        // Złota godzina w kuli: uśredniony ciepły gradient w macierzy koloru (tło ma pełny gradient).
+        tint: orbTint([source.tintR.get(), source.tintG.get(), source.tintB.get()], source.warmth.get()),
         previewMix: fx.previewMix,
         previewBlend: fx.previewBlend,
         previewGrading: [previewSlots[0].grading, previewSlots[1].grading],

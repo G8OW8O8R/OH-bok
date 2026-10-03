@@ -53,7 +53,7 @@ for (const [weather, folder] of [
 ] as const) {
   test(`?weather=${weather} wybiera właściwą scenę`, async ({ page }) => {
     const errors = collectConsoleErrors(page);
-    await page.goto(`/?boot=off&weather=${weather}`);
+    await page.goto(`/?boot=off&weather=${weather}&time=day`);
     await expect(page.getByTestId("scene")).toHaveAttribute("data-weather", weather);
     await expect(layerVideo(page)).toHaveAttribute("src", `/scenes/${folder}/loop-720.mp4`);
     await expect(layerPoster(page)).toHaveAttribute("src", `/scenes/${folder}/poster.jpg`);
@@ -120,7 +120,8 @@ test("prefers-reduced-motion: przekazanie i zmiana sceny działają z krótkimi 
   page,
 }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
-  await page.goto("/?boot=off&weather=rain");
+  // Pora dnia stała: nocą sunny/cloudy mają plansze nocne (zadanie 6b).
+  await page.goto("/?boot=off&weather=rain&time=day");
   await expect(layerVideo(page)).toHaveAttribute("data-handoff", "video", { timeout: 15_000 });
 
   await page.getByRole("link", { name: "cloudy" }).click();
@@ -131,7 +132,7 @@ test("prefers-reduced-motion: przekazanie i zmiana sceny działają z krótkimi 
 
 test("przełączenie sceny przenika bez przesunięcia layoutu", async ({ page }) => {
   const errors = collectConsoleErrors(page);
-  await page.goto("/?boot=off&weather=rain");
+  await page.goto("/?boot=off&weather=rain&time=day");
   await page.evaluate(() => {
     const w = window as Window & { __cls?: number };
     w.__cls = 0;

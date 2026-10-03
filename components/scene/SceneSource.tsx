@@ -2,7 +2,7 @@
 
 import { useMotionValue, type MotionValue } from "motion/react";
 import { createContext, useContext, useMemo, useState, type ReactNode } from "react";
-import type { SceneVideoId, VideoFilter } from "@/lib/scenes";
+import type { SceneTokens, SceneVideoId } from "@/lib/scenes";
 
 /**
  * Wspólne źródło sceny: wszystko, co musi pokazywać dokładnie to samo co tło
@@ -53,6 +53,12 @@ export interface SceneSourceValue {
   /** Grading sceny (tokeny `videoFilter`), płynnie przechodzący razem z przenikaniem. */
   brightness: MotionValue<number>;
   saturate: MotionValue<number>;
+  /** Barwa sceny (token `tint`, mnożniki kanałów): chłodniejsza noc na planszy deszczu. */
+  tintR: MotionValue<number>;
+  tintG: MotionValue<number>;
+  tintB: MotionValue<number>;
+  /** Siła ciepłego gradientu złotej godziny (token `warmth`, 0–1). */
+  warmth: MotionValue<number>;
   /** Jasność błysku pioruna, 0–1 (LightningLayer, zadanie 6). Rozjaśnia tło i kulę. */
   flash: MotionValue<number>;
 }
@@ -61,16 +67,23 @@ const SceneSourceContext = createContext<SceneSourceValue | null>(null);
 
 interface SceneSourceProviderProps {
   /** Grading sceny z pierwszego renderu: bez animacji od wartości domyślnych przy starcie. */
-  initialFilter: VideoFilter;
+  initialGrade: Pick<SceneTokens, "videoFilter" | "tint" | "warmth">;
   children: ReactNode;
 }
 
-export function SceneSourceProvider({ initialFilter, children }: SceneSourceProviderProps) {
+export function SceneSourceProvider({ initialGrade, children }: SceneSourceProviderProps) {
   const [layers] = useState(() => new SceneLayerRegistry());
-  const brightness = useMotionValue(initialFilter.brightness);
-  const saturate = useMotionValue(initialFilter.saturate);
+  const brightness = useMotionValue(initialGrade.videoFilter.brightness);
+  const saturate = useMotionValue(initialGrade.videoFilter.saturate);
+  const tintR = useMotionValue(initialGrade.tint[0]);
+  const tintG = useMotionValue(initialGrade.tint[1]);
+  const tintB = useMotionValue(initialGrade.tint[2]);
+  const warmth = useMotionValue(initialGrade.warmth);
   const flash = useMotionValue(0);
-  const value = useMemo(() => ({ layers, brightness, saturate, flash }), [layers, brightness, saturate, flash]);
+  const value = useMemo(
+    () => ({ layers, brightness, saturate, tintR, tintG, tintB, warmth, flash }),
+    [layers, brightness, saturate, tintR, tintG, tintB, warmth, flash],
+  );
   return <SceneSourceContext value={value}>{children}</SceneSourceContext>;
 }
 

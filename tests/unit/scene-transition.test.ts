@@ -3,7 +3,11 @@ import {
   initialLayers,
   markLayerReady,
   reconcileLayers,
+  sameSceneKey,
+  sceneDuration,
+  scenePace,
   settleLayers,
+  type SceneKey,
   type SceneLayers,
 } from "@/lib/scene-transition";
 
@@ -67,5 +71,32 @@ describe("scene-transition", () => {
     const single = initialLayers("rain");
     expect(markLayerReady(single, 0)).toBe(single);
     expect(settleLayers(single, 0)).toBe(single);
+  });
+});
+
+describe("tempo przejścia sceny", () => {
+  const base: SceneKey = { state: "sunny", period: "day", pinned: null, timeOverride: null };
+
+  it("sama zmiana pory z zegara = wolne przejście", () => {
+    expect(scenePace(base, { ...base, period: "golden" })).toBe("period");
+    expect(scenePace({ ...base, period: "golden" }, { ...base, period: "night" })).toBe("period");
+  });
+
+  it("pogoda, przypięty dzień albo override = zwykłe przejście", () => {
+    expect(scenePace(base, { ...base, state: "rain", period: "night" })).toBe("scene");
+    expect(scenePace({ ...base, period: "day", pinned: "2026-10-04" }, { ...base, period: "night" })).toBe("scene");
+    expect(scenePace(base, { ...base, period: "night", timeOverride: "night" })).toBe("scene");
+  });
+
+  it("porównanie kluczy", () => {
+    expect(sameSceneKey(base, { ...base })).toBe(true);
+    expect(sameSceneKey(base, { ...base, pinned: "2026-10-04" })).toBe(false);
+  });
+
+  it("czasy: 15 s dla pory, 1,4 s dla sceny, ≤ 150 ms przy reduced motion", () => {
+    expect(sceneDuration("period", false)).toBe(15);
+    expect(sceneDuration("scene", false)).toBe(1.4);
+    expect(sceneDuration("period", true)).toBeLessThanOrEqual(0.15);
+    expect(sceneDuration("scene", true)).toBeLessThanOrEqual(0.15);
   });
 });

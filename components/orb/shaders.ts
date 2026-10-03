@@ -83,7 +83,7 @@ uniform sampler2D uScene0;  // warstwa bazowa sceny
 uniform sampler2D uScene1;  // warstwa wchodząca (przenikanie)
 uniform float uSceneMix;    // krycie warstwy wchodzącej, ten sam postęp co tło
 uniform float uBrightness;  // grading tła (z błyskiem)
-uniform mat3 uSaturate;     // macierz saturate() z lib/scene-grading.ts
+uniform mat3 uSaturate;     // macierz koloru: saturate() · barwa sceny (colorMatrix, lib/scene-grading.ts)
 
 uniform sampler2D uPreview0;
 uniform sampler2D uPreview1;

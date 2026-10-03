@@ -1,6 +1,7 @@
 import { cookies } from "next/headers";
 import { DevSceneSwitcher } from "@/components/dev/DevSceneSwitcher";
 import { Desktop } from "@/components/system/Desktop";
+import { parseTimeOverride } from "@/lib/day-period";
 import { parseOrbModeOverride, parseOrbStateOverride } from "@/lib/orb/states";
 import { parseWeatherOverride } from "@/lib/scenes";
 import { LOCATION_COOKIE, parseLocationCookie } from "@/lib/weather/coords";
@@ -9,6 +10,7 @@ import { getWeather } from "@/lib/weather/service";
 export default async function DesktopPage({ searchParams }: PageProps<"/">) {
   const [params, cookieStore] = await Promise.all([searchParams, cookies()]);
   const override = parseWeatherOverride(params.weather);
+  const timeOverride = parseTimeOverride(params.time);
   // Dev override stanu i trybu kuli (asystent przejmie stan w zadaniu 7).
   const orbState = parseOrbStateOverride(params.orb);
   const orbMode = parseOrbModeOverride(params["orb-mode"]);
@@ -23,12 +25,13 @@ export default async function DesktopPage({ searchParams }: PageProps<"/">) {
       <Desktop
         initialWeather={data}
         override={override}
+        timeOverride={timeOverride}
         initialNow={renderedAt}
         orbState={orbState ?? "idle"}
         orbMode={orbMode}
       />
       {process.env.NODE_ENV === "development" && (
-        <DevSceneSwitcher weather={override} orbState={orbState} orbMode={orbMode} />
+        <DevSceneSwitcher weather={override} time={timeOverride} orbState={orbState} orbMode={orbMode} />
       )}
     </main>
   );

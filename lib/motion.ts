@@ -24,6 +24,8 @@ export const duration = {
   /** górny limit przenikań przy prefers-reduced-motion */
   reducedFade: 0.15,
   sceneCrossfade: 1.4,
+  /** zmiana pory dnia w trakcie wizyty: wolne przenikanie planszy i gradingu */
+  periodCrossfade: 15,
   /** poster → pierwsza klatka wideo */
   posterHandoff: 0.2,
 } as const;

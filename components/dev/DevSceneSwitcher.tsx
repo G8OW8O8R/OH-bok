@@ -2,12 +2,15 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { DAY_PERIODS, type DayPeriod } from "@/lib/day-period";
 import { ORB_MODES, ORB_STATES, type OrbMode, type OrbState } from "@/lib/orb/states";
 import { WEATHER_STATES, type WeatherState } from "@/lib/scenes";
 
 interface DevOverrides {
   /** Aktywny override albo null = prawdziwa pogoda. */
   weather: WeatherState | null;
+  /** Pora dnia (`?time=`) albo null = ze wschodu i zachodu słońca. */
+  time: DayPeriod | null;
   orbState: OrbState | null;
   orbMode: OrbMode | null;
 }
@@ -19,6 +22,7 @@ function hrefWith(current: DevOverrides, patch: Partial<DevOverrides>): string {
   const next = { ...current, ...patch };
   const params = new URLSearchParams();
   if (next.weather) params.set("weather", next.weather);
+  if (next.time) params.set("time", next.time);
   if (next.orbState && next.orbState !== "idle") params.set("orb", next.orbState);
   if (next.orbMode) params.set("orb-mode", next.orbMode);
   const query = params.toString();
@@ -40,6 +44,8 @@ const BOOT_LINKS = [
 const link =
   "rounded-pill px-2.5 py-1 text-text-secondary transition-colors duration-(--dur-feedback) hover:text-text-primary focus-visible:outline-2 focus-visible:outline-amber aria-[current=page]:bg-white/10 aria-[current=page]:text-amber";
 
+const PERIOD_LABELS: Record<DayPeriod, string> = { day: "dzień", golden: "złota", night: "noc" };
+
 const HIDDEN_KEY = "obok-dev-switcher-hidden";
 
 function isTyping(target: EventTarget | null): boolean {
@@ -50,8 +56,8 @@ function isTyping(target: EventTarget | null): boolean {
  * Tylko w trybie dev: szybkie przełączanie `?weather=` nawigacją po stronie klienta (z przenikaniem).
  * Domyślnie widoczny; Shift+D ukrywa i pokazuje (stan w sessionStorage).
  */
-export function DevSceneSwitcher({ weather, orbState, orbMode }: DevSceneSwitcherProps) {
-  const current: DevOverrides = { weather, orbState, orbMode };
+export function DevSceneSwitcher({ weather, time, orbState, orbMode }: DevSceneSwitcherProps) {
+  const current: DevOverrides = { weather, time, orbState, orbMode };
   const [hidden, setHidden] = useState(false);
 
   useEffect(() => {
@@ -87,6 +93,10 @@ export function DevSceneSwitcher({ weather, orbState, orbMode }: DevSceneSwitche
   const scenes: ReadonlyArray<{ label: string; value: WeatherState | null }> = [
     { label: "na żywo", value: null },
     ...WEATHER_STATES.map((state) => ({ label: state, value: state })),
+  ];
+  const periods: ReadonlyArray<{ label: string; value: DayPeriod | null }> = [
+    { label: "pora auto", value: null },
+    ...DAY_PERIODS.map((period) => ({ label: PERIOD_LABELS[period], value: period })),
   ];
   const modes: ReadonlyArray<{ label: string; value: OrbMode | null }> = [
     { label: "auto", value: null },
@@ -138,6 +148,19 @@ export function DevSceneSwitcher({ weather, orbState, orbMode }: DevSceneSwitche
             replace
             scroll={false}
             aria-current={value === weather ? "page" : undefined}
+            className={link}
+          >
+            {label}
+          </Link>
+        ))}
+        <span aria-hidden className="mx-1 w-px self-stretch bg-white/15" />
+        {periods.map(({ label, value }) => (
+          <Link
+            key={`time-${label}`}
+            href={hrefWith(current, { time: value })}
+            replace
+            scroll={false}
+            aria-current={value === time ? "page" : undefined}
             className={link}
           >
             {label}

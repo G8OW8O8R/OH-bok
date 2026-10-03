@@ -23,8 +23,10 @@ import { usePlannerSync } from "@/lib/planner/use-planner-sync";
 import { pluralPl } from "@/lib/plural";
 import { nextReminder, SNOOZE_MINUTES, type Reminder } from "@/lib/reminders/reminders";
 import { remainingCount } from "@/lib/shopping/list";
+import { dayPeriod, nextPeriodChange, type DayPeriod } from "@/lib/day-period";
 import { currentConditions, dayConditions, orbRainStrength } from "@/lib/scene-conditions";
-import { SCENE_MEDIA, SCENES, type WeatherState } from "@/lib/scenes";
+import { sameSceneKey, sceneDuration, scenePace, type SceneKey, type ScenePace } from "@/lib/scene-transition";
+import { resolveScene, SCENE_MEDIA, type WeatherState } from "@/lib/scenes";
 import type { OrbMode, OrbState } from "@/lib/orb/states";
 import { dateIn, formatTime, hourIn } from "@/lib/time";
 import { useNow, useUserTimeZone } from "@/lib/use-now";
@@ -43,6 +45,8 @@ interface DesktopProps {
   initialWeather: WeatherData;
   /** `?weather=` ma pierwszeństwo przed prawdziwą pogodą. */
   override: WeatherState | null;
+  /** `?time=` ma pierwszeństwo przed porą dnia ze wschodu i zachodu słońca. */
+  timeOverride: DayPeriod | null;
   /** Chwila renderu na serwerze (ISO): wspólny punkt startu zegara dla SSR i hydracji. */
   initialNow: string;
   /** Stan kuli (`?orb=`); docelowo sterowany przez asystenta. */
@@ -54,9 +58,19 @@ interface DesktopProps {
 const CALL_MS = 1200;
 const MESSAGE_MS = 4000;
 
-export function Desktop({ initialWeather, override, initialNow, orbState, orbMode }: DesktopProps) {
+export function Desktop({ initialWeather, override, timeOverride, initialNow, orbState, orbMode }: DesktopProps) {
   const { weather, locating, locationError, locate } = useWeather(initialWeather);
-  const now = useNow(initialNow, nextWakeAt);
+  const daily = weather.daily;
+  // Zegar budzi się dokładnie na termin przypomnienia i na zmianę pory dnia.
+  const wakeAt = useCallback(
+    (nowMs: number) => {
+      const candidates = [nextWakeAt(nowMs), nextPeriodChange(new Date(nowMs), daily)?.getTime() ?? null];
+      const upcoming = candidates.filter((at): at is number => at !== null);
+      return upcoming.length > 0 ? Math.min(...upcoming) : null;
+    },
+    [daily],
+  );
+  const now = useNow(initialNow, wakeAt);
   const timeZone = useUserTimeZone(weather.timezone);
   const plannerReady = usePlannerSync(timeZone);
   const reduceMotion = useReducedMotion();
@@ -80,7 +94,24 @@ export function Desktop({ initialWeather, override, initialNow, orbState, orbMod
   const pinned = pinnedDay === null || pinnedDay === today ? null : (weather.daily.find((day) => day.date === pinnedDay) ?? null);
   const conditions = pinned ? dayConditions(pinned) : currentConditions(weather, override);
   const scene = conditions.state;
-  const tokens = SCENES[scene].tokens;
+  // Pora dnia: prognoza dotyczy dnia, więc przypięty dzień pokazuje wersję dzienną.
+  const clockPeriod = timeOverride ?? dayPeriod(now, daily, weather.current.isDay);
+  const period: DayPeriod = pinned ? "day" : clockPeriod;
+  const resolved = resolveScene(scene, period);
+  const periodEnds = timeOverride || pinned ? null : (nextPeriodChange(now, daily)?.toISOString() ?? null);
+  const tokens = resolved.tokens;
+  // Zmiana samej pory z zegara = wolne przejście (ok. 15 s); każda inna zmiana sceny = 1,4 s.
+  const sceneKey: SceneKey = { state: scene, period, pinned: pinned?.date ?? null, timeOverride };
+  const [lastKey, setLastKey] = useState(sceneKey);
+  const [pace, setPace] = useState<ScenePace>("scene");
+  if (!sameSceneKey(lastKey, sceneKey)) {
+    setLastKey(sceneKey);
+    setPace(scenePace(lastKey, sceneKey));
+  }
+  const transitionS = sceneDuration(pace, reduceMotion ?? false);
+  // Przejścia CSS (scrim, halo, szkło, mgła, pyłki) czytają `--dur-scene`; nadpisane tylko przy
+  // wolnym przejściu pory, więc SSR i hydracja mają ten sam atrybut `style`.
+  const durationStyle = pace === "period" ? { "--dur-scene": `${Math.round(transitionS * 1000)}ms` } : undefined;
   const shownDate = pinned?.date ?? today;
   const previewDay = hoveredDay === null || hoveredDay === shownDate ? null : (weather.daily.find((day) => day.date === hoveredDay) ?? null);
   const returnToToday = useCallback(() => setPinnedDay(null), []);
@@ -153,15 +184,22 @@ export function Desktop({ initialWeather, override, initialNow, orbState, orbMod
   const complete = (reminder: Reminder) => useRemindersStore.getState().complete(reminder.id);
 
   return (
-    <SceneSourceProvider initialFilter={tokens.videoFilter}>
+    <SceneSourceProvider initialGrade={tokens}>
     <ParallaxProvider>
-      <SceneVideo weather={scene}>
-        <WeatherLayers conditions={conditions} />
+      <SceneVideo weather={scene} period={period} periodEnds={periodEnds} scene={resolved} transitionS={transitionS}>
+        <WeatherLayers
+          conditions={conditions}
+          effects={resolved.effects}
+          period={period}
+          transitionS={transitionS}
+          durationStyle={durationStyle}
+        />
       </SceneVideo>
-      <Scrim strength={tokens.scrimStrength} vignette={tokens.vignetteStrength} />
+      <Scrim strength={tokens.scrimStrength} vignette={tokens.vignetteStrength} durationStyle={durationStyle} />
       <div
         className="desktop"
         style={{
+          ...durationStyle,
           "--halo-strength": tokens.haloStrength,
           "--glass-bg": tokens.glassTint,
           "--glass-blur": `${tokens.glassBlur}px`,
@@ -233,7 +271,7 @@ export function Desktop({ initialWeather, override, initialNow, orbState, orbMod
             onOpen={() => setPanel("reminders")}
           />
           <RecipeOrb recipe={SAMPLE_RECIPE} added={recipeAdded} onAdd={addRecipe} called={called === "recipe"} />
-          <PlayerCapsule track={SAMPLE_TRACK} cover={SCENE_MEDIA[SCENES[scene].video].poster} />
+          <PlayerCapsule track={SAMPLE_TRACK} cover={SCENE_MEDIA[resolved.video].poster} />
         </div>
 
         <Dock active="weather" onOpen={call} />

@@ -13,7 +13,7 @@ const layerNames = (page: Page) =>
     .locator(":scope > [data-layer]")
     .evaluateAll((els) => els.map((el) => el.getAttribute("data-layer")).sort());
 
-/** Zestaw warstw z tabeli stanów pogody. */
+/** Zestaw warstw z tabeli stanów pogody (w dzień; pora dnia: day-period.spec.ts). */
 const EXPECTED: Record<string, string[]> = {
   sunny: ["motes"],
   cloudy: [],
@@ -27,7 +27,7 @@ const EXPECTED: Record<string, string[]> = {
 test("każdy ?weather= pokazuje swój zestaw warstw", async ({ page }) => {
   const errors = collectErrors(page);
   for (const [weather, layers] of Object.entries(EXPECTED)) {
-    await page.goto(`/?boot=off&weather=${weather}`);
+    await page.goto(`/?boot=off&weather=${weather}&time=day`);
     await expect(page.getByTestId("weather-layers")).toHaveAttribute("data-state", weather);
     expect(await layerNames(page), weather).toEqual(layers);
     if (layers.includes("precipitation")) {
@@ -47,7 +47,7 @@ for (const [label, width, height] of [
 ] as const) {
   test(`piorun w pudełku kadru wideo, horyzont w kadrze (${label})`, async ({ page }) => {
     await page.setViewportSize({ width, height });
-    await page.goto("/?boot=off&weather=storm");
+    await page.goto("/?boot=off&weather=storm&time=day");
     const bolt = page.getByTestId("lightning-bolt").first();
     const video = page.locator("[data-testid=scene-layer] video").first();
     await expect(bolt).toHaveCount(1);
@@ -68,7 +68,7 @@ test.describe("błyski", () => {
   // fastForward przeskakuje czas (odpala zaległe timery raz), bez liczenia każdej klatki rAF.
   test("bez reduced motion: błysk najpóźniej co 15 s", async ({ page }) => {
     await page.clock.install();
-    await page.goto("/?boot=off&weather=storm");
+    await page.goto("/?boot=off&weather=storm&time=day");
     const layer = page.getByTestId("lightning-layer");
     await expect(layer).toHaveCount(1);
     for (let i = 1; i <= 3; i++) {
@@ -82,7 +82,7 @@ test.describe("błyski", () => {
     const bolts: string[] = [];
     page.on("request", (request) => request.url().includes("/scenes/storm/") && bolts.push(request.url()));
     await page.clock.install();
-    await page.goto("/?boot=off&weather=storm");
+    await page.goto("/?boot=off&weather=storm&time=day");
     await expect(page.getByTestId("weather-layers")).toHaveAttribute("data-state", "storm");
     const filter = page.getByTestId("scene").locator(":scope > div").first();
     const filters = new Set<string>();
