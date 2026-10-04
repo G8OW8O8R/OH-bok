@@ -2,17 +2,16 @@
 
 import { Plus } from "lucide-react";
 import { Glass } from "@/components/ui/Glass";
+import { originLayoutId } from "@/lib/windows/apps";
 import { splitItems, type ShoppingItem } from "@/lib/shopping/list";
 import { ProgressRing } from "./ProgressRing";
 
 interface ShoppingListProps {
   items: ShoppingItem[];
   called: boolean;
-  /** Otwiera panel edycji (ten sam `layoutId`, co panel). */
+  /** Otwiera okno aplikacji, które rozwija się z kafelka (przejście współdzielone). */
   onOpen: () => void;
 }
-
-export const SHOPPING_LAYOUT_ID = "shopping";
 
 const VISIBLE = 3;
 
@@ -25,7 +24,7 @@ export function ShoppingList({ items, called, onOpen }: ShoppingListProps) {
 
   return (
     <Glass
-      layoutId={SHOPPING_LAYOUT_ID}
+      layoutId={originLayoutId("shopping", "tile")}
       depth="mid"
       role="region"
       aria-labelledby="shopping-title"

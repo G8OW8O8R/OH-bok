@@ -5,10 +5,10 @@ import type { WeatherData } from "./schema";
 
 const DEMO_TIMEZONE = "Europe/Warsaw";
 /** Deszczowy tydzień nad Zatoką Gdańską: kody WMO na kolejne dni. */
-const DEMO_DAILY_CODES = [61, 63, 3, 2, 80] as const;
+const DEMO_DAILY_CODES = [61, 63, 3, 2, 80, 1, 3] as const;
 /** Opad (mm) w kolejnych godzinach od bieżącej: pada, przejaśnia się, wieczorem znów pada. */
 const DEMO_HOURLY_MM = [1.8, 1.2, 0.6, 0, 0, 0, 0, 0.4, 1.1, 1.6, 0.9, 0.3] as const;
-const DEMO_HOURS = 24;
+const DEMO_DAYS = DEMO_DAILY_CODES.length;
 
 const DEMO_TEMPS = [
   [14, 9],
@@ -16,7 +16,15 @@ const DEMO_TEMPS = [
   [15, 9],
   [17, 10],
   [13, 9],
+  [16, 8],
+  [15, 10],
 ] as const;
+
+/** Dobowy przebieg temperatury: minimum ok. 5:00, maksimum ok. 15:00. */
+function demoHourTemp(hour: number, [max, min]: readonly [number, number]): number {
+  const phase = Math.cos(((hour - 15) / 24) * 2 * Math.PI);
+  return Math.round(((max + min) / 2 + ((max - min) / 2) * phase) * 10) / 10;
+}
 
 /** Przesunięcie strefy w sekundach dla danej chwili (uwzględnia czas letni). */
 function zoneOffsetSeconds(timeZone: string, at: Date): number {
@@ -60,16 +68,19 @@ export function demoWeather(now: Date, coords: Coords | null = null): WeatherDat
     };
   });
 
-  // Pełne godziny od bieżącej, w strefie demo (jak `forecast_hours` Open-Meteo).
-  const hourStart = Math.floor((now.getTime() + offset * 1000) / 3_600_000) * 3_600_000 - offset * 1000;
-  const hourly = Array.from({ length: DEMO_HOURS }, (_, i) => {
-    const local = new Date(hourStart + i * 3_600_000 + offset * 1000).toISOString().slice(0, 19);
-    const mm = DEMO_HOURLY_MM[i] ?? 0;
+  // Pełne godziny od północy dziś przez wszystkie dni (jak Open-Meteo bez `forecast_hours`).
+  // Opad z `DEMO_HOURLY_MM` zaczyna się od bieżącej godziny (brief „od 14:00 pada”).
+  const midnight = Date.parse(`${localDate(now, offset)}T00:00:00Z`) - offset * 1000;
+  const currentHour = Math.floor((now.getTime() - midnight) / 3_600_000);
+  const hourly = Array.from({ length: DEMO_DAYS * 24 }, (_, i) => {
+    const local = new Date(midnight + i * 3_600_000 + offset * 1000).toISOString().slice(0, 19);
+    const mm = DEMO_HOURLY_MM[i - currentHour] ?? 0;
     return {
       time: `${local}${tz}`,
       state: wmoToWeather(mm > 0 ? 61 : 3),
       precipitationMm: mm,
       precipitationProbability: mm > 0 ? 80 : 20,
+      temperatureC: demoHourTemp(i % 24, DEMO_TEMPS[Math.floor(i / 24)] ?? [14, 9]),
     };
   });
 
@@ -85,6 +96,7 @@ export function demoWeather(now: Date, coords: Coords | null = null): WeatherDat
       state: wmoToWeather(61),
       temperatureC: 12.5,
       apparentTemperatureC: 10.8,
+      humidityPct: 88,
       precipitationMmH: 1.8,
       windKmh: 18,
       windDirectionDeg: 250,

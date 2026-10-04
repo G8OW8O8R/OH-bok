@@ -112,7 +112,7 @@
     scroll-snap-align: center;
   }
 
-  /* Podpowiedź „wkrótce” tylko przy kursorze: w przewijanym rzędzie byłaby przycięta (opis zostaje w aria-describedby). */
+  /* Nazwa aplikacji nad ikoną tylko przy kursorze: w przewijanym rzędzie byłaby przycięta (nazwa zostaje w aria-label). */
   .dock-hint {
     display: none;
   }
@@ -416,8 +416,65 @@
   }
 
   /*
-   * Tło pod otwartym panelem: pulpit przyciemniony i mocniej rozmyty, żeby nie prześwitywał
-   * przez szkło panelu. Rozmycie jest stałe – animuje się tylko krycie warstwy.
+   * Okna (components/system/Window.tsx). Na desktopie dock zostaje nad tłem okien i jest klikalny:
+   * z niego otwiera się kolejne okno. Na telefonie arkusz zakrywa wszystko, także dock.
+   */
+  @media (min-width: 1024px) {
+    .desktop[data-windows] .desktop-dock {
+      z-index: 60;
+    }
+  }
+
+  /* Okno pod spodem stosu lekko przygasa: widać, które jest aktywne. */
+  .window-frame {
+    transition: opacity var(--dur-feedback) var(--ease-soft);
+  }
+
+  .window-frame:not([data-active]) {
+    opacity: 0.88;
+  }
+
+  /* Panel boczny okna: lekko obrócony ku widzowi, jakby okna otaczały użytkownika. */
+  .window-stage {
+    perspective: calc(var(--u) * 60);
+  }
+
+  .window-aside {
+    transform-origin: right center;
+    rotate: y 10deg;
+  }
+
+  /* Karty dni w oknie Pogody: siedem kolumn w oknie, w arkuszu rząd przewijany poziomo. */
+  .weather-days {
+    display: grid;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    gap: calc(var(--u) * 0.6);
+  }
+
+  @media (max-width: 1023.98px) {
+    .weather-days {
+      display: flex;
+      overflow-x: auto;
+      overscroll-behavior-x: contain;
+      scroll-snap-type: x proximity;
+      scrollbar-width: none;
+      padding-block: 2px;
+      gap: 0.5rem;
+    }
+
+    .weather-days::-webkit-scrollbar {
+      display: none;
+    }
+
+    .weather-days > * {
+      flex: 0 0 5rem;
+      scroll-snap-align: start;
+    }
+  }
+
+  /*
+   * Tło pod otwartym oknem: pulpit przyciemniony i mocniej rozmyty, żeby nie prześwitywał
+   * przez szkło okna. Rozmycie jest stałe – animuje się tylko krycie warstwy.
    */
   .panel-backdrop {
     background: rgb(6 8 12 / 0.5);

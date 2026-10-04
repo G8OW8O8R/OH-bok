@@ -14,6 +14,7 @@ export const openMeteoResponseSchema = z.object({
     interval: z.number().positive(),
     temperature_2m: z.number(),
     apparent_temperature: z.number(),
+    relative_humidity_2m: z.number(),
     weather_code: z.number().int(),
     /** Suma opadu w oknie `interval`, nie mm/h. */
     precipitation: z.number().nonnegative(),
@@ -34,9 +35,10 @@ export const openMeteoResponseSchema = z.object({
     sunrise: z.array(z.string().nullable()),
     sunset: z.array(z.string().nullable()),
   }),
-  /** Najbliższe godziny od bieżącej (`forecast_hours`), czasy lokalne bez strefy. */
+  /** Godziny od północy pierwszego dnia przez wszystkie dni prognozy, czasy lokalne bez strefy. */
   hourly: z.object({
     time: z.array(z.string()),
+    temperature_2m: z.array(z.number().nullable()),
     precipitation: z.array(z.number().nullable()),
     precipitation_probability: z.array(z.number().nullable()),
     weather_code: z.array(z.number().int().nullable()),
@@ -74,6 +76,8 @@ export const hourlyForecastSchema = z.object({
   precipitationMm: z.number().nonnegative(),
   /** Prawdopodobieństwo opadu w %, gdy model go nie podaje: null. */
   precipitationProbability: z.number().min(0).max(100).nullable(),
+  /** Temperatura (wykres godzinowy w oknie Pogody). Starsze kopie w localStorage jej nie mają. */
+  temperatureC: z.number().nullable().default(null),
 });
 
 export type HourlyForecast = z.infer<typeof hourlyForecastSchema>;
@@ -96,14 +100,19 @@ export const weatherDataSchema = z.object({
     state: weatherStateSchema,
     temperatureC: z.number(),
     apparentTemperatureC: z.number(),
+    /** Wilgotność względna w %. Starsze kopie jej nie mają. */
+    humidityPct: z.number().min(0).max(100).nullable().default(null),
     precipitationMmH: z.number().nonnegative(),
     windKmh: z.number().nonnegative(),
     windDirectionDeg: z.number(),
     isDay: z.boolean(),
   }),
   daily: z.array(dailyForecastSchema).min(1).max(7),
-  /** Prognoza godzinowa (brief dnia). Starsze kopie w localStorage jej nie mają. */
-  hourly: z.array(hourlyForecastSchema).max(48).default([]),
+  /**
+   * Prognoza godzinowa od północy dziś przez wszystkie dni (brief dnia, wykres w oknie Pogody).
+   * Starsze kopie w localStorage jej nie mają albo mają tylko 24 h od bieżącej godziny.
+   */
+  hourly: z.array(hourlyForecastSchema).max(7 * 24).default([]),
 });
 
 export type WeatherData = z.infer<typeof weatherDataSchema>;

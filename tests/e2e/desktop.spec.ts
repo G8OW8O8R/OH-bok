@@ -89,20 +89,6 @@ test("zoom 200% (1440×900 → 720×450 CSS px): tekst rośnie fizycznie", async
   expect(zoomed / normal).toBeGreaterThanOrEqual(1.9);
 });
 
-test("dock: klawiatura, aktywna aplikacja, niegotowe oznaczone „wkrótce”", async ({ page }) => {
-  await page.setViewportSize({ width: 1440, height: 900 });
-  await page.goto("/?boot=off&weather=rain");
-  const dock = page.getByRole("navigation", { name: "Aplikacje" });
-  const weather = dock.getByRole("button", { name: "Pogoda" });
-  await expect(weather).toHaveAttribute("aria-current", "true");
-  await expect(dock.getByRole("button", { name: "Rynki" })).toHaveAttribute("aria-disabled", "true");
-  await expect(dock.getByRole("button", { name: "Rynki" })).toHaveAccessibleDescription("Rynki · wkrótce");
-
-  await weather.focus();
-  await page.keyboard.press("Enter");
-  await expect(page.getByTestId("weather-arc")).toBeFocused();
-});
-
 test("„+” przepisu dodaje składniki do listy i ogłasza to w pigułce", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto("/?boot=off&weather=rain");

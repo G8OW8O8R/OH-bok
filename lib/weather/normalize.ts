@@ -2,9 +2,10 @@ import { wmoToWeather } from "@/lib/scenes";
 import type { Coords } from "./coords";
 import type { DailyForecast, HourlyForecast, OpenMeteoResponse, WeatherData, WeatherSource } from "./schema";
 
-export const FORECAST_DAYS = 5;
-/** Godziny prognozy od bieżącej: wystarczy na brief „od 14:00 pada”. */
-export const FORECAST_HOURS = 24;
+/** Okno Pogody pokazuje tydzień; łuk na pulpicie – pierwsze `ARC_DAYS`. */
+export const FORECAST_DAYS = 7;
+export const ARC_DAYS = 5;
+export const FORECAST_HOURS = FORECAST_DAYS * 24;
 
 /** `3600` → `+01:00`, `-12600` → `-03:30`. */
 export function formatUtcOffset(offsetSeconds: number): string {
@@ -64,6 +65,7 @@ export function normalizeOpenMeteo(raw: OpenMeteoResponse, options: NormalizeOpt
       state: wmoToWeather(hourly.weather_code[i] ?? -1),
       precipitationMm: Math.max(0, hourly.precipitation[i] ?? 0),
       precipitationProbability: probability === null ? null : Math.min(100, Math.max(0, probability)),
+      temperatureC: hourly.temperature_2m[i] ?? null,
     };
   });
 
@@ -78,6 +80,7 @@ export function normalizeOpenMeteo(raw: OpenMeteoResponse, options: NormalizeOpt
       state: wmoToWeather(current.weather_code),
       temperatureC: current.temperature_2m,
       apparentTemperatureC: current.apparent_temperature,
+      humidityPct: Math.min(100, Math.max(0, current.relative_humidity_2m)),
       precipitationMmH: toMmPerHour(current.precipitation, current.interval),
       windKmh: current.wind_speed_10m,
       windDirectionDeg: current.wind_direction_10m,

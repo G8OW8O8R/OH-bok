@@ -1,7 +1,7 @@
 import { coordsKey, GDANSK, roundCoords, type Coords } from "./coords";
 import { demoWeather } from "./demo";
 import { createLastKnownStore, type LastKnownStore } from "./last-known";
-import { FORECAST_DAYS, FORECAST_HOURS, normalizeOpenMeteo } from "./normalize";
+import { FORECAST_DAYS, normalizeOpenMeteo } from "./normalize";
 import { openMeteoResponseSchema, type WeatherData } from "./schema";
 
 export const OPEN_METEO_URL = "https://api.open-meteo.com/v1/forecast";
@@ -40,6 +40,7 @@ export function buildForecastUrl(coords: Coords): string {
     current: [
       "temperature_2m",
       "apparent_temperature",
+      "relative_humidity_2m",
       "weather_code",
       "precipitation",
       "wind_speed_10m",
@@ -57,9 +58,9 @@ export function buildForecastUrl(coords: Coords): string {
       "sunrise",
       "sunset",
     ].join(","),
-    hourly: ["precipitation", "precipitation_probability", "weather_code"].join(","),
+    // Bez `forecast_hours`: godziny od północy dziś przez wszystkie `forecast_days` (wykres doby).
+    hourly: ["temperature_2m", "precipitation", "precipitation_probability", "weather_code"].join(","),
     forecast_days: String(FORECAST_DAYS),
-    forecast_hours: String(FORECAST_HOURS),
     timezone: "auto",
     wind_speed_unit: "kmh",
   });

@@ -1,6 +1,7 @@
 import { cookies } from "next/headers";
 import { DevSceneSwitcher } from "@/components/dev/DevSceneSwitcher";
 import { Desktop } from "@/components/system/Desktop";
+import { WindowsProvider } from "@/components/system/Windows";
 import { parseTimeOverride } from "@/lib/day-period";
 import { parseOrbModeOverride, parseOrbStateOverride } from "@/lib/orb/states";
 import { parseWeatherOverride } from "@/lib/scenes";
@@ -22,14 +23,17 @@ export default async function DesktopPage({ searchParams }: PageProps<"/">) {
 
   return (
     <main className="relative isolate min-h-dvh overflow-x-clip desk:h-dvh desk:overflow-hidden">
-      <Desktop
-        initialWeather={data}
-        override={override}
-        timeOverride={timeOverride}
-        initialNow={renderedAt}
-        orbState={orbState ?? "idle"}
-        orbMode={orbMode}
-      />
+      {/* Okna z `?app=` otwiera klient po starcie (pozycje są w localStorage), więc SSR ich nie renderuje. */}
+      <WindowsProvider>
+        <Desktop
+          initialWeather={data}
+          override={override}
+          timeOverride={timeOverride}
+          initialNow={renderedAt}
+          orbState={orbState ?? "idle"}
+          orbMode={orbMode}
+        />
+      </WindowsProvider>
       {process.env.NODE_ENV === "development" && (
         <DevSceneSwitcher weather={override} time={timeOverride} orbState={orbState} orbMode={orbMode} />
       )}

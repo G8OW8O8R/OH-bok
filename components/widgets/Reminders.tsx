@@ -2,6 +2,7 @@
 
 import { Plus } from "lucide-react";
 import { Glass } from "@/components/ui/Glass";
+import { originLayoutId } from "@/lib/windows/apps";
 import { pendingReminders, type Reminder } from "@/lib/reminders/reminders";
 import { formatCountdown, formatWhen, minutesUntil } from "@/lib/time";
 
@@ -12,11 +13,9 @@ interface RemindersProps {
   now: Date;
   timeZone: string;
   called: boolean;
-  /** Otwiera panel edycji (ten sam `layoutId`, co panel). */
+  /** Otwiera okno aplikacji, które rozwija się z kafelka (przejście współdzielone). */
   onOpen: () => void;
 }
-
-export const REMINDERS_LAYOUT_ID = "reminders";
 
 const VISIBLE = 3;
 
@@ -31,7 +30,7 @@ export function Reminders({ reminders, nextId, now, timeZone, called, onOpen }: 
 
   return (
     <Glass
-      layoutId={REMINDERS_LAYOUT_ID}
+      layoutId={originLayoutId("reminders", "tile")}
       depth="mid"
       role="region"
       aria-labelledby="reminders-title"

@@ -20,6 +20,8 @@ declare module "react" {
     "--dur-scene"?: string;
     /** Kolejność elementu w sekwencji startowej (styles/boot.css). */
     "--i"?: number;
+    /** Miejsce zajęte przez krawędzie, dock i ornamenty okna (components/system/Window.tsx). */
+    "--window-reserve"?: string;
     /** Przesunięcie fazy animacji (fala dźwięku). */
     "--delay"?: string;
   }

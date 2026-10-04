@@ -13,6 +13,7 @@ function hours(fromLocalHour: number, mm: number[], state: HourlyForecast["state
     state: value > 0 ? state : "cloudy",
     precipitationMm: value,
     precipitationProbability: value > 0 ? 80 : 10,
+    temperatureC: 12,
   }));
 }
 
@@ -44,10 +45,10 @@ describe("greeting", () => {
 
 describe("isWetHour", () => {
   it("opad ≥ 0,2 mm albo prawdopodobny opad przy opadowej pogodzie", () => {
-    expect(isWetHour({ time: "", state: "cloudy", precipitationMm: 0.2, precipitationProbability: 0 })).toBe(true);
-    expect(isWetHour({ time: "", state: "rain", precipitationMm: 0, precipitationProbability: 70 })).toBe(true);
-    expect(isWetHour({ time: "", state: "cloudy", precipitationMm: 0, precipitationProbability: 90 })).toBe(false);
-    expect(isWetHour({ time: "", state: "rain", precipitationMm: 0.1, precipitationProbability: null })).toBe(false);
+    expect(isWetHour({ time: "", state: "cloudy", precipitationMm: 0.2, precipitationProbability: 0, temperatureC: null })).toBe(true);
+    expect(isWetHour({ time: "", state: "rain", precipitationMm: 0, precipitationProbability: 70, temperatureC: null })).toBe(true);
+    expect(isWetHour({ time: "", state: "cloudy", precipitationMm: 0, precipitationProbability: 90, temperatureC: null })).toBe(false);
+    expect(isWetHour({ time: "", state: "rain", precipitationMm: 0.1, precipitationProbability: null, temperatureC: null })).toBe(false);
   });
 });
 

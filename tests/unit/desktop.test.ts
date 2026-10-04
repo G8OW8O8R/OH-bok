@@ -66,7 +66,7 @@ describe("parallax", () => {
 });
 
 describe("temperatureCurve", () => {
-  const days = demoWeather(NOW).daily; // maksima 14, 12, 15, 17, 13
+  const days = demoWeather(NOW).daily.slice(0, 5); // maksima 14, 12, 15, 17, 13 (łuk pokazuje 5 dni)
   const box = { width: 200, height: 60, inset: 8 };
 
   it("punkty w środkach kolumn dni, najcieplejszy najwyżej", () => {

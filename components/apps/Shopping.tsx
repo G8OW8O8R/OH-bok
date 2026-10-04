@@ -4,14 +4,11 @@ import { Plus, X } from "lucide-react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Checkbox } from "@/components/ui/Checkbox";
-import { PanelScroll, WidgetPanel } from "@/components/ui/WidgetPanel";
+import { Window, WindowScroll } from "@/components/system/Window";
 import { spring, transitionFor } from "@/lib/motion";
 import { MAX_ITEM_NAME, type ShoppingItem } from "@/lib/shopping/list";
-import { SHOPPING_LAYOUT_ID } from "./ShoppingList";
 
-interface ShoppingPanelProps {
-  open: boolean;
-  onClose: () => void;
+interface ShoppingAppProps {
   items: ShoppingItem[];
   onAdd: (name: string) => void;
   onToggle: (id: string) => void;
@@ -21,15 +18,16 @@ interface ShoppingPanelProps {
 /** Po odhaczeniu przekreślenie rysuje się, a dopiero potem pozycja zsuwa się do „Kupione”. */
 const SETTLE_MS = 380;
 
-export function ShoppingPanel({ open, onClose, items, onAdd, onToggle, onRemove }: ShoppingPanelProps) {
+/** Okno listy zakupów: dodawanie, odhaczanie (przekreślenie się rysuje), usuwanie. */
+export function ShoppingApp(props: ShoppingAppProps) {
   return (
-    <WidgetPanel open={open} onClose={onClose} layoutId={SHOPPING_LAYOUT_ID} id="shopping" title="Lista zakupów">
-      <ShoppingEditor items={items} onAdd={onAdd} onToggle={onToggle} onRemove={onRemove} />
-    </WidgetPanel>
+    <Window id="shopping">
+      <ShoppingEditor {...props} />
+    </Window>
   );
 }
 
-function ShoppingEditor({ items, onAdd, onToggle, onRemove }: Omit<ShoppingPanelProps, "open" | "onClose">) {
+function ShoppingEditor({ items, onAdd, onToggle, onRemove }: ShoppingAppProps) {
   const reduceMotion = useReducedMotion();
   const [draft, setDraft] = useState("");
   const [settling, setSettling] = useState<ReadonlySet<string>>(new Set());
@@ -91,7 +89,7 @@ function ShoppingEditor({ items, onAdd, onToggle, onRemove }: Omit<ShoppingPanel
         </button>
       </form>
 
-      <PanelScroll className="flex flex-col gap-5">
+      <WindowScroll className="flex flex-col gap-5">
         {items.length === 0 && <p className="text-body text-text-secondary">Lista jest pusta. Dodaj pierwszą pozycję.</p>}
 
         <ItemGroup label="Do kupienia" items={todo} reduceMotion={reduceMotion} onToggle={toggle} onRemove={onRemove} />
@@ -104,7 +102,7 @@ function ShoppingEditor({ items, onAdd, onToggle, onRemove }: Omit<ShoppingPanel
             onRemove={onRemove}
           />
         )}
-      </PanelScroll>
+      </WindowScroll>
     </>
   );
 }

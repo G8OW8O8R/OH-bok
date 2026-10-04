@@ -7,14 +7,15 @@ import { SceneSourceProvider } from "@/components/scene/SceneSource";
 import { SceneVideo } from "@/components/scene/SceneVideo";
 import { WeatherLayers } from "@/components/scene/WeatherLayers";
 import { Orb } from "@/components/orb/Orb";
+import { RemindersApp } from "@/components/apps/Reminders";
+import { ShoppingApp } from "@/components/apps/Shopping";
+import { WeatherApp } from "@/components/apps/Weather";
 import { DepthLayer, ParallaxProvider } from "@/components/ui/Parallax";
 import { Greeting } from "@/components/widgets/Greeting";
 import { PlayerCapsule } from "@/components/widgets/PlayerCapsule";
 import { RecipeOrb } from "@/components/widgets/RecipeOrb";
 import { Reminders } from "@/components/widgets/Reminders";
-import { RemindersPanel } from "@/components/widgets/RemindersPanel";
 import { ShoppingList } from "@/components/widgets/ShoppingList";
-import { ShoppingPanel } from "@/components/widgets/ShoppingPanel";
 import { WeatherArc } from "@/components/widgets/WeatherArc";
 import { reportBootSignal } from "@/lib/boot";
 import { composeBrief, dayBrief, greeting, recipePrompt } from "@/lib/brief";
@@ -39,6 +40,7 @@ import { Clock } from "./Clock";
 import { Dock } from "./Dock";
 import { Logo } from "./Logo";
 import { Pill } from "./Pill";
+import { useWindows, WindowBackdrop } from "./Windows";
 
 interface DesktopProps {
   /** Pogoda z SSR: pierwsza klatka od razu pokazuje właściwą scenę. */
@@ -77,8 +79,8 @@ export function Desktop({ initialWeather, override, timeOverride, initialNow, or
 
   const reminders = useRemindersStore((state) => state.reminders);
   const shopping = useShoppingStore((state) => state.items);
-  const [panel, setPanel] = useState<"shopping" | "reminders" | null>(null);
-  const closePanel = useCallback(() => setPanel(null), []);
+  const windows = useWindows();
+  const windowsOpen = windows.stack.length > 0;
   const [recipeAdded, setRecipeAdded] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [called, setCalled] = useState<string | null>(null);
@@ -120,16 +122,16 @@ export function Desktop({ initialWeather, override, timeOverride, initialNow, or
     [today],
   );
 
-  // Esc wraca do dziś (otwarty panel obsługuje Esc sam).
+  // Esc wraca do dziś (otwarte okno obsługuje Esc samo).
   useEffect(() => {
-    if (pinned === null || panel !== null) return;
+    if (pinned === null || windowsOpen) return;
     const onKey = (event: KeyboardEvent) => {
       if (event.key !== "Escape" || event.defaultPrevented) return;
       returnToToday();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [pinned, panel, returnToToday]);
+  }, [pinned, windowsOpen, returnToToday]);
 
   useEffect(() => {
     const pending = timers.current;
@@ -198,6 +200,7 @@ export function Desktop({ initialWeather, override, timeOverride, initialNow, or
       <Scrim strength={tokens.scrimStrength} vignette={tokens.vignetteStrength} durationStyle={durationStyle} />
       <div
         className="desktop"
+        data-windows={windowsOpen || undefined}
         style={{
           ...durationStyle,
           "--halo-strength": tokens.haloStrength,
@@ -207,7 +210,8 @@ export function Desktop({ initialWeather, override, timeOverride, initialNow, or
           "--scene-text-shadow": tokens.textShadow,
         }}
       >
-        <header className="desktop-chrome">
+        {/* Pod otwartym oknem pulpit jest nieaktywny (fokus, klik, czytniki); dock zostaje dostępny. */}
+        <header className="desktop-chrome" inert={windowsOpen}>
           <Logo />
           <Pill
             next={next}
@@ -221,7 +225,7 @@ export function Desktop({ initialWeather, override, timeOverride, initialNow, or
           <Clock now={now} timeZone={timeZone} />
         </header>
 
-        <div className="desktop-hero">
+        <div className="desktop-hero" inert={windowsOpen}>
           <DepthLayer depth="near">
             <Orb
               state={orbState}
@@ -246,7 +250,7 @@ export function Desktop({ initialWeather, override, timeOverride, initialNow, or
           </DepthLayer>
         </div>
 
-        <div className="desktop-objects">
+        <div className="desktop-objects" inert={windowsOpen}>
           <WeatherArc
             weather={weather}
             override={override}
@@ -261,32 +265,40 @@ export function Desktop({ initialWeather, override, timeOverride, initialNow, or
             onSelectDay={selectDay}
             onReturnToday={returnToToday}
           />
-          <ShoppingList items={shopping} called={called === "shopping"} onOpen={() => setPanel("shopping")} />
+          <ShoppingList items={shopping} called={called === "shopping"} onOpen={() => windows.open("shopping", "tile")} />
           <Reminders
             reminders={reminders}
             nextId={next?.id ?? null}
             now={now}
             timeZone={timeZone}
             called={called === "reminders"}
-            onOpen={() => setPanel("reminders")}
+            onOpen={() => windows.open("reminders", "tile")}
           />
           <RecipeOrb recipe={SAMPLE_RECIPE} added={recipeAdded} onAdd={addRecipe} called={called === "recipe"} />
           <PlayerCapsule track={SAMPLE_TRACK} cover={SCENE_MEDIA[resolved.video].poster} />
         </div>
 
-        <Dock active="weather" onOpen={call} />
+        <WindowBackdrop />
+        <Dock />
 
-        <ShoppingPanel
-          open={panel === "shopping"}
-          onClose={closePanel}
+        <WeatherApp
+          weather={weather}
+          now={now}
+          timeZone={timeZone}
+          today={today}
+          shownDate={shownDate}
+          onShow={(date) => {
+            setPinnedDay(date === today ? null : date);
+            windows.close("weather");
+          }}
+        />
+        <ShoppingApp
           items={shopping}
           onAdd={(name) => useShoppingStore.getState().add([name])}
           onToggle={(id) => useShoppingStore.getState().toggle(id)}
           onRemove={(id) => useShoppingStore.getState().remove(id)}
         />
-        <RemindersPanel
-          open={panel === "reminders"}
-          onClose={closePanel}
+        <RemindersApp
           reminders={reminders}
           now={now}
           timeZone={timeZone}

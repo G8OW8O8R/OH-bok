@@ -8,6 +8,7 @@ import { duration, ease } from "@/lib/motion";
 import { compassDirection } from "@/lib/scene-conditions";
 import { WEATHER_LABELS, weatherLabel, type WeatherState } from "@/lib/scenes";
 import { dateIn, formatTime, weekdayLong, weekdayShort } from "@/lib/time";
+import { ARC_DAYS } from "@/lib/weather/normalize";
 import type { DailyForecast, WeatherData } from "@/lib/weather/schema";
 import { TemperatureCurve } from "./TemperatureCurve";
 
@@ -107,6 +108,8 @@ export function WeatherArc({
   const { current, location, source } = weather;
   const place = location.isDefault ? "Gdańsk" : "Twoja lokalizacja";
   const today = dateIn(now, weather.timezone);
+  // Pełny tydzień jest w oknie Pogody; łuk mieści 5 dni.
+  const arcDays = weather.daily.slice(0, ARC_DAYS);
   // Krótkie przenikanie treści łuku; wysokość łuku stała, więc krzywa nie skacze.
   const swap = {
     initial: { opacity: 0, y: reduceMotion ? 0 : 6 },
@@ -253,9 +256,9 @@ export function WeatherArc({
         </p>
 
         <div ref={curveRef} className="w-full px-1">
-          <p className="sr-only">Prognoza na {weather.daily.length} dni</p>
+          <p className="sr-only">Prognoza na {arcDays.length} dni</p>
           <TemperatureCurve
-            days={weather.daily}
+            days={arcDays}
             today={today}
             selectedDate={selectedDay?.date ?? today}
             onHoverDay={onHoverDay}

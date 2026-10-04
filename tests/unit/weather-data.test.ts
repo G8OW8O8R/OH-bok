@@ -112,6 +112,7 @@ describe("normalize", () => {
       state: "cloudy",
       precipitationMm: 0,
       precipitationProbability: 5,
+      temperatureC: 14.3,
     });
     expect(data.hourly[19]).toMatchObject({ time: "2026-09-30T15:00:00+02:00", state: "rain", precipitationMm: 1.2 });
   });
@@ -142,15 +143,19 @@ describe("normalize", () => {
 });
 
 describe("demoWeather", () => {
-  it("jest poprawne, oznaczone jako demo i ma 5 dni", () => {
+  it("jest poprawne, oznaczone jako demo i ma 7 dni z pełnymi dobami godzinowymi", () => {
     const demo = demoWeather(NOW);
     expect(weatherDataSchema.safeParse(demo).success).toBe(true);
     expect(demo.source).toBe("demo");
     expect(demo.location.isDefault).toBe(true);
-    expect(demo.daily).toHaveLength(5);
+    expect(demo.daily).toHaveLength(7);
     expect(demo.daily[0]?.date).toBe("2026-09-29");
-    expect(demo.hourly).toHaveLength(24);
-    expect(demo.hourly[0]?.time).toBe("2026-09-29T20:00:00+02:00");
+    expect(demo.hourly).toHaveLength(7 * 24);
+    expect(demo.hourly[0]?.time).toBe("2026-09-29T00:00:00+02:00");
+    // Opad demo zaczyna się od bieżącej godziny (brief), temperatura ma przebieg dobowy.
+    expect(demo.hourly[20]?.precipitationMm).toBe(1.8);
+    expect(demo.hourly[15]?.temperatureC).toBe(14);
+    expect(demo.hourly[3]?.temperatureC).toBeLessThan(10);
   });
 
   it("zachowuje lokalizację, o którą proszono", () => {

@@ -1,46 +1,27 @@
 "use client";
 
-import {
-  AlarmClock,
-  ChartLine,
-  Cloud,
-  CookingPot,
-  ListChecks,
-  Monitor,
-  Music,
-  Newspaper,
-  Settings,
-  type LucideIcon,
-} from "lucide-react";
+import { AlarmClock, Cloud, ListChecks, type LucideIcon } from "lucide-react";
+import { motion } from "motion/react";
 import { Glass } from "@/components/ui/Glass";
+import { APPS, originLayoutId, type AppId } from "@/lib/windows/apps";
+import { topWindow } from "@/lib/windows/stack";
+import { useWindows } from "./Windows";
 
-interface DockApp {
-  id: string;
-  label: string;
-  icon: LucideIcon;
-  /** Aplikacja już istnieje. Pozostałe są oznaczone „wkrótce” zamiast udawać, że działają. */
-  ready: boolean;
-}
-
-const APPS: DockApp[] = [
-  { id: "weather", label: "Pogoda", icon: Cloud, ready: true },
-  { id: "shopping", label: "Lista zakupów", icon: ListChecks, ready: false },
-  { id: "reminders", label: "Przypomnienia", icon: AlarmClock, ready: false },
-  { id: "recipes", label: "Przepisy", icon: CookingPot, ready: false },
-  { id: "news", label: "Wiadomości", icon: Newspaper, ready: false },
-  { id: "markets", label: "Rynki", icon: ChartLine, ready: false },
-  { id: "music", label: "Muzyka", icon: Music, ready: false },
-  { id: "monitor", label: "Monitor", icon: Monitor, ready: false },
-  { id: "settings", label: "Ustawienia", icon: Settings, ready: false },
+/** Tylko aplikacje, które istnieją (bez „wkrótce” i martwych przycisków). */
+const DOCK: { id: AppId; icon: LucideIcon }[] = [
+  { id: "weather", icon: Cloud },
+  { id: "shopping", icon: ListChecks },
+  { id: "reminders", icon: AlarmClock },
 ];
 
-interface DockProps {
-  active: string;
-  onOpen: (id: string) => void;
-}
+/**
+ * Dock z osobnych okrągłych przycisków: otwiera okno aplikacji, które rozwija się z ikony;
+ * aktywne okno (na wierzchu) ma bursztynową kropkę. Na desktopie dock zostaje nad tłem okien.
+ */
+export function Dock() {
+  const { stack, open } = useWindows();
+  const active = topWindow(stack);
 
-/** Dock z osobnych okrągłych przycisków; aktywny moduł ma bursztynową kropkę. */
-export function Dock({ active, onOpen }: DockProps) {
   return (
     <Glass
       depth="near"
@@ -51,30 +32,30 @@ export function Dock({ active, onOpen }: DockProps) {
       className="desktop-dock fixed rounded-pill p-2"
     >
       <ul className="dock-row flex gap-3.25">
-        {APPS.map(({ id, label, icon: Icon, ready }) => {
-          const hintId = `dock-hint-${id}`;
+        {DOCK.map(({ id, icon: Icon }) => {
+          const label = APPS[id].title;
           return (
             <li key={id} className="group relative shrink-0">
               <button
                 type="button"
+                id={`dock-${id}`}
                 aria-label={label}
-                aria-disabled={!ready || undefined}
-                aria-describedby={ready ? undefined : hintId}
+                aria-haspopup="dialog"
+                aria-expanded={stack.includes(id)}
                 aria-current={id === active ? "true" : undefined}
-                onClick={ready ? () => onOpen(id) : undefined}
-                className="grid size-13.5 place-items-center rounded-full border border-white/8 bg-white/6 text-text-primary transition-[background-color,scale] duration-(--dur-feedback) ease-out hover:bg-white/12 active:scale-95 aria-disabled:text-text-secondary aria-disabled:active:scale-100"
+                onClick={() => open(id, "dock")}
+                className="relative grid size-13.5 place-items-center rounded-full border border-white/8 bg-white/6 text-text-primary transition-[background-color,scale] duration-(--dur-feedback) ease-out hover:bg-white/12 active:scale-95"
               >
-                <Icon aria-hidden className="size-5.5" strokeWidth={1.75} />
+                {/* Kotwica przejścia współdzielonego: okno rozwija się z ikony i do niej wraca. */}
+                <motion.span aria-hidden layoutId={originLayoutId(id, "dock")} className="absolute inset-0 rounded-full" />
+                <Icon aria-hidden className="relative size-5.5" strokeWidth={1.75} />
               </button>
-              {id === active && (
-                <span aria-hidden className="absolute top-0.5 right-0.5 size-2.75 rounded-full bg-amber" />
-              )}
+              {id === active && <span aria-hidden className="absolute top-0.5 right-0.5 size-2.75 rounded-full bg-amber" />}
               <span
-                id={hintId}
-                role="tooltip"
+                aria-hidden
                 className="dock-hint pointer-events-none absolute bottom-full left-1/2 mb-3 -translate-x-1/2 translate-y-1 rounded-pill bg-[rgb(14_16_20/0.82)] px-3 py-1 text-caption whitespace-nowrap text-text-primary opacity-0 transition-[opacity,translate] duration-(--dur-feedback) ease-out group-focus-within:translate-y-0 group-focus-within:opacity-100 group-hover:translate-y-0 group-hover:opacity-100"
               >
-                {ready ? label : `${label} · wkrótce`}
+                {label}
               </span>
             </li>
           );

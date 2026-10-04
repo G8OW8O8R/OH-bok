@@ -5,7 +5,7 @@ import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { useRef, useState, type FormEvent, type KeyboardEvent } from "react";
 import { DatePicker } from "@/components/ui/DatePicker";
 import { TimePicker } from "@/components/ui/TimePicker";
-import { PanelFooter, PanelScroll, WidgetPanel } from "@/components/ui/WidgetPanel";
+import { Window, WindowFooter, WindowScroll } from "@/components/system/Window";
 import { duration, ease, spring, transitionFor } from "@/lib/motion";
 import { clampSlot, presetAt, QUICK_PRESETS, type CustomSlot, type PresetId } from "@/lib/reminders/presets";
 import {
@@ -16,11 +16,8 @@ import {
   type Reminder,
 } from "@/lib/reminders/reminders";
 import { dateIn, formatCountdown, formatDue, formatWhen, minutesUntil, zonedDate } from "@/lib/time";
-import { REMINDERS_LAYOUT_ID } from "./Reminders";
 
-interface RemindersPanelProps {
-  open: boolean;
-  onClose: () => void;
+interface RemindersAppProps {
   reminders: Reminder[];
   now: Date;
   timeZone: string;
@@ -28,11 +25,12 @@ interface RemindersPanelProps {
   onRemove: (id: string) => void;
 }
 
-export function RemindersPanel({ open, onClose, ...editor }: RemindersPanelProps) {
+/** Okno przypomnień: szybkie terminy, własna data i godzina, lista nadchodzących. */
+export function RemindersApp(props: RemindersAppProps) {
   return (
-    <WidgetPanel open={open} onClose={onClose} layoutId={REMINDERS_LAYOUT_ID} id="reminders" title="Przypomnienia" wide>
-      <RemindersEditor {...editor} />
-    </WidgetPanel>
+    <Window id="reminders" size="wide">
+      <RemindersEditor {...props} />
+    </Window>
   );
 }
 
@@ -46,7 +44,7 @@ const chip = (active: boolean) =>
     active ? "bg-amber/15 font-medium text-amber ring-1 ring-amber/70 ring-inset" : "bg-white/10 text-text-primary hover:bg-white/15"
   }`;
 
-function RemindersEditor({ reminders, now, timeZone, onAdd, onRemove }: Omit<RemindersPanelProps, "open" | "onClose">) {
+function RemindersEditor({ reminders, now, timeZone, onAdd, onRemove }: RemindersAppProps) {
   const reduceMotion = useReducedMotion();
   const [title, setTitle] = useState("");
   const [when, setWhen] = useState<When>({ kind: "preset", id: "1h" });
@@ -74,7 +72,7 @@ function RemindersEditor({ reminders, now, timeZone, onAdd, onRemove }: Omit<Rem
     setPickerOpen(true);
   };
 
-  // Esc w wyborze terminu zwija tylko kalendarz; panel zamyka dopiero kolejne Esc.
+  // Esc w wyborze terminu zwija tylko kalendarz; okno zamyka dopiero kolejne Esc.
   const onWhenKeyDown = (event: KeyboardEvent<HTMLFieldSetElement>) => {
     if (event.key !== "Escape" || !pickerOpen) return;
     event.preventDefault();
@@ -82,7 +80,7 @@ function RemindersEditor({ reminders, now, timeZone, onAdd, onRemove }: Omit<Rem
     toggleRef.current?.focus();
   };
 
-  // Rozwinięty kalendarz musi się zmieścić w widoku przewijanej części panelu.
+  // Rozwinięty kalendarz musi się zmieścić w widoku przewijanej części okna.
   const revealPicker = () => {
     const picker = document.getElementById(PICKER_ID);
     const scroller = picker?.closest<HTMLElement>("[data-panel-scroll]");
@@ -111,7 +109,7 @@ function RemindersEditor({ reminders, now, timeZone, onAdd, onRemove }: Omit<Rem
 
   return (
     <form id="reminder-form" onSubmit={submit} noValidate className="flex min-h-0 flex-1 flex-col">
-      <PanelScroll className="flex flex-col gap-5">
+      <WindowScroll className="flex flex-col gap-5">
         <div className="flex flex-col gap-3">
           <input
             data-autofocus
@@ -160,7 +158,7 @@ function RemindersEditor({ reminders, now, timeZone, onAdd, onRemove }: Omit<Rem
               </button>
             </div>
 
-            {/* Panel zmienia wysokość płynnie: rośnie/maleje sama sekcja kalendarza. */}
+            {/* Okno zmienia wysokość płynnie: rośnie/maleje sama sekcja kalendarza. */}
             <AnimatePresence initial={false}>
               {pickerOpen && (
                 <motion.div
@@ -198,9 +196,9 @@ function RemindersEditor({ reminders, now, timeZone, onAdd, onRemove }: Omit<Rem
         {finished.length > 0 && (
           <Group label="Zakończone" reminders={finished} now={now} timeZone={timeZone} transition={transition} onRemove={onRemove} muted />
         )}
-      </PanelScroll>
+      </WindowScroll>
 
-      <PanelFooter>
+      <WindowFooter>
         <div className="min-w-0 flex-1 text-caption">
           <p id="reminder-error" role="alert" className="text-amber empty:hidden">
             {error}
@@ -218,7 +216,7 @@ function RemindersEditor({ reminders, now, timeZone, onAdd, onRemove }: Omit<Rem
           <Plus aria-hidden className="size-4" strokeWidth={2.5} />
           Dodaj
         </button>
-      </PanelFooter>
+      </WindowFooter>
     </form>
   );
 }
