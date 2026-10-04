@@ -12,7 +12,7 @@ import {
   useVelocity,
   type PanInfo,
 } from "motion/react";
-import { useLayoutEffect, useRef, useState, type PointerEvent, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type PointerEvent, type ReactNode, type UIEvent } from "react";
 import { Glass } from "@/components/ui/Glass";
 import { duration, ease, spring, transitionFor } from "@/lib/motion";
 import { APPS, originLayoutId, type AppId } from "@/lib/windows/apps";
@@ -59,8 +59,8 @@ const LAYER_BASE = 41;
 /** Kolejne okno bez zapamiętanej pozycji schodzi kaskadą o tyle pikseli. */
 const CASCADE_PX = 36;
 const EDGE_PX = 16;
-/** Miejsce na jeden ornament (kapsuła + odstęp). */
-const ORNAMENT_PX = 60;
+/** Miejsce na jeden ornament (kapsuła ok. 36 px + odstęp 12 px). */
+const ORNAMENT_PX = 50;
 /** Okno bez źródła (z linku) znika krótkim przenikaniem, nie sprężyną. */
 const quickExit = { duration: 0.18, ease: ease.soft };
 /** Przechył przy przeciąganiu: stopnie przy danej prędkości (px/s). */
@@ -84,9 +84,31 @@ export function Window(props: WindowProps) {
   );
 }
 
-/** Przewijana część okna (na niskich ekranach i przy długich listach). */
+/** Pasek przewijania znika tyle po ostatnim ruchu. */
+const SCROLLBAR_HIDE_MS = 800;
+
+/**
+ * Przewijana część okna (niskie ekrany, długie listy). Bez systemowego paska: cienki,
+ * przezroczysty, widoczny tylko w trakcie przewijania (`data-scrolling`).
+ */
 export function WindowScroll({ children, className }: { children: ReactNode; className?: string }) {
-  return <div data-panel-scroll className={`min-h-0 flex-1 overflow-y-auto overscroll-contain px-6 pb-6 ${className ?? ""}`}>{children}</div>;
+  const timer = useRef(0);
+  useEffect(() => () => window.clearTimeout(timer.current), []);
+  const onScroll = (event: UIEvent<HTMLDivElement>) => {
+    const element = event.currentTarget;
+    element.dataset.scrolling = "";
+    window.clearTimeout(timer.current);
+    timer.current = window.setTimeout(() => delete element.dataset.scrolling, SCROLLBAR_HIDE_MS);
+  };
+  return (
+    <div
+      data-panel-scroll
+      onScroll={onScroll}
+      className={`window-scroll min-h-0 flex-1 overflow-y-auto overscroll-contain px-6 pb-6 ${className ?? ""}`}
+    >
+      {children}
+    </div>
+  );
 }
 
 /** Stopka poza przewijaniem: główna akcja okna jest zawsze widoczna. */
@@ -247,7 +269,7 @@ function WindowBody({ id, size = "regular", tabs, status, aside, children }: Win
             exit={layoutId ? undefined : { opacity: 0, scale: reduceMotion ? 1 : 0.96, transition: quickExit }}
             depth="near"
             parallax={false}
-            className={`flex max-h-[min(calc(100dvh-var(--window-reserve)),calc(var(--u)*46))] flex-col overflow-hidden rounded-window ${WIDTH[size]}`}
+            className={`window-glass flex max-h-[min(calc(100dvh-var(--window-reserve)),calc(var(--u)*46))] flex-col overflow-hidden rounded-window ${WIDTH[size]}`}
           >
             <motion.div className="flex min-h-0 flex-1 flex-col" {...content}>
               <header

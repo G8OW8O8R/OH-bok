@@ -434,6 +434,29 @@
     opacity: 0.88;
   }
 
+  /*
+   * Szkło okna jaśniejsze niż na pulpicie (makieta okna): rozmyta scena z latarnią prześwituje.
+   * 66% krycia sceny (`glassTint` .40–.58 → .26–.38); kontrast tekstu zmierzony.
+   * Ramka dziedziczy `--glass-bg` sceny, szkło okna nadpisuje je własnym (bez cyklu zmiennych).
+   */
+  .window-frame {
+    --window-glass-bg: color-mix(in srgb, var(--glass-bg) 66%, transparent);
+  }
+
+  .window-glass {
+    --glass-bg: var(--window-glass-bg);
+  }
+
+  /* Przewijanie awaryjne: cienki, przezroczysty pasek widoczny tylko w trakcie przewijania. */
+  .window-scroll {
+    scrollbar-width: thin;
+    scrollbar-color: transparent transparent;
+  }
+
+  .window-scroll[data-scrolling] {
+    scrollbar-color: rgb(255 255 255 / 0.3) transparent;
+  }
+
   /* Panel boczny okna: lekko obrócony ku widzowi, jakby okna otaczały użytkownika. */
   .window-stage {
     perspective: calc(var(--u) * 60);
@@ -448,7 +471,88 @@
   .weather-days {
     display: grid;
     grid-template-columns: repeat(7, minmax(0, 1fr));
-    gap: calc(var(--u) * 0.6);
+    gap: calc(var(--u) * 1.1);
+  }
+
+  /*
+   * Okno Pogody mieści się bez przewijania od 1536×864 w górę: odstępy i rozmiary rosną
+   * z wysokością ekranu (vh) do wartości z makiety przy 1920×1080 (u = 20 px).
+   */
+  .weather-app {
+    --wa-gap: clamp(0.5rem, 2vh, calc(var(--u) * 1.3));
+    --weather-chart-icon: clamp(1.125rem, 2.4vh, calc(var(--u) * 1.3));
+  }
+
+  .weather-temp {
+    font-size: clamp(3rem, 10.2vh, var(--text-temp));
+    line-height: 1;
+    letter-spacing: -0.045em;
+  }
+
+  .weather-chart {
+    height: clamp(3.25rem, 7.6vh, calc(var(--u) * 4.6));
+    /* Nad krzywą: ikona + podpis temperatury. */
+    margin-top: clamp(2.75rem, 6vh, calc(var(--u) * 3.6));
+  }
+
+  .weather-chart-icon {
+    width: var(--weather-chart-icon);
+    height: var(--weather-chart-icon);
+  }
+
+  /* Poświata linii w pikselach ekranu (filtr na całym SVG, bo ścieżka skaluje się bez proporcji). */
+  .weather-curve {
+    filter: drop-shadow(0 0 5px rgb(245 160 74 / 0.55));
+  }
+
+  .weather-now {
+    box-shadow:
+      0 0 0 4px rgb(245 160 74 / 0.22),
+      0 0 16px 5px rgb(245 160 74 / 0.5);
+  }
+
+  .weather-card {
+    gap: clamp(0.25rem, 0.85vh, calc(var(--u) * 0.6));
+    padding-block: clamp(0.625rem, 1.9vh, calc(var(--u) * 1.15));
+  }
+
+  .weather-card-icon {
+    width: clamp(1.5rem, 3.6vh, calc(var(--u) * 2));
+    height: clamp(1.5rem, 3.6vh, calc(var(--u) * 2));
+  }
+
+  .weather-card-max {
+    font-size: clamp(1.25rem, 3vh, calc(var(--u) * 1.6));
+    line-height: 1.1;
+    letter-spacing: -0.02em;
+  }
+
+  /* Na desktopie miasto stoi w linii tytułu okna (makieta); w arkuszu pod nagłówkiem. */
+  @media (min-width: 1024px) {
+    .weather-hero {
+      margin-top: calc(var(--text-lead) * -1.2 - var(--spacing) * 3);
+    }
+  }
+
+  /* Dymek karty dnia (wiatr, suma opadu): po najechaniu kursorem albo fokusie klawiatury. */
+  .day-tip {
+    opacity: 0;
+    translate: -50% 4px;
+    transition:
+      opacity var(--dur-feedback) var(--ease-soft),
+      translate var(--dur-feedback) var(--ease-out);
+  }
+
+  .day-card:focus-visible .day-tip {
+    opacity: 1;
+    translate: -50% 0;
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    .day-card:hover .day-tip {
+      opacity: 1;
+      translate: -50% 0;
+    }
   }
 
   @media (max-width: 1023.98px) {
@@ -473,11 +577,11 @@
   }
 
   /*
-   * Tło pod otwartym oknem: pulpit przyciemniony i mocniej rozmyty, żeby nie prześwitywał
-   * przez szkło okna. Rozmycie jest stałe – animuje się tylko krycie warstwy.
+   * Tło pod otwartym oknem: pulpit lekko przyciemniony (.25) i mocniej rozmyty – rozmyta scena
+   * prześwituje przez jaśniejsze szkło okna jak na makiecie, ale szczegóły pulpitu nie. Rozmycie jest stałe – animuje się tylko krycie warstwy.
    */
   .panel-backdrop {
-    background: rgb(6 8 12 / 0.5);
+    background: rgb(6 8 12 / 0.25);
     backdrop-filter: blur(calc(var(--u) * 1.2)) saturate(0.8);
   }
 

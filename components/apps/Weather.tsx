@@ -2,13 +2,13 @@
 
 import { Check, Droplet, MonitorUp, Navigation2 } from "lucide-react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
-import { Fragment, useId, useMemo, useState } from "react";
+import { Fragment, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { StatusCapsule, Window, WindowFooter, WindowScroll } from "@/components/system/Window";
 import { duration, ease } from "@/lib/motion";
 import { compassDirection } from "@/lib/scene-conditions";
 import { WEATHER_LABELS, weatherLabel } from "@/lib/scenes";
 import { formatTime, weekdayLong, weekdayShort } from "@/lib/time";
-import { hourlyCurve, hoursOfDay, type HourPoint } from "@/lib/weather/hourly";
+import { DAY_AXIS, hourlyCurve, labeledHours, type HourPoint } from "@/lib/weather/hourly";
 import type { DailyForecast, WeatherData } from "@/lib/weather/schema";
 import { weatherIcon } from "./weather-icons";
 
@@ -93,26 +93,31 @@ function WeatherContent({ weather, now, today, shownDate, onShow }: WeatherAppPr
   };
 
   return (
-    <>
-      <WindowScroll className="flex flex-col items-center gap-[calc(var(--u)*1.4)] pt-1">
-        <AnimatePresence mode="wait" initial={false}>
-          <motion.div key={date} {...swap} className="flex flex-col items-center text-center" data-testid="weather-window-hero">
-            <p className="text-lead font-medium text-text-primary">{weather.location.isDefault ? "Gdańsk" : "Twoja lokalizacja"}</p>
-            {isToday ? <TodayHero weather={weather} /> : day && <DayHero day={day} />}
-          </motion.div>
-        </AnimatePresence>
+    <div className="weather-app flex min-h-0 flex-1 flex-col">
+      {/* Miasto i temperatura poza przewijaniem: nigdy nie są ucięte. Na desktopie miasto stoi
+          w linii tytułu (makieta); przeciąganie za nagłówek przechodzi przez ten blok. */}
+      <AnimatePresence mode="wait" initial={false}>
+        <motion.div
+          key={date}
+          {...swap}
+          className="weather-hero flex shrink-0 flex-col items-center px-6 text-center lg:pointer-events-none"
+          data-testid="weather-window-hero"
+        >
+          <p className="text-lead font-medium text-text-primary">{weather.location.isDefault ? "Gdańsk" : "Twoja lokalizacja"}</p>
+          {isToday ? <TodayHero weather={weather} /> : day && <DayHero day={day} />}
+        </motion.div>
+      </AnimatePresence>
+      <WindowScroll className="flex flex-col items-center gap-(--wa-gap) pb-0!">
         <HourlyChart weather={weather} day={day} date={date} now={isToday ? now : null} />
         <DayCards days={weather.daily} today={today} selected={date} onSelect={setSelected} />
       </WindowScroll>
-      <WindowFooter className="justify-between border-t-0 pt-2">
-        <p className="min-w-0 truncate text-caption text-text-secondary" aria-live="polite">
-          {`${onDesktop ? "Na pulpicie" : "Wybrano"}: ${isToday ? "dziś" : weekdayLong(date).toLowerCase()}`}
-        </p>
+      {/* Stan przypięcia pokazuje sam przycisk główny. */}
+      <WindowFooter className="justify-end border-t-0 py-(--wa-gap)! max-lg:pb-[max(1rem,env(safe-area-inset-bottom))]!">
         <button
           type="button"
           onClick={() => onShow(date)}
           disabled={onDesktop}
-          className="flex shrink-0 items-center gap-2 rounded-pill bg-amber px-5 py-2.5 text-body font-medium text-[rgb(20_14_8)] transition-[scale,background-color,color] duration-(--dur-feedback) ease-out hover:scale-[1.03] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white active:scale-95 disabled:bg-white/10 disabled:text-text-secondary disabled:hover:scale-100"
+          className="flex shrink-0 items-center gap-2 rounded-pill bg-amber px-5 py-2.5 text-body font-medium text-[rgb(20_14_8)] transition-[scale,background-color,color] duration-(--dur-feedback) ease-out hover:scale-[1.03] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white active:scale-95 disabled:bg-white/10 disabled:text-text-primary disabled:hover:scale-100"
         >
           {onDesktop ? (
             <Check aria-hidden className="size-4" strokeWidth={2.25} />
@@ -122,7 +127,7 @@ function WeatherContent({ weather, now, today, shownDate, onShow }: WeatherAppPr
           {onDesktop ? "Na pulpicie" : "Pokaż na pulpicie"}
         </button>
       </WindowFooter>
-    </>
+    </div>
   );
 }
 
@@ -135,7 +140,7 @@ function TodayHero({ weather }: { weather: WeatherData }) {
   ];
   return (
     <>
-      <p className="text-temp font-medium text-text-primary tabular-nums" data-testid="weather-window-temp">
+      <p className="weather-temp font-medium text-text-primary tabular-nums" data-testid="weather-window-temp">
         {formatTemperature(current.temperatureC)}
       </p>
       <p className="mt-1 text-title font-medium text-text-primary">{weatherLabel(current.state, current.isDay)}</p>
@@ -171,7 +176,7 @@ function DayHero({ day }: { day: DailyForecast }) {
   return (
     <>
       <p className="flex items-baseline gap-[0.14em] font-medium text-text-primary tabular-nums" data-testid="weather-window-temp">
-        <span className="text-temp">
+        <span className="weather-temp">
           <span className="sr-only">Najwyżej </span>
           {formatTemperature(day.temperatureMaxC)}
         </span>
@@ -188,18 +193,52 @@ function DayHero({ day }: { day: DailyForecast }) {
   );
 }
 
-const CHART = { width: 1000, height: 100, inset: 24 } as const;
-/** Ikona i temperatura co 3 godziny: 8 znaczników mieści się także na telefonie. */
-const MARK_EVERY = 3;
+/** Zapas wokół krzywej (px): kropka „teraz” i poświata nie są ucinane na krańcach osi. */
+const CHART_INSET = 14;
+/** Rozmiar przed pierwszym pomiarem (okno montuje się po hydracji, pomiar jest przed malowaniem). */
+const CHART_FALLBACK = { width: 1000, height: 80 };
+
+/** Rozmiar elementu w pikselach (ResizeObserver), mierzony przed pierwszym malowaniem. */
+function useElementSize<T extends HTMLElement>() {
+  const ref = useRef<T>(null);
+  const [size, setSize] = useState(CHART_FALLBACK);
+  useLayoutEffect(() => {
+    const element = ref.current;
+    if (!element) return;
+    const update = () => {
+      const width = Math.round(element.clientWidth);
+      const height = Math.round(element.clientHeight);
+      if (width > 0 && height > 0) setSize((current) => (current.width === width && current.height === height ? current : { width, height }));
+    };
+    update();
+    const observer = new ResizeObserver(update);
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, []);
+  return [ref, size] as const;
+}
+/** Etykiety i ikony co 2 h (na telefonie co 4 h). */
+const MARK_EVERY = 2;
+
+function hourLabel(hour: number): string {
+  return `${hour}:00`;
+}
 
 function HourlyChart({ weather, day, date, now }: { weather: WeatherData; day: DailyForecast | undefined; date: string; now: Date | null }) {
   const reduceMotion = useReducedMotion();
-  const clipId = useId();
-  const hours = useMemo(() => hoursOfDay(weather.hourly, date, weather.timezone), [weather.hourly, date, weather.timezone]);
-  const curve = useMemo(() => hourlyCurve(hours, day, weather.timezone, CHART, now), [hours, day, weather.timezone, now]);
-  const marks = curve.points.filter((p) => p.hour % MARK_EVERY === 0);
-  const pct = (p: HourPoint) => ({ left: `${(p.x / CHART.width) * 100}%`, top: `${(p.y / CHART.height) * 100}%` });
+  const ids = useId();
+  const [chartRef, size] = useElementSize<HTMLDivElement>();
+  const curve = useMemo(
+    () => hourlyCurve(weather.hourly, date, day, weather.timezone, { ...size, inset: CHART_INSET }, now),
+    [weather.hourly, date, day, weather.timezone, now, size],
+  );
+  const labeled = useMemo(() => labeledHours(curve.points, curve.now), [curve]);
+  const marks = curve.points.filter((p) => (p.hour - DAY_AXIS.from) % MARK_EVERY === 0);
+  // Na telefonie co drugi znacznik (co 4 h): 10 etykiet nie mieści się w 342 px.
+  const narrowHidden = (p: HourPoint) => ((p.hour - DAY_AXIS.from) % 4 === 0 ? "" : "max-sm:hidden");
+  const pct = (p: HourPoint) => ({ left: `${(p.x / size.width) * 100}%`, top: `${(p.y / size.height) * 100}%` });
   const draw = reduceMotion ? { duration: 0 } : { duration: 1.1, ease: ease.pen };
+  const nowX = curve.now?.x ?? 0;
 
   if (curve.points.length < 2) {
     return <p className="py-6 text-body text-text-secondary">Brak prognozy godzinowej dla tego dnia.</p>;
@@ -208,35 +247,53 @@ function HourlyChart({ weather, day, date, now }: { weather: WeatherData; day: D
   return (
     <figure className="w-full" data-testid="weather-hourly">
       <figcaption className="sr-only">Temperatura co godzinę, {weekdayLong(date).toLowerCase()}</figcaption>
-      <div aria-hidden className="relative mt-[calc(var(--u)*3.6)] h-[calc(var(--u)*5)] min-h-16">
-        <svg viewBox={`0 0 ${CHART.width} ${CHART.height}`} preserveAspectRatio="none" className="absolute inset-0 size-full overflow-visible">
+      <div ref={chartRef} aria-hidden className="weather-chart relative">
+        {/* SVG w pikselach kontenera: bez skalowania rysowanie `pathLength` i grubość linii są dokładne. */}
+        <svg viewBox={`0 0 ${size.width} ${size.height}`} className="weather-curve absolute inset-0 size-full overflow-visible">
           <defs>
+            <linearGradient id={`${ids}-fill`} x1="0" x2="0" y1="0" y2="1">
+              <stop offset="0" stopColor="var(--accent-amber)" stopOpacity="0.24" />
+              <stop offset="1" stopColor="var(--accent-amber)" stopOpacity="0" />
+            </linearGradient>
             {/* Przed bieżącą godziną linia jest przygaszona: to już minęło. */}
-            <clipPath id={clipId}>
-              <rect x={curve.now?.x ?? 0} y={-50} width={CHART.width} height={CHART.height + 100} />
+            <clipPath id={`${ids}-past`}>
+              <rect x={-50} y={-50} width={nowX + 50} height={size.height + 100} />
+            </clipPath>
+            <clipPath id={`${ids}-future`}>
+              <rect x={nowX} y={-50} width={size.width} height={size.height + 100} />
             </clipPath>
           </defs>
           <motion.path
-            key={`${date}-base`}
-            d={curve.path}
-            fill="none"
-            stroke="rgb(255 255 255 / 0.3)"
-            strokeWidth={2}
-            strokeLinecap="round"
-            vectorEffect="non-scaling-stroke"
-            initial={{ pathLength: 0 }}
-            animate={{ pathLength: 1 }}
-            transition={draw}
+            key={`${date}-area`}
+            d={curve.area}
+            fill={`url(#${ids}-fill)`}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={reduceMotion ? { duration: 0 } : { duration: 0.6, delay: 0.22, ease: ease.soft }}
           />
+          {curve.now && (
+            <motion.path
+              key={`${date}-past`}
+              d={curve.path}
+              fill="none"
+              stroke="var(--accent-amber)"
+              strokeOpacity={0.42}
+              strokeWidth={3}
+              strokeLinecap="round"
+              clipPath={`url(#${ids}-past)`}
+              initial={{ pathLength: 0 }}
+              animate={{ pathLength: 1 }}
+              transition={draw}
+            />
+          )}
           <motion.path
             key={`${date}-line`}
             d={curve.path}
             fill="none"
-            stroke="rgb(255 255 255 / 0.85)"
-            strokeWidth={2.25}
+            stroke="var(--accent-amber)"
+            strokeWidth={3}
             strokeLinecap="round"
-            vectorEffect="non-scaling-stroke"
-            clipPath={`url(#${clipId})`}
+            clipPath={curve.now ? `url(#${ids}-future)` : undefined}
             initial={{ pathLength: 0 }}
             animate={{ pathLength: 1 }}
             transition={draw}
@@ -244,15 +301,16 @@ function HourlyChart({ weather, day, date, now }: { weather: WeatherData; day: D
         </svg>
         {marks.map((p) => {
           const Icon = weatherIcon(p.state, p.isDay);
-          const past = curve.now !== null && p.hour < curve.now.hour;
           return (
             <div
               key={p.time}
               style={pct(p)}
-              className={`absolute flex -translate-x-1/2 -translate-y-full flex-col items-center gap-0.5 pb-2 ${past ? "opacity-55" : ""}`}
+              className={`absolute flex -translate-x-1/2 -translate-y-full flex-col items-center gap-0.5 pb-2.5 ${narrowHidden(p)}`}
             >
-              <Icon className="size-5 text-text-primary" strokeWidth={1.75} />
-              <span className="text-caption text-text-primary tabular-nums">{formatTemperature(p.temperatureC)}</span>
+              {labeled.has(p.hour) && p.hour !== curve.now?.hour && (
+                <span className="text-caption font-medium text-text-primary tabular-nums">{formatTemperature(p.temperatureC)}</span>
+              )}
+              <Icon className="weather-chart-icon text-text-primary" strokeWidth={1.75} />
             </div>
           );
         })}
@@ -260,25 +318,30 @@ function HourlyChart({ weather, day, date, now }: { weather: WeatherData; day: D
           <span
             style={pct(curve.now)}
             data-testid="weather-hourly-now"
-            className="absolute size-3 -translate-1/2 rounded-full bg-amber shadow-[0_0_0_4px_rgb(245_160_74/0.25)]"
-          />
+            className="weather-now absolute size-3.5 -translate-1/2 rounded-full bg-amber"
+          >
+            {/* Temperatura bieżącej godziny nad kropką, ponad ikoną sąsiedniego znacznika. */}
+            <span className="absolute bottom-full left-1/2 mb-[calc(var(--weather-chart-icon)+0.875rem)] -translate-x-1/2 text-caption font-semibold text-text-primary tabular-nums">
+              {formatTemperature(curve.now.temperatureC)}
+            </span>
+          </span>
         )}
       </div>
-      <div aria-hidden className="relative mt-3 h-5">
-        {/* Godziny co 3 h (na wąskim ekranie co 6 h); przy bieżącej godzinie zamiast nich „teraz”. */}
+      <div aria-hidden className="relative mt-2.5 h-5">
+        {/* Przy bieżącej godzinie zamiast etykiety „teraz”. */}
         {marks
           .filter((p) => curve.now === null || Math.abs(p.hour - curve.now.hour) > 1)
           .map((p) => (
             <span
               key={p.time}
               style={{ left: pct(p).left }}
-              className={`absolute -translate-x-1/2 text-caption text-text-secondary tabular-nums ${p.hour % 6 === 0 ? "" : "max-sm:hidden"}`}
+              className={`absolute -translate-x-1/2 text-caption whitespace-nowrap text-text-secondary tabular-nums ${narrowHidden(p)}`}
             >
-              {p.hour}:00
+              {hourLabel(p.hour)}
             </span>
           ))}
         {curve.now && (
-          <span style={{ left: pct(curve.now).left }} className="absolute -translate-x-1/2 text-caption font-medium text-amber">
+          <span style={{ left: pct(curve.now).left }} className="absolute -translate-x-1/2 text-caption font-semibold text-text-primary">
             teraz
           </span>
         )}
@@ -294,7 +357,7 @@ function HourlyChart({ weather, day, date, now }: { weather: WeatherData; day: D
         <tbody>
           {curve.points.map((p) => (
             <tr key={p.time}>
-              <th scope="row">{`${p.hour}:00`}</th>
+              <th scope="row">{hourLabel(p.hour)}</th>
               <td>{formatTemperature(p.temperatureC)}</td>
               <td>{WEATHER_LABELS[p.state]}</td>
             </tr>
@@ -316,47 +379,64 @@ function DayCards({
   selected: string;
   onSelect: (date: string) => void;
 }) {
+  const ids = useId();
   return (
     <div role="group" aria-label={`Prognoza na ${days.length} dni`} className="weather-days w-full">
       {days.map((day) => {
         const Icon = weatherIcon(day.state, true, day.weatherCode);
         const active = day.date === selected;
         const label = day.date === today ? "Dziś" : weekdayShort(day.date);
+        const tipId = `${ids}-${day.date}`;
+        const sum = day.precipitationSumMm !== null && day.precipitationSumMm >= 0.1 ? formatMm(day.precipitationSumMm) : null;
         return (
           <button
             key={day.date}
             type="button"
             aria-pressed={active}
+            aria-describedby={tipId}
             onClick={() => onSelect(day.date)}
             data-testid="weather-day-card"
-            className={`flex flex-col items-center gap-1.5 rounded-[calc(var(--u)*1.1)] border px-2 py-3 transition-[background-color,border-color,scale] duration-(--dur-feedback) ease-out active:scale-[0.97] ${
-              active ? "border-amber/80 bg-amber/10" : "border-white/8 bg-white/6 hover:bg-white/10"
+            className={`day-card weather-card relative flex flex-col items-center rounded-[calc(var(--u)*1.2)] border px-2 transition-[background-color,border-color,scale] duration-(--dur-feedback) ease-out active:scale-[0.97] ${
+              active ? "border-amber/80 bg-[rgb(8_10_14/0.42)]" : "border-white/10 bg-white/6 hover:bg-white/11"
             }`}
           >
             <span className={`text-body font-medium ${active ? "text-amber" : "text-text-primary"}`}>
               <span aria-hidden>{label}</span>
               <span className="sr-only">{day.date === today ? "Dziś" : weekdayLong(day.date)}</span>
             </span>
-            <Icon aria-hidden className="size-6 text-text-primary" strokeWidth={1.75} />
+            <Icon aria-hidden className="weather-card-icon text-text-primary" strokeWidth={1.6} />
             <span className="sr-only">{WEATHER_LABELS[day.state]}</span>
-            <span className="text-body whitespace-nowrap tabular-nums">
-              <span className="font-medium text-text-primary">{formatTemperature(day.temperatureMaxC)}</span>
-              <span className="text-text-secondary">/{formatTemperature(day.temperatureMinC)}</span>
+            <span className="flex items-baseline whitespace-nowrap tabular-nums">
+              <span className="weather-card-max font-medium text-text-primary">
+                <span className="sr-only">Najwyżej </span>
+                {formatTemperature(day.temperatureMaxC)}
+              </span>
+              {/* Min. jaśniejsze niż zwykły drugorzędny tekst (.78): we mgle karta stoi nad jasną latarnią. */}
+              <span className="text-body text-white/78">
+                <span className="sr-only">, najniżej </span>/{formatTemperature(day.temperatureMinC)}
+              </span>
             </span>
             <span className="flex items-center gap-1 text-caption text-text-secondary tabular-nums">
               <Droplet aria-hidden className="size-3.5" strokeWidth={1.75} />
               <span className="sr-only">Szansa opadów </span>
               {day.precipitationProbabilityMax === null ? "–" : `${Math.round(day.precipitationProbabilityMax)}%`}
             </span>
-            <span className="flex items-center gap-1 text-caption whitespace-nowrap text-text-secondary tabular-nums">
+            {/* Dymek: wiatr i suma opadu po najechaniu albo fokusie (na dotyku – w linii pod temperaturą). */}
+            <span
+              id={tipId}
+              role="tooltip"
+              className="day-tip pointer-events-none absolute bottom-full left-1/2 z-10 mb-2 flex items-center gap-1.5 rounded-pill bg-[rgb(14_16_20/0.86)] px-3 py-1.5 text-caption whitespace-nowrap text-text-primary shadow-(--depth-mid) tabular-nums"
+            >
               <Navigation2
                 aria-hidden
                 className="size-3.5"
                 strokeWidth={1.75}
                 style={{ rotate: `${(day.windDirectionDeg ?? 0) + 180}deg`, opacity: day.windDirectionDeg === null ? 0 : 1 }}
               />
-              <span className="sr-only">Wiatr </span>
-              {day.windMaxKmh === null ? "–" : `${Math.round(day.windMaxKmh)} km/h`}
+              {day.windMaxKmh === null
+                ? "Wiatr: brak danych"
+                : `Wiatr do ${Math.round(day.windMaxKmh)} km/h${day.windDirectionDeg === null ? "" : ` ${compassDirection(day.windDirectionDeg).short}`}`}
+              {sum && <span className="text-text-secondary">· {sum}</span>}
             </span>
           </button>
         );
