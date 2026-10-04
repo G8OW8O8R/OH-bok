@@ -58,5 +58,6 @@ const percent = new Intl.NumberFormat("pl-PL", {
 
 /** `+1,23%`, `−0,40%`, `0,00%` */
 export function formatChange(pct: number): string {
-  return `${percent.format(pct)}%`;
+  // Typograficzny minus zamiast łącznika z `Intl`.
+  return `${percent.format(pct).replace("-", "−")}%`;
 }

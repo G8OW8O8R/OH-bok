@@ -21,6 +21,8 @@ interface MarketsState {
   /** Ostatni kurs USD/PLN z NBP (zapamiętany: łagodna degradacja bez sieci). */
   fx: FxRate | null;
   applyQuotes: (batch: Quote[], receivedAt: Date) => void;
+  /** Migawka startowa: uzupełnia tylko brakujące symbole, nie zmienia źródła ani czasu. */
+  seedQuotes: (quotes: Quote[]) => void;
   setStatus: (status: FeedStatus) => void;
   setCurrency: (currency: Currency) => void;
   setFx: (fx: FxRate) => void;
@@ -61,6 +63,10 @@ export const useMarketsStore = create<MarketsState>()(
           applied = quote;
         }
         if (applied) set({ quotes, source: applied.source, receivedAt: receivedAt.toISOString() });
+      },
+      seedQuotes: (seed) => {
+        const missing = seed.filter((quote) => !get().quotes[quote.symbol]);
+        if (missing.length > 0) set({ quotes: { ...get().quotes, ...Object.fromEntries(missing.map((quote) => [quote.symbol, quote])) } });
       },
       setStatus: (status) => set({ status }),
       setCurrency: (currency) => set({ currency }),

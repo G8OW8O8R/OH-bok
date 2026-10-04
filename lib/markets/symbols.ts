@@ -10,14 +10,17 @@ export interface MarketAsset {
   binance: string;
   /** Identyfikator monety w CoinGecko. */
   coingecko: string;
+  /** Koło waluty w oknie Rynków (bez logotypów): kolor marki i kolor skrótu na nim. */
+  color: string;
+  ink: string;
 }
 
 export const MARKET_ASSETS: Record<MarketSymbol, MarketAsset> = {
-  BTC: { symbol: "BTC", name: "Bitcoin", binance: "BTCUSDT", coingecko: "bitcoin" },
-  ETH: { symbol: "ETH", name: "Ethereum", binance: "ETHUSDT", coingecko: "ethereum" },
-  SOL: { symbol: "SOL", name: "Solana", binance: "SOLUSDT", coingecko: "solana" },
-  XRP: { symbol: "XRP", name: "XRP", binance: "XRPUSDT", coingecko: "ripple" },
-  ADA: { symbol: "ADA", name: "Cardano", binance: "ADAUSDT", coingecko: "cardano" },
+  BTC: { symbol: "BTC", name: "Bitcoin", binance: "BTCUSDT", coingecko: "bitcoin", color: "#F7931A", ink: "#1A1206" },
+  ETH: { symbol: "ETH", name: "Ethereum", binance: "ETHUSDT", coingecko: "ethereum", color: "#627EEA", ink: "#0B1026" },
+  SOL: { symbol: "SOL", name: "Solana", binance: "SOLUSDT", coingecko: "solana", color: "#9945FF", ink: "#FFFFFF" },
+  XRP: { symbol: "XRP", name: "XRP", binance: "XRPUSDT", coingecko: "ripple", color: "#23292F", ink: "#FFFFFF" },
+  ADA: { symbol: "ADA", name: "Cardano", binance: "ADAUSDT", coingecko: "cardano", color: "#0033AD", ink: "#FFFFFF" },
 };
 
 const BY_BINANCE = new Map(MARKET_SYMBOLS.map((symbol) => [MARKET_ASSETS[symbol].binance, symbol]));

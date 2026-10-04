@@ -48,6 +48,8 @@ export interface MarketFeedDeps {
   /** Nasłuch zmian sieci; zwraca funkcję sprzątającą. */
   watchNetwork: (listener: (online: boolean) => void) => () => void;
   onQuotes: (batch: Quote[]) => void;
+  /** Jednorazowe wypełnienie przy starcie: tylko symbole, których jeszcze nie ma (bez zmiany źródła). */
+  onSeed: (quotes: Quote[]) => void;
   onState: (state: FeedState) => void;
 }
 
@@ -75,6 +77,26 @@ export class MarketFeed {
     if (this.state.status !== "idle") return;
     this.unwatchNetwork = this.deps.watchNetwork((online) => this.dispatch({ type: "network", online }));
     this.dispatch({ type: "start", online: this.deps.isOnline() });
+    // Binance wysyła tick symbolu dopiero przy zmianie (rzadkie pary nawet po kilku sekundach):
+    // migawka z cache serwera od razu wypełnia puste wiersze.
+    if (this.current.status === "connecting") void this.seed();
+  }
+
+  private async seed(): Promise<void> {
+    const quotes = await this.fetchSnapshot(AbortSignal.timeout(FIRST_DATA_TIMEOUT_MS));
+    if (quotes && this.state.status !== "idle") this.deps.onSeed(quotes.quotes);
+  }
+
+  /** `/api/markets` → notowania i informacja, czy to prawdziwe dane (nie demo). */
+  private async fetchSnapshot(signal: AbortSignal): Promise<{ quotes: Quote[]; live: boolean } | null> {
+    try {
+      const response = await this.deps.fetch("/api/markets", { signal, cache: "no-store" });
+      if (!response.ok) return null;
+      const parsed = marketsSnapshotSchema.safeParse(await response.json());
+      return parsed.success ? { quotes: parsed.data.quotes, live: parsed.data.source !== "demo" } : null;
+    } catch {
+      return null; // brak sieci albo przerwane zapytanie
+    }
   }
 
   stop(): void {
@@ -192,25 +214,12 @@ export class MarketFeed {
     this.poll?.abort();
     const controller = new AbortController();
     this.poll = controller;
-    let quotes: Quote[] | null = null;
-    let live = false;
-    try {
-      const response = await this.deps.fetch("/api/markets", { signal: controller.signal, cache: "no-store" });
-      if (response.ok) {
-        const parsed = marketsSnapshotSchema.safeParse(await response.json());
-        if (parsed.success) {
-          quotes = parsed.data.quotes;
-          live = parsed.data.source !== "demo";
-        }
-      }
-    } catch {
-      // Brak sieci albo przerwane odpytanie: niżej `poll-failed`.
-    }
+    const snapshot = await this.fetchSnapshot(controller.signal);
     if (controller.signal.aborted || this.poll !== controller) return;
     this.poll = null;
     // Dane demo (serwer bez żadnego źródła) trafiają do store'u z oznaczeniem, ale stan to `offline`.
-    for (const quote of quotes ?? []) this.batcher.push(quote);
-    this.dispatch({ type: live && quotes && quotes.length > 0 ? "poll-ok" : "poll-failed" });
+    for (const quote of snapshot?.quotes ?? []) this.batcher.push(quote);
+    this.dispatch({ type: snapshot?.live && snapshot.quotes.length > 0 ? "poll-ok" : "poll-failed" });
   }
 
   private clearTimer(name: "firstDataTimer" | "silenceTimer" | "retryTimer" | "pollTimer"): void {

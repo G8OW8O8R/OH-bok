@@ -84,6 +84,20 @@ export function evaluateAlerts(
   return { alerts: triggered.length > 0 ? next : [...alerts], triggered };
 }
 
+/**
+ * Próg wpisany przez człowieka → liczba albo null: „85 000,50”, „85000.5”, „1 900 zł”.
+ * Spacje (także twarde) i symbol waluty są pomijane; przecinek albo kropka dziesiętna.
+ */
+export function parseThreshold(text: string): number | null {
+  const cleaned = text
+    .replace(/[\s  ]/g, "")
+    .replace(/(zł|\$|usd|pln)$/i, "")
+    .replace(",", ".");
+  if (!/^\d+(\.\d+)?$/.test(cleaned)) return null;
+  const value = Number(cleaned);
+  return Number.isFinite(value) && value > 0 ? value : null;
+}
+
 /** „BTC powyżej 70 000,00 $” */
 export function describeAlert(alert: PriceAlert): string {
   const condition = alert.condition === "above" ? "powyżej" : "poniżej";

@@ -17,6 +17,7 @@ import {
   topWindow,
   visibleWindows,
   windowLayer,
+  type WindowStack,
 } from "@/lib/windows/stack";
 import { closeNavigation, parseAppParam, searchWithStack, stackFromSearch } from "@/lib/windows/url";
 
@@ -41,7 +42,7 @@ describe("stos okien", () => {
   });
 
   it("F6 przechodzi przez wszystkie okna, Shift+F6 w drugą stronę", () => {
-    let stack: readonly ("weather" | "shopping" | "reminders")[] = ["weather", "shopping", "reminders"];
+    let stack: WindowStack = ["weather", "shopping", "reminders"];
     const tops: string[] = [];
     for (let i = 0; i < 3; i++) {
       stack = cycleWindows(stack);
@@ -65,7 +66,8 @@ describe("adres okien", () => {
   it("czyta polskie nazwy, pomija nieznane i powtórzenia (ostatnie wygrywa)", () => {
     expect(parseAppParam("pogoda")).toEqual(["weather"]);
     expect(parseAppParam("pogoda,lista")).toEqual(["weather", "shopping"]);
-    expect(parseAppParam("lista,rynki,Pogoda,lista")).toEqual(["weather", "shopping"]);
+    expect(parseAppParam("lista,gielda,Pogoda,lista")).toEqual(["weather", "shopping"]);
+    expect(parseAppParam("rynki")).toEqual(["markets"]);
     expect(parseAppParam("")).toEqual([]);
     expect(parseAppParam(null)).toEqual([]);
     expect(appFromSlug("weather")).toBeNull();
@@ -97,7 +99,7 @@ describe("pozycje okien", () => {
 
   it("zakres przeciągania trzyma całe okno w obszarze; okno większe od obszaru stoi na środku", () => {
     expect(dragBounds(size, viewport, insets)).toEqual({ left: -204, right: 204, top: -94, bottom: 94 });
-    expect(dragBounds({ width: 1500, height: 900 }, viewport, insets)).toEqual({ left: -0, right: 0, top: -0, bottom: 0 });
+    expect(dragBounds({ width: 1500, height: 900 }, viewport, insets)).toEqual({ left: 0, right: 0, top: -0, bottom: 0 });
     const bounds = dragBounds(size, viewport, insets);
     expect(clampOffset({ x: 500, y: -500 }, bounds)).toEqual({ x: 204, y: -94 });
   });

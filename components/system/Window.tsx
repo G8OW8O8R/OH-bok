@@ -41,6 +41,10 @@ interface WindowProps {
   status?: ReactNode;
   /** Panel boczny po lewej, lekko obrócony w 3D (na telefonie sekcja pod treścią). */
   aside?: ReactNode;
+  /** false = panel boczny tylko na desktopie (w arkuszu tę rolę pełni np. zakładka). */
+  asideOnSheet?: boolean;
+  /** Sterowanie w linii tytułu, przed „Zamknij” (np. przełącznik waluty). */
+  headerActions?: ReactNode;
   /**
    * Treść pod nagłówkiem. Okno ma stałą maks. wysokość: przewijana część to `WindowScroll`,
    * a to, co musi być zawsze osiągalne (pole dodawania, główny przycisk), stoi poza nią.
@@ -160,10 +164,10 @@ function CloseButton({ onClose }: { onClose: () => void }) {
 
 /** Przeciąganie zaczyna się tylko na pustym miejscu nagłówka (przyciski działają normalnie). */
 function startsDrag(event: PointerEvent): boolean {
-  return event.button === 0 && !(event.target as Element).closest("button,a,input,[role=tab]");
+  return event.button === 0 && !(event.target as Element).closest("button,a,input,[role=tab],[role=radio]");
 }
 
-function WindowBody({ id, size = "regular", tabs, status, aside, children }: WindowProps) {
+function WindowBody({ id, size = "regular", tabs, status, aside, headerActions, children }: WindowProps) {
   const { windows, reduceMotion, isTop, titleId, layer, layoutId, layoutTransition, content } = useWindowShell(id);
   const frameRef = useRef<HTMLDivElement>(null);
   const dragControls = useDragControls();
@@ -179,6 +183,8 @@ function WindowBody({ id, size = "regular", tabs, status, aside, children }: Win
   const [bounds, setBounds] = useState<DragBounds>({ left: 0, right: 0, top: 0, bottom: 0 });
   const boundsRef = useRef(bounds);
   const reserve = insets.top + insets.bottom + (tabs ? ORNAMENT_PX : 0) + (status ? ORNAMENT_PX : 0);
+  const placeRef = useRef<((initial: boolean) => void) | null>(null);
+  const hasAside = Boolean(aside);
 
   // Pozycja: zapamiętana (względna) albo kaskada; po zmianie rozmiaru ekranu – w tym samym miejscu zakresu.
   useLayoutEffect(() => {
@@ -187,7 +193,13 @@ function WindowBody({ id, size = "regular", tabs, status, aside, children }: Win
     const place = (initial: boolean) => {
       const nextInsets = initial ? insets : measureInsets();
       const viewport = { width: window.innerWidth, height: window.innerHeight };
-      const next = dragBounds({ width: frame.offsetWidth, height: frame.offsetHeight }, viewport, nextInsets);
+      // Panel boczny wystaje w lewo poza okno: granice trzymają w ekranie także jego.
+      const asideElement = frame.querySelector<HTMLElement>(".window-aside");
+      // Szerokość po obrocie 3D (perspektywa poszerza bliższą krawędź).
+      const leftExtra = asideElement
+        ? Math.max(asideElement.offsetWidth, asideElement.getBoundingClientRect().width) + parseFloat(getComputedStyle(asideElement).marginRight)
+        : 0;
+      const next = dragBounds({ width: frame.offsetWidth, height: frame.offsetHeight }, viewport, nextInsets, leftExtra);
       const saved = useWindowsStore.getState().positions[id];
       const offset = initial
         ? initialOffset(saved, Math.max(0, windows.stack.indexOf(id)), CASCADE_PX, next)
@@ -201,6 +213,7 @@ function WindowBody({ id, size = "regular", tabs, status, aside, children }: Win
       y.set(offset.y);
     };
     place(true);
+    placeRef.current = place;
     const onResize = () => place(false);
     const observer = new ResizeObserver(onResize);
     observer.observe(frame);
@@ -212,6 +225,9 @@ function WindowBody({ id, size = "regular", tabs, status, aside, children }: Win
     // Pozycja startowa liczy się raz, przy otwarciu; potem tylko przy zmianie rozmiaru.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Panel boczny pojawia się i znika (np. z zakładką): granice liczą się od nowa.
+  useLayoutEffect(() => placeRef.current?.(false), [hasAside]);
 
   const savePosition = () => {
     useWindowsStore.getState().setPosition(id, toSaved({ x: x.get(), y: y.get() }, boundsRef.current));
@@ -279,7 +295,10 @@ function WindowBody({ id, size = "regular", tabs, status, aside, children }: Win
                 <h2 id={titleId} className="text-lead font-semibold text-text-primary">
                   {APPS[id].title}
                 </h2>
-                <CloseButton onClose={() => windows.close(id)} />
+                <div className="flex items-center gap-3">
+                  {headerActions}
+                  <CloseButton onClose={() => windows.close(id)} />
+                </div>
               </header>
               {children}
             </motion.div>
@@ -296,7 +315,7 @@ function WindowBody({ id, size = "regular", tabs, status, aside, children }: Win
 }
 
 /** Telefon i tablet (< 1024 px): arkusz na pełny ekran, ornamenty w środku, zamknięcie gestem w dół. */
-function SheetBody({ id, tabs, status, aside, children }: WindowProps) {
+function SheetBody({ id, tabs, status, aside, asideOnSheet = true, headerActions, children }: WindowProps) {
   const { windows, reduceMotion, isTop, titleId, layer, layoutId, layoutTransition, content } = useWindowShell(id);
   const dragControls = useDragControls();
 
@@ -346,12 +365,15 @@ function SheetBody({ id, tabs, status, aside, children }: WindowProps) {
               <h2 id={titleId} className="text-lead font-semibold text-text-primary">
                 {APPS[id].title}
               </h2>
-              <CloseButton onClose={() => windows.close(id)} />
+              <div className="flex items-center gap-3">
+                {headerActions}
+                <CloseButton onClose={() => windows.close(id)} />
+              </div>
             </div>
             {tabs && <div className="mt-3 flex justify-center">{tabs}</div>}
           </header>
           {children}
-          {aside && <section className="shrink-0 border-t border-white/10 px-6 py-4">{aside}</section>}
+          {aside && asideOnSheet && <section className="shrink-0 border-t border-white/10 px-6 py-4">{aside}</section>}
           {status && (
             <div className="flex shrink-0 justify-center px-6 pt-1 pb-[max(1rem,env(safe-area-inset-bottom))]">{status}</div>
           )}

@@ -1,0 +1,146 @@
+/*
+ * Okno Rynków (components/apps/Markets.tsx): licznik cen, mignięcie wiersza, wykres.
+ * Animacje tylko na transform i opacity; przy reduced motion – przenikanie ≤ 150 ms.
+ */
+@layer components {
+  .markets-app {
+    /* Zmiana 24h: jasne odcienie, żeby kolorowy tekst trzymał kontrast na jasnym szkle okna. */
+    --market-up: #9ef0bb;
+    --market-down: #ffb4ad;
+    /* Rozmiary rosną z wysokością ekranu do wartości z makiety (1920×1080); od 1536×864 bez przewijania. */
+    --market-row: clamp(2.75rem, 8vh, calc(var(--u) * 4.4));
+    --market-price: clamp(2rem, 5.6vh, calc(var(--u) * 3));
+    --market-gap: clamp(0.5rem, 1.6vh, calc(var(--u) * 1));
+  }
+
+  .market-up {
+    color: var(--market-up);
+  }
+
+  .market-down {
+    color: var(--market-down);
+  }
+
+  .market-row {
+    height: var(--market-row);
+  }
+
+  /* Licznik: komórka cyfry wysoka na jedną linię, zmieniona cyfra przewija się w kolumnie. */
+  .odo-cell {
+    display: inline-block;
+    height: 1lh;
+    overflow: clip;
+    vertical-align: top;
+  }
+
+  .odo-roll {
+    display: flex;
+    flex-direction: column;
+    animation: odo-up 420ms var(--ease-out) both;
+  }
+
+  .odo-roll[data-dir="down"] {
+    flex-direction: column-reverse;
+    animation-name: odo-down;
+  }
+
+  .odo-roll > span {
+    height: 1lh;
+  }
+
+  @keyframes odo-up {
+    from {
+      translate: 0 0;
+    }
+    to {
+      translate: 0 -50%;
+    }
+  }
+
+  @keyframes odo-down {
+    from {
+      translate: 0 -50%;
+    }
+    to {
+      translate: 0 0;
+    }
+  }
+
+  /* Mignięcie wiersza przy zmianie ceny: nakładka gaśnie, tło wiersza się nie przelicza. */
+  .market-flash {
+    animation: market-flash 700ms var(--ease-soft) both;
+  }
+
+  .market-flash[data-dir="up"] {
+    background: rgb(74 222 128 / 0.2);
+  }
+
+  .market-flash[data-dir="down"] {
+    background: rgb(248 113 113 / 0.2);
+  }
+
+  @keyframes market-flash {
+    from {
+      opacity: 1;
+    }
+    to {
+      opacity: 0;
+    }
+  }
+
+  .market-chart {
+    height: 100%;
+    min-height: 7rem;
+  }
+
+  /* Poświata linii w pikselach ekranu (jak krzywa w oknie Pogody). */
+  .market-curve {
+    filter: drop-shadow(0 0 6px rgb(245 160 74 / 0.6));
+  }
+
+  .market-end {
+    box-shadow:
+      0 0 0 4px rgb(245 160 74 / 0.22),
+      0 0 14px 4px rgb(245 160 74 / 0.5);
+  }
+
+  /* Kropka stanu w kapsule: przy ponownym łączeniu pulsuje. */
+  .market-dot[data-pulse] {
+    animation: market-dot 1.1s var(--ease-soft) infinite alternate;
+  }
+
+  @keyframes market-dot {
+    to {
+      opacity: 0.35;
+      scale: 0.75;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .market-flash,
+    .market-dot[data-pulse] {
+      animation: none;
+    }
+
+    .market-flash {
+      opacity: 0;
+    }
+
+    /* Bez przewijania: nowa cyfra przenika (≤ 150 ms). */
+    .odo-roll,
+    .odo-roll[data-dir="down"] {
+      flex-direction: column;
+      animation: odo-fade var(--dur-fade) var(--ease-soft) both;
+      translate: 0 -50%;
+    }
+
+    @keyframes odo-fade {
+      from {
+        opacity: 0.2;
+      }
+      to {
+        opacity: 1;
+      }
+    }
+  }
+}

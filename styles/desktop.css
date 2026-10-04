@@ -462,9 +462,10 @@
     perspective: calc(var(--u) * 60);
   }
 
+  /* Obrót maks. 8°: tekst w panelu zostaje czytelny (kontrast zmierzony). */
   .window-aside {
     transform-origin: right center;
-    rotate: y 10deg;
+    rotate: y 8deg;
   }
 
   /* Karty dni w oknie Pogody: siedem kolumn w oknie, w arkuszu rząd przewijany poziomo. */

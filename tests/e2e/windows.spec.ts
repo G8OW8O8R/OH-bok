@@ -19,8 +19,8 @@ test("okno Pogody: z docka, adres, przeciąganie z zapamiętaniem, przypięcie d
 
   // Dock ma tylko istniejące aplikacje, bez „wkrótce”.
   const dock = page.getByRole("navigation", { name: "Aplikacje" });
-  await expect(dock.getByRole("button")).toHaveText(["", "", ""]);
-  await expect(dock.getByRole("button", { name: "Rynki" })).toHaveCount(0);
+  await expect(dock.getByRole("button")).toHaveText(["", "", "", ""]);
+  await expect(dock.getByRole("button", { name: "Muzyka" })).toHaveCount(0);
 
   const icon = dock.getByRole("button", { name: "Pogoda" });
   await icon.focus();

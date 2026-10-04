@@ -78,6 +78,7 @@ function browserFeed(): MarketFeed {
       };
     },
     onQuotes: (batch) => store().applyQuotes(batch, new Date()),
+    onSeed: (quotes) => store().seedQuotes(quotes),
     onState: (state) => store().setStatus(state.status),
   });
   return feed;
@@ -180,12 +181,26 @@ export function useMarketAlerts(announce: (message: string) => void): void {
 
   useEffect(() => {
     if (!watching) return;
-    return useMarketsStore.subscribe((state, previous) => {
-      if (state.quotes === previous.quotes) return;
+    const evaluate = () => {
+      const { quotes, fx } = useMarketsStore.getState();
       const now = new Date();
-      const rate = usableFx(state.fx, now)?.rate ?? null;
-      const message = alertMessage(useAlertsStore.getState().check(state.quotes, rate, now));
+      const rate = usableFx(fx, now)?.rate ?? null;
+      const message = alertMessage(useAlertsStore.getState().check(quotes, rate, now));
       if (message) notify(message);
+    };
+    // Każda paczka cen…
+    const offQuotes = useMarketsStore.subscribe((state, previous) => {
+      if (state.quotes !== previous.quotes) evaluate();
     });
+    // …i nowy alert: warunek spełniony już teraz odpala od razu, nie przy następnej paczce
+    // (przy zapasowym źródle to nawet 30 s).
+    const offAlerts = useAlertsStore.subscribe((state, previous) => {
+      if (state.alerts.length > previous.alerts.length) evaluate();
+    });
+    evaluate();
+    return () => {
+      offQuotes();
+      offAlerts();
+    };
   }, [watching]);
 }

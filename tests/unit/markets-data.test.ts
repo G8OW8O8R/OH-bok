@@ -139,6 +139,7 @@ describe("waluty", () => {
     expect(plain(formatPrice(331776.63, "PLN"))).toBe("331 776,63 zł");
     expect(formatChange(1.5)).toBe("+1,50%");
     expect(formatChange(0)).toBe("0,00%");
+    expect(formatChange(-0.4)).toBe("−0,40%");
   });
 });
 

@@ -28,12 +28,16 @@ export interface DragBounds {
   bottom: number;
 }
 
-export function dragBounds(size: Size, viewport: Size, insets: AreaInsets): DragBounds {
+export function dragBounds(size: Size, viewport: Size, insets: AreaInsets, leftExtra = 0): DragBounds {
   const areaWidth = viewport.width - insets.side * 2;
   const areaHeight = viewport.height - insets.top - insets.bottom;
-  const x = Math.max(0, (areaWidth - size.width) / 2);
+  // `leftExtra`: ornament wystający w lewo poza okno (panel boczny) też musi zostać w obszarze.
+  const free = (areaWidth - size.width) / 2;
+  let left = leftExtra - free;
+  let right = free;
+  if (left > right) left = right = leftExtra / 2;
   const y = Math.max(0, (areaHeight - size.height) / 2);
-  return { left: -x, right: x, top: -y, bottom: y };
+  return { left: left + 0, right: right + 0, top: -y, bottom: y };
 }
 
 export function clampOffset(offset: Offset, bounds: DragBounds): Offset {

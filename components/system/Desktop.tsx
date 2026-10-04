@@ -1,6 +1,7 @@
 "use client";
 
 import { useReducedMotion } from "motion/react";
+import dynamic from "next/dynamic";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Scrim } from "@/components/scene/Scrim";
 import { SceneSourceProvider } from "@/components/scene/SceneSource";
@@ -42,6 +43,12 @@ import { Dock } from "./Dock";
 import { Logo } from "./Logo";
 import { Pill } from "./Pill";
 import { useWindows, WindowBackdrop } from "./Windows";
+
+/**
+ * Okno Rynków (wykres, licznik, formularze) poza pakietem startowym: okna i tak nie są renderowane
+ * przez SSR (pozycje w localStorage), a pulpit hydratuje się szybciej. Ładuje się w tle po starcie.
+ */
+const MarketsApp = dynamic(() => import("@/components/apps/Markets").then((module) => module.MarketsApp), { ssr: false });
 
 interface DesktopProps {
   /** Pogoda z SSR: pierwsza klatka od razu pokazuje właściwą scenę. */
@@ -309,6 +316,7 @@ export function Desktop({ initialWeather, override, timeOverride, initialNow, or
           onAdd={(input) => useRemindersStore.getState().add(input)}
           onRemove={(id) => useRemindersStore.getState().remove(id)}
         />
+        <MarketsApp now={now} timeZone={timeZone} />
       </div>
       <Boot />
     </ParallaxProvider>

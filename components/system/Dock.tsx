@@ -1,6 +1,6 @@
 "use client";
 
-import { AlarmClock, Cloud, ListChecks, type LucideIcon } from "lucide-react";
+import { AlarmClock, ChartCandlestick, Cloud, ListChecks, type LucideIcon } from "lucide-react";
 import { motion } from "motion/react";
 import { Glass } from "@/components/ui/Glass";
 import { APPS, originLayoutId, type AppId } from "@/lib/windows/apps";
@@ -12,6 +12,7 @@ const DOCK: { id: AppId; icon: LucideIcon }[] = [
   { id: "weather", icon: Cloud },
   { id: "shopping", icon: ListChecks },
   { id: "reminders", icon: AlarmClock },
+  { id: "markets", icon: ChartCandlestick },
 ];
 
 /**

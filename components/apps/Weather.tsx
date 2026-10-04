@@ -2,12 +2,13 @@
 
 import { Check, Droplet, MonitorUp, Navigation2 } from "lucide-react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
-import { Fragment, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useId, useMemo, useState } from "react";
 import { StatusCapsule, Window, WindowFooter, WindowScroll } from "@/components/system/Window";
 import { duration, ease } from "@/lib/motion";
 import { compassDirection } from "@/lib/scene-conditions";
 import { WEATHER_LABELS, weatherLabel } from "@/lib/scenes";
 import { formatTime, weekdayLong, weekdayShort } from "@/lib/time";
+import { useElementSize } from "@/lib/use-element-size";
 import { DAY_AXIS, hourlyCurve, labeledHours, type HourPoint } from "@/lib/weather/hourly";
 import type { DailyForecast, WeatherData } from "@/lib/weather/schema";
 import { weatherIcon } from "./weather-icons";
@@ -198,25 +199,6 @@ const CHART_INSET = 14;
 /** Rozmiar przed pierwszym pomiarem (okno montuje się po hydracji, pomiar jest przed malowaniem). */
 const CHART_FALLBACK = { width: 1000, height: 80 };
 
-/** Rozmiar elementu w pikselach (ResizeObserver), mierzony przed pierwszym malowaniem. */
-function useElementSize<T extends HTMLElement>() {
-  const ref = useRef<T>(null);
-  const [size, setSize] = useState(CHART_FALLBACK);
-  useLayoutEffect(() => {
-    const element = ref.current;
-    if (!element) return;
-    const update = () => {
-      const width = Math.round(element.clientWidth);
-      const height = Math.round(element.clientHeight);
-      if (width > 0 && height > 0) setSize((current) => (current.width === width && current.height === height ? current : { width, height }));
-    };
-    update();
-    const observer = new ResizeObserver(update);
-    observer.observe(element);
-    return () => observer.disconnect();
-  }, []);
-  return [ref, size] as const;
-}
 /** Etykiety i ikony co 2 h (na telefonie co 4 h). */
 const MARK_EVERY = 2;
 
@@ -227,7 +209,7 @@ function hourLabel(hour: number): string {
 function HourlyChart({ weather, day, date, now }: { weather: WeatherData; day: DailyForecast | undefined; date: string; now: Date | null }) {
   const reduceMotion = useReducedMotion();
   const ids = useId();
-  const [chartRef, size] = useElementSize<HTMLDivElement>();
+  const [chartRef, size] = useElementSize<HTMLDivElement>(CHART_FALLBACK);
   const curve = useMemo(
     () => hourlyCurve(weather.hourly, date, day, weather.timezone, { ...size, inset: CHART_INSET }, now),
     [weather.hourly, date, day, weather.timezone, now, size],
