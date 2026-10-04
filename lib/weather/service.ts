@@ -1,3 +1,4 @@
+import { classifyCacheAge, responseDate } from "@/lib/cache-age";
 import { coordsKey, GDANSK, roundCoords, type Coords } from "./coords";
 import { demoWeather } from "./demo";
 import { createLastKnownStore, type LastKnownStore } from "./last-known";
@@ -9,12 +10,6 @@ export const OPEN_METEO_URL = "https://api.open-meteo.com/v1/forecast";
 export const WEATHER_REVALIDATE_S = 1800;
 export const WEATHER_CACHE_TAG = "weather";
 const UPSTREAM_TIMEOUT_MS = 4000;
-/**
- * Odpowiedź, której `Date` jest najwyżej tyle przed startem zapytania, przyszła właśnie
- * z Open-Meteo, a nie z cache. Tolerancja pokrywa zaokrąglenie `Date` do pełnej sekundy
- * i różnicę zegarów serwerów.
- */
-const FRESH_FETCH_WINDOW_MS = 2500;
 
 export type WeatherCacheStatus = "hit" | "miss" | "stale" | "demo";
 export type WeatherProvider = "open-meteo" | "demo";
@@ -73,15 +68,7 @@ export function buildForecastUrl(coords: Coords): string {
  * wiadomo, jak jest stara.
  */
 export function classifyAge(ageMs: number): Exclude<WeatherCacheStatus, "demo"> {
-  if (ageMs < FRESH_FETCH_WINDOW_MS) return "miss";
-  if (ageMs < WEATHER_REVALIDATE_S * 1000) return "hit";
-  return "stale";
-}
-
-function responseDate(response: Response, fallback: Date): Date {
-  const header = response.headers.get("date");
-  const parsed = header ? Date.parse(header) : Number.NaN;
-  return Number.isNaN(parsed) ? fallback : new Date(parsed);
+  return classifyCacheAge(ageMs, WEATHER_REVALIDATE_S);
 }
 
 const defaultDeps: WeatherServiceDeps = {

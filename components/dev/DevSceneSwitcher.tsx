@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { DAY_PERIODS, type DayPeriod } from "@/lib/day-period";
 import { ORB_MODES, ORB_STATES, type OrbMode, type OrbState } from "@/lib/orb/states";
 import { WEATHER_STATES, type WeatherState } from "@/lib/scenes";
+import { MarketsPreview } from "./MarketsPreview";
 
 interface DevOverrides {
   /** Aktywny override albo null = prawdziwa pogoda. */
@@ -47,6 +48,7 @@ const link =
 const PERIOD_LABELS: Record<DayPeriod, string> = { day: "dzień", golden: "złota", night: "noc" };
 
 const HIDDEN_KEY = "obok-dev-switcher-hidden";
+const MARKETS_KEY = "obok-dev-markets-open";
 
 function isTyping(target: EventTarget | null): boolean {
   return target instanceof HTMLElement && (target.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName));
@@ -59,15 +61,22 @@ function isTyping(target: EventTarget | null): boolean {
 export function DevSceneSwitcher({ weather, time, orbState, orbMode }: DevSceneSwitcherProps) {
   const current: DevOverrides = { weather, time, orbState, orbMode };
   const [hidden, setHidden] = useState(false);
+  // Podgląd rynków (zadanie 9a): otwarty subskrybuje kanał cen.
+  const [marketsOpen, setMarketsOpen] = useState(false);
 
   useEffect(() => {
     let stored = false;
+    let storedMarkets = false;
     try {
       stored = sessionStorage.getItem(HIDDEN_KEY) === "1";
+      storedMarkets = sessionStorage.getItem(MARKETS_KEY) === "1";
     } catch {
       // Brak dostępu do sessionStorage: zostaje widoczny.
     }
-    const restore = window.setTimeout(() => setHidden(stored), 0);
+    const restore = window.setTimeout(() => {
+      setHidden(stored);
+      setMarketsOpen(storedMarkets);
+    }, 0);
 
     const onKey = (event: KeyboardEvent) => {
       if (!event.shiftKey || event.ctrlKey || event.metaKey || event.altKey) return;
@@ -103,9 +112,25 @@ export function DevSceneSwitcher({ weather, time, orbState, orbMode }: DevSceneS
     ...ORB_MODES.map((mode) => ({ label: mode, value: mode })),
   ];
 
+  const toggleMarkets = () => {
+    setMarketsOpen((was) => {
+      try {
+        sessionStorage.setItem(MARKETS_KEY, was ? "0" : "1");
+      } catch {
+        // Tylko wygoda.
+      }
+      return !was;
+    });
+  };
+
   return (
     <div className="fixed right-4 bottom-4 flex flex-col items-end gap-1.5 text-xs">
+      {marketsOpen && <MarketsPreview />}
       <nav aria-label="Start (dev)" className="flex gap-1 rounded-pill border border-glass-border bg-glass p-1 backdrop-blur-xl">
+        <button type="button" onClick={toggleMarkets} aria-current={marketsOpen ? "page" : undefined} className={link}>
+          rynki
+        </button>
+        <span aria-hidden className="mx-1 w-px self-stretch bg-white/15" />
         {BOOT_LINKS.map(({ label, plan }) => (
           // Zwykły <a>: nawigacja po stronie klienta nie uruchomiłaby skryptu startu.
           <a key={plan} href={bootHref(current, plan)} className={link}>

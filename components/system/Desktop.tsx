@@ -20,6 +20,7 @@ import { WeatherArc } from "@/components/widgets/WeatherArc";
 import { reportBootSignal } from "@/lib/boot";
 import { composeBrief, dayBrief, greeting, recipePrompt } from "@/lib/brief";
 import { SAMPLE_RECIPE, SAMPLE_TRACK } from "@/lib/desktop/sample";
+import { useMarketAlerts } from "@/lib/markets/use-markets";
 import { usePlannerSync } from "@/lib/planner/use-planner-sync";
 import { pluralPl } from "@/lib/plural";
 import { nextReminder, SNOOZE_MINUTES, type Reminder } from "@/lib/reminders/reminders";
@@ -161,6 +162,9 @@ export function Desktop({ initialWeather, override, timeOverride, initialNow, or
     window.clearTimeout(timers.current.message);
     timers.current.message = window.setTimeout(() => setMessage(null), MESSAGE_MS);
   }, []);
+
+  // Alerty cenowe: spełniony alert = komunikat w pigułce.
+  useMarketAlerts(announce);
 
   const addRecipe = () => {
     const count = useShoppingStore.getState().add(SAMPLE_RECIPE.ingredients);
