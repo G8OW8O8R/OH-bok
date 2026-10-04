@@ -1,11 +1,9 @@
-import { addDays } from "@/lib/calendar";
 import { dateIn, formatTime, zonedDate } from "@/lib/time";
+import { eveningAt, inMinutes, tomorrowAt } from "./when";
+
+export { EVENING, MORNING } from "./when";
 
 const MINUTE = 60_000;
-
-/** Wieczór i rano dla szybkich terminów (czas lokalny). */
-export const EVENING = "19:00";
-export const MORNING = "09:00";
 /** Krok minut w wyborze godziny. */
 export const MINUTE_STEP = 5;
 
@@ -23,19 +21,15 @@ export type PresetId = (typeof QUICK_PRESETS)[number]["id"];
  * „Wieczorem” = dziś 19:00, a od 19:00 – jutro 19:00.
  */
 export function presetAt(id: PresetId, now: Date, timeZone: string): Date {
-  const minute = Math.floor(now.getTime() / MINUTE) * MINUTE;
-  const today = dateIn(now, timeZone);
   switch (id) {
     case "15m":
-      return new Date(minute + 15 * MINUTE);
+      return inMinutes(now, 15);
     case "1h":
-      return new Date(minute + 60 * MINUTE);
-    case "evening": {
-      const tonight = zonedDate(today, EVENING, timeZone);
-      return tonight.getTime() > now.getTime() ? tonight : zonedDate(addDays(today, 1), EVENING, timeZone);
-    }
+      return inMinutes(now, 60);
+    case "evening":
+      return eveningAt(now, timeZone);
     case "tomorrow":
-      return zonedDate(addDays(today, 1), MORNING, timeZone);
+      return tomorrowAt(now, timeZone);
   }
 }
 

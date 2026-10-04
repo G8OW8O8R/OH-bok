@@ -1,7 +1,10 @@
 import { z } from "zod";
 
-/** Stany kuli: spoczynek, asystent myśli (fale), asystent mówi (puls małej kuli). */
-export const ORB_STATES = ["idle", "thinking", "speaking"] as const;
+/**
+ * Stany kuli: spoczynek, słucha (otwarty Spotlight: łagodne fale), asystent myśli (fale),
+ * asystent mówi (puls małej kuli).
+ */
+export const ORB_STATES = ["idle", "listening", "thinking", "speaking"] as const;
 export const orbStateSchema = z.enum(ORB_STATES);
 export type OrbState = z.infer<typeof orbStateSchema>;
 
@@ -14,7 +17,7 @@ function first(value: string | string[] | undefined): string | undefined {
   return (Array.isArray(value) ? value[0] : value)?.trim().toLowerCase();
 }
 
-/** Dev override `?orb=idle|thinking|speaking`. Nieprawidłowa wartość = spoczynek. */
+/** Dev override `?orb=idle|listening|thinking|speaking`. Nieprawidłowa wartość = spoczynek. */
 export function parseOrbStateOverride(value: string | string[] | undefined): OrbState | null {
   const parsed = orbStateSchema.safeParse(first(value));
   return parsed.success ? parsed.data : null;
@@ -34,9 +37,13 @@ export interface OrbTargets {
   speak: number;
 }
 
-export function orbTargets(state: OrbState): OrbTargets {
+/** Fale stanu „słucha”: spokojniejsze niż „myśli”. */
+export const LISTEN_WAVES = 0.6;
+
+/** Przy reduced motion „słucha” jest bez fal (samo przenikanie). */
+export function orbTargets(state: OrbState, reduceMotion = false): OrbTargets {
   return {
-    think: state === "thinking" ? 1 : 0,
+    think: state === "thinking" ? 1 : state === "listening" && !reduceMotion ? LISTEN_WAVES : 0,
     speak: state === "speaking" ? 1 : 0,
   };
 }

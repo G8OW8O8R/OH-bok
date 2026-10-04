@@ -25,7 +25,7 @@ export function appFromSlug(slug: string): AppId | null {
 }
 
 /** Skąd okno się otwiera: z tego elementu rozwija się przejściem współdzielonym (`layoutId`). */
-export type WindowOrigin = "dock" | "tile";
+export type WindowOrigin = "dock" | "tile" | "spotlight";
 
 export function originLayoutId(id: AppId, origin: WindowOrigin): string {
   return `${origin}-${id}`;

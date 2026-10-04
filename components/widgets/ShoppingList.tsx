@@ -47,10 +47,11 @@ export function ShoppingList({ items, called, onOpen }: ShoppingListProps) {
       >
         <Plus aria-hidden className="size-4.5" strokeWidth={1.75} />
       </button>
-      <div className="flex flex-1 items-center gap-4">
-        <ProgressRing value={done.length} total={items.length} className="size-26" />
+      {/* Pełna szerokość kafelka: pierścień nie przesuwa się, gdy po wczytaniu listy zmienia się szerokość tekstu. */}
+      <div className="flex w-full max-w-[calc(var(--u)*14)] flex-1 items-center gap-4">
+        <ProgressRing value={done.length} total={items.length} className="size-26 shrink-0" />
         {/* Stała wysokość na 3 pozycje + „+n więcej”: wczytanie listy z localStorage nie przesuwa układu. */}
-        <ul className="flex min-h-[calc(var(--u)*6.3)] min-w-0 flex-col justify-center gap-1 text-body">
+        <ul className="flex min-h-[calc(var(--u)*6.3)] min-w-0 flex-1 flex-col justify-center gap-1 text-body">
           {visible.map((item) => (
             <li
               key={item.id}

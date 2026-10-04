@@ -1,12 +1,13 @@
 "use client";
 
-import { useReducedMotion } from "motion/react";
+import { motion, useMotionValue, useReducedMotion } from "motion/react";
 import dynamic from "next/dynamic";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Scrim } from "@/components/scene/Scrim";
 import { SceneSourceProvider } from "@/components/scene/SceneSource";
 import { SceneVideo } from "@/components/scene/SceneVideo";
 import { WeatherLayers } from "@/components/scene/WeatherLayers";
+import { OrbFlightProvider } from "@/components/orb/flight";
 import { Orb } from "@/components/orb/Orb";
 import { RemindersApp } from "@/components/apps/Reminders";
 import { ShoppingApp } from "@/components/apps/Shopping";
@@ -18,7 +19,7 @@ import { RecipeOrb } from "@/components/widgets/RecipeOrb";
 import { Reminders } from "@/components/widgets/Reminders";
 import { ShoppingList } from "@/components/widgets/ShoppingList";
 import { WeatherArc } from "@/components/widgets/WeatherArc";
-import { reportBootSignal } from "@/lib/boot";
+import { isBootDone, reportBootSignal } from "@/lib/boot";
 import { composeBrief, dayBrief, greeting, recipePrompt } from "@/lib/brief";
 import { SAMPLE_RECIPE, SAMPLE_TRACK } from "@/lib/desktop/sample";
 import { useMarketAlerts } from "@/lib/markets/use-markets";
@@ -42,6 +43,7 @@ import { Clock } from "./Clock";
 import { Dock } from "./Dock";
 import { Logo } from "./Logo";
 import { Pill } from "./Pill";
+import type { SpotlightPhase } from "./Spotlight";
 import { useWindows, WindowBackdrop } from "./Windows";
 
 /**
@@ -49,6 +51,9 @@ import { useWindows, WindowBackdrop } from "./Windows";
  * przez SSR (pozycje w localStorage), a pulpit hydratuje się szybciej. Ładuje się w tle po starcie.
  */
 const MarketsApp = dynamic(() => import("@/components/apps/Markets").then((module) => module.MarketsApp), { ssr: false });
+
+/** Spotlight (parser, karty, rynki) też poza pakietem startowym: potrzebny dopiero po Ctrl+K. */
+const Spotlight = dynamic(() => import("./Spotlight").then((module) => module.Spotlight), { ssr: false });
 
 interface DesktopProps {
   /** Pogoda z SSR: pierwsza klatka od razu pokazuje właściwą scenę. */
@@ -89,6 +94,20 @@ export function Desktop({ initialWeather, override, timeOverride, initialNow, or
   const shopping = useShoppingStore((state) => state.items);
   const windows = useWindows();
   const windowsOpen = windows.stack.length > 0;
+  /**
+   * Spotlight (zadanie 7b): „open” – panel i kula u góry; „closing” – kula wraca na miejsce
+   * (pulpit już aktywny, kula jeszcze nad tłem); „closed”.
+   */
+  const [spotlight, setSpotlight] = useState<SpotlightPhase>("closed");
+  const [assistantBusy, setAssistantBusy] = useState(false);
+  const spotlightOpen = spotlight === "open";
+  const desktopInert = windowsOpen || spotlightOpen;
+  const flightX = useMotionValue(0);
+  const flightY = useMotionValue(0);
+  const flightOpacity = useMotionValue(1);
+  const flight = useMemo(() => ({ x: flightX, y: flightY, opacity: flightOpacity }), [flightX, flightY, flightOpacity]);
+  const orbAnchor = useRef<HTMLDivElement>(null);
+  const spotlightOpener = useRef<HTMLElement | null>(null);
   const [recipeAdded, setRecipeAdded] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [called, setCalled] = useState<string | null>(null);
@@ -132,14 +151,52 @@ export function Desktop({ initialWeather, override, timeOverride, initialNow, or
 
   // Esc wraca do dziś (otwarte okno obsługuje Esc samo).
   useEffect(() => {
-    if (pinned === null || windowsOpen) return;
+    if (pinned === null || desktopInert) return;
     const onKey = (event: KeyboardEvent) => {
       if (event.key !== "Escape" || event.defaultPrevented) return;
       returnToToday();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [pinned, windowsOpen, returnToToday]);
+  }, [pinned, desktopInert, returnToToday]);
+
+  const openSpotlight = useCallback(() => {
+    // Do końca startu kula leci z logo – Spotlight dopiero potem.
+    if (!isBootDone()) return;
+    spotlightOpener.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    setSpotlight("open");
+  }, []);
+
+  const closeSpotlight = useCallback(() => {
+    setSpotlight((phase) => (phase === "open" ? "closing" : phase));
+    // Fokus wraca od razu (pulpit przestaje być inert już w „closing”); okno otwarte z wyniku
+    // i tak przejmie fokus w następnej klatce.
+    requestAnimationFrame(() => {
+      const opener = spotlightOpener.current;
+      // Otwarcie skrótem bez fokusu (body) – fokus na kulę, z której Spotlight „wyszedł”.
+      const target = opener?.isConnected && opener !== document.body ? opener : document.getElementById("orb-button");
+      target?.focus({ preventScroll: true });
+    });
+  }, []);
+
+  const spotlightClosed = useCallback(() => setSpotlight((phase) => (phase === "closing" ? "closed" : phase)), []);
+
+  // Cmd/Ctrl+K (w otwartym Spotlighcie klawisze obsługuje panel; Esc tutaj, gdy fokus wypadł z panelu).
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape" && spotlight === "open" && !event.defaultPrevented) {
+        event.preventDefault();
+        closeSpotlight();
+        return;
+      }
+      if (event.key.toLowerCase() !== "k" || !(event.ctrlKey || event.metaKey) || event.altKey) return;
+      event.preventDefault();
+      if (spotlight === "open") closeSpotlight();
+      else openSpotlight();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [spotlight, openSpotlight, closeSpotlight]);
 
   useEffect(() => {
     const pending = timers.current;
@@ -198,7 +255,7 @@ export function Desktop({ initialWeather, override, timeOverride, initialNow, or
 
   return (
     <SceneSourceProvider initialGrade={tokens}>
-    <ParallaxProvider>
+    <ParallaxProvider paused={spotlight !== "closed"}>
       <SceneVideo weather={scene} period={period} periodEnds={periodEnds} scene={resolved} transitionS={transitionS}>
         <WeatherLayers
           conditions={conditions}
@@ -212,6 +269,7 @@ export function Desktop({ initialWeather, override, timeOverride, initialNow, or
       <div
         className="desktop"
         data-windows={windowsOpen || undefined}
+        data-spotlight={spotlightOpen || undefined}
         style={{
           ...durationStyle,
           "--halo-strength": tokens.haloStrength,
@@ -222,7 +280,7 @@ export function Desktop({ initialWeather, override, timeOverride, initialNow, or
         }}
       >
         {/* Pod otwartym oknem pulpit jest nieaktywny (fokus, klik, czytniki); dock zostaje dostępny. */}
-        <header className="desktop-chrome" inert={windowsOpen}>
+        <header className="desktop-chrome" inert={desktopInert}>
           <Logo />
           <Pill
             next={next}
@@ -236,15 +294,22 @@ export function Desktop({ initialWeather, override, timeOverride, initialNow, or
           <Clock now={now} timeZone={timeZone} />
         </header>
 
-        <div className="desktop-hero" inert={windowsOpen}>
-          <DepthLayer depth="near">
-            <Orb
-              state={orbState}
-              preview={previewDay}
-              rain={orbRainStrength(conditions.state, conditions.intensityMmH)}
-              today={today}
-              modeOverride={orbMode}
-            />
+        <div className="desktop-hero" inert={desktopInert}>
+          <DepthLayer depth="near" data-orb-lifted={spotlightOpen || (spotlight === "closing" && !windowsOpen) || undefined}>
+            {/* Przelot do Spotlightu: przesuwa się ta sama kula (WebGL dolicza przesunięcie do próbkowania sceny). */}
+            <motion.div ref={orbAnchor} style={{ x: flightX, y: flightY, opacity: flightOpacity }}>
+              <OrbFlightProvider value={flight}>
+                <Orb
+                  state={spotlight === "closed" ? orbState : assistantBusy ? "thinking" : "listening"}
+                  preview={previewDay}
+                  rain={orbRainStrength(conditions.state, conditions.intensityMmH)}
+                  today={today}
+                  modeOverride={orbMode}
+                  onActivate={openSpotlight}
+                  expanded={spotlightOpen}
+                />
+              </OrbFlightProvider>
+            </motion.div>
           </DepthLayer>
           <DepthLayer depth="near" className="desktop-hero-text">
             <Greeting
@@ -261,7 +326,7 @@ export function Desktop({ initialWeather, override, timeOverride, initialNow, or
           </DepthLayer>
         </div>
 
-        <div className="desktop-objects" inert={windowsOpen}>
+        <div className="desktop-objects" inert={desktopInert}>
           <WeatherArc
             weather={weather}
             override={override}
@@ -290,7 +355,9 @@ export function Desktop({ initialWeather, override, timeOverride, initialNow, or
         </div>
 
         <WindowBackdrop />
-        <Dock />
+        <div inert={spotlightOpen} className="contents">
+          <Dock onSearch={openSpotlight} searchOpen={spotlightOpen} />
+        </div>
 
         <WeatherApp
           weather={weather}
@@ -317,6 +384,19 @@ export function Desktop({ initialWeather, override, timeOverride, initialNow, or
           onRemove={(id) => useRemindersStore.getState().remove(id)}
         />
         <MarketsApp now={now} timeZone={timeZone} />
+        <Spotlight
+          phase={spotlight}
+          onRequestClose={closeSpotlight}
+          onClosed={spotlightClosed}
+          orbAnchor={orbAnchor}
+          flight={flight}
+          now={now}
+          timeZone={timeZone}
+          weather={weather}
+          onBusy={setAssistantBusy}
+          onPinDay={(date) => setPinnedDay(date === today ? null : date)}
+          announce={announce}
+        />
       </div>
       <Boot />
     </ParallaxProvider>

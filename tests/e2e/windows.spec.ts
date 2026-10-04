@@ -17,9 +17,10 @@ test("okno Pogody: z docka, adres, przeciąganie z zapamiętaniem, przypięcie d
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto("/?boot=off&weather=rain&time=day");
 
-  // Dock ma tylko istniejące aplikacje, bez „wkrótce”.
+  // Dock: Spotlight + tylko istniejące aplikacje, bez „wkrótce”.
   const dock = page.getByRole("navigation", { name: "Aplikacje" });
-  await expect(dock.getByRole("button")).toHaveText(["", "", "", ""]);
+  await expect(dock.getByRole("button")).toHaveText(["", "", "", "", ""]);
+  await expect(dock.getByRole("button").first()).toHaveAccessibleName(/Szukaj/);
   await expect(dock.getByRole("button", { name: "Muzyka" })).toHaveCount(0);
 
   const icon = dock.getByRole("button", { name: "Pogoda" });

@@ -27,6 +27,7 @@ import {
 import { computeSceneFit, type SceneFit } from "@/lib/scene-fit";
 import { flashBrightness, orbTint } from "@/lib/scene-grading";
 import type { VideoFilter } from "@/lib/scenes";
+import { useOrbFlight } from "./flight";
 import { OrbRenderer, type TextureSlot, type TextureSource } from "./renderer";
 
 interface OrbCanvasProps {
@@ -76,6 +77,7 @@ export function OrbCanvas({ state, preview, rain, reduceMotion, forced, visible,
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const source = useSceneSource();
   const parallax = useParallax("near");
+  const flight = useOrbFlight();
   const pointer = usePointerUnits();
   const live = useRef({ state, preview, rain, reduceMotion });
   const handleReady = useEffectEvent(onReady);
@@ -129,13 +131,19 @@ export function OrbCanvas({ state, preview, rain, reduceMotion, forced, visible,
     const fx = { think: 0, speak: 0, previewMix: 0, previewBlend: 0, rain: live.current.rain };
     let lastSignature = "";
 
+    /** Przesunięcie kuli względem układu: parallax + przelot do Spotlightu. */
+    const offset = (): Point => ({
+      x: parallax.x.get() + (flight?.x.get() ?? 0),
+      y: parallax.y.get() + (flight?.y.get() ?? 0),
+    });
+
     const watchdog = new FpsWatchdog();
     let watching = false;
 
     const measure = (now: number) => {
       measuredAt = now;
       const rect = canvas.getBoundingClientRect();
-      origin = layoutOrigin(rect, { x: window.scrollX, y: window.scrollY }, { x: parallax.x.get(), y: parallax.y.get() });
+      origin = layoutOrigin(rect, { x: window.scrollX, y: window.scrollY }, offset());
       size = canvas.clientWidth;
       const backing = backingSize(size, window.devicePixelRatio, window.innerWidth);
       scale = size > 0 ? backing / size : 1;
@@ -285,7 +293,7 @@ export function OrbCanvas({ state, preview, rain, reduceMotion, forced, visible,
       const hasIncoming = incomingSlot !== undefined && slotContent[incomingSlot] !== null;
 
       const tau = reduceMotion ? ORB_TAU_S.reduced : ORB_TAU_S.state;
-      const targets = orbTargets(state);
+      const targets = orbTargets(state, reduceMotion);
       fx.think = approach(fx.think, targets.think, dt, tau);
       fx.speak = approach(fx.speak, targets.speak, dt, tau);
       // Krople pojawiają się i wysychają w rytmie przenikania scen.
@@ -297,7 +305,7 @@ export function OrbCanvas({ state, preview, rain, reduceMotion, forced, visible,
         ? { big: 1, small: 1 }
         : { big: breathScale(time), small: breathScale(time, SMALL_BREATH_PHASE_S) };
       const circles = orbCircles(size, breath, reduceMotion ? 0 : SMALL_PULSE_SCALE * fx.speak * pulse);
-      const screen = screenOrigin(origin, { x: window.scrollX, y: window.scrollY }, { x: parallax.x.get(), y: parallax.y.get() });
+      const screen = screenOrigin(origin, { x: window.scrollX, y: window.scrollY }, offset());
       const cursor = { x: pointer.x.get(), y: pointer.y.get() };
       const sceneMix = hasIncoming && incoming ? incoming.opacity.get() : 0;
       const flash = source.flash.get();
@@ -391,7 +399,7 @@ export function OrbCanvas({ state, preview, rain, reduceMotion, forced, visible,
       for (const video of [...frameCallbacks.keys()]) unwatchVideo(video);
       renderer.dispose();
     };
-  }, [forced, source, parallax.x, parallax.y, pointer.x, pointer.y]);
+  }, [forced, source, parallax.x, parallax.y, flight, pointer.x, pointer.y]);
 
   return (
     <canvas

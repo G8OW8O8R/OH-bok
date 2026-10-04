@@ -15,6 +15,7 @@ import {
 import { previewAnnouncement, previewImage } from "@/lib/orb/preview";
 import {
   approach,
+  LISTEN_WAVES,
   orbTargets,
   parseOrbModeOverride,
   parseOrbStateOverride,
@@ -161,6 +162,8 @@ describe("stany kuli", () => {
     expect(orbTargets("idle")).toEqual({ think: 0, speak: 0 });
     expect(orbTargets("thinking")).toEqual({ think: 1, speak: 0 });
     expect(orbTargets("speaking")).toEqual({ think: 0, speak: 1 });
+    expect(orbTargets("listening")).toEqual({ think: LISTEN_WAVES, speak: 0 });
+    expect(orbTargets("listening", true)).toEqual({ think: 0, speak: 0 });
   });
 
   it("dochodzenie do celu nie zależy od liczby klatek i kończy się dokładnie na celu", () => {

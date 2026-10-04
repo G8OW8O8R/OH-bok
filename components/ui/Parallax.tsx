@@ -52,11 +52,12 @@ function useBootDone(): boolean {
  * Jeden nasłuch kursora dla całego pulpitu: parallax obiektów i refleks
  * światła na krawędziach szkła. Wyłączony przy prefers-reduced-motion i bez precyzyjnego wskaźnika.
  */
-export function ParallaxProvider({ children }: { children: ReactNode }) {
+export function ParallaxProvider({ children, paused = false }: { children: ReactNode; paused?: boolean }) {
   const reduceMotion = useReducedMotion();
   const finePointer = useFinePointer();
   const bootDone = useBootDone();
-  const enabled = finePointer && !reduceMotion && bootDone;
+  // `paused`: Spotlight – kula stoi w miejscu docelowym przelotu, pulpit pod tłem się nie rusza.
+  const enabled = finePointer && !reduceMotion && bootDone && !paused;
 
   const rawX = useMotionValue(0);
   const rawY = useMotionValue(0);

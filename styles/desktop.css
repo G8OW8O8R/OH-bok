@@ -168,6 +168,15 @@
       max-width: none;
     }
 
+    /* Pusty obszar rzędu obiektów (wysoki łuk pogody) nie może zasłaniać kuli – klik w kulę otwiera Spotlight. */
+    .desktop-objects {
+      pointer-events: none;
+    }
+
+    .desktop-objects > * {
+      pointer-events: auto;
+    }
+
     .desktop-objects {
       position: absolute;
       bottom: calc(var(--u) * 8.75);
@@ -348,6 +357,12 @@
 
   [data-state="thinking"] .orb-ripple {
     animation: orb-ripple 1.8s var(--ease-soft) infinite;
+  }
+
+  /* „Słucha” (otwarty Spotlight): te same kręgi, wolniej i słabiej. */
+  [data-state="listening"] .orb-ripple {
+    animation: orb-ripple 3.2s var(--ease-soft) infinite;
+    border-color: rgb(255 255 255 / 0.3);
   }
 
   @keyframes orb-ripple {

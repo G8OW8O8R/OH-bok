@@ -1,0 +1,194 @@
+/*
+ * Spotlight (components/system/Spotlight.tsx, wg design/mockup-spotlight.jpg). Wymiary w --u:
+ * na makiecie 16:9 pole ma 41,8u szerokości i 4,7u wysokości, kula stoi ~5,6u od góry (tu odrobinę
+ * niżej, żeby nie wchodziła na pigułkę, gdy ta zgłasza przylot przypomnienia).
+ * Warstwy w kontekście `.desktop`: tło 70, kula (po przelocie) 75, panel 80, „duch” akcji 90.
+ */
+
+@layer components {
+  .spotlight-backdrop {
+    z-index: 70;
+  }
+
+  .spotlight {
+    position: fixed;
+    inset: 0;
+    z-index: 80;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: max(calc(var(--u) * 3), 11.5dvh) var(--u) calc(var(--u) * 3);
+    pointer-events: none;
+  }
+
+  .spotlight > * {
+    pointer-events: auto;
+  }
+
+  /* Miejsce, w które przylatuje kula (sama kula zostaje w pulpicie – to ta sama kula). */
+  .spotlight-slot {
+    flex: none;
+    width: var(--orb-size);
+    height: var(--orb-size);
+    margin-bottom: calc(var(--u) * 2.8);
+    pointer-events: none;
+  }
+
+  .spotlight-body {
+    width: min(calc(var(--u) * 41.8), 100%);
+    display: flex;
+    flex-direction: column;
+    gap: calc(var(--u) * 1.25);
+  }
+
+  .spotlight-field {
+    display: flex;
+    align-items: center;
+    gap: calc(var(--u) * 1.3);
+    min-height: max(3.5rem, calc(var(--u) * 4.7));
+    padding-inline: calc(var(--u) * 1.6) calc(var(--u) * 1.4);
+    border-radius: var(--radius-pill);
+  }
+
+  .spotlight-input {
+    flex: 1;
+    min-width: 0;
+    background: transparent;
+    color: var(--text-primary);
+    font-size: max(1.125rem, calc(var(--u) * 1.5));
+    letter-spacing: -0.01em;
+    caret-color: var(--accent-amber);
+    outline: none;
+  }
+
+  .spotlight-input::placeholder {
+    color: rgb(255 255 255 / 0.62);
+  }
+
+  .spotlight-input::-webkit-search-cancel-button {
+    display: none;
+  }
+
+  .spotlight-row {
+    display: flex;
+    align-items: center;
+    gap: calc(var(--u) * 1.1);
+    min-height: max(3.25rem, calc(var(--u) * 4.3));
+    padding: calc(var(--u) * 0.55) calc(var(--u) * 1.1);
+    border-radius: calc(var(--u) * 1.1);
+    cursor: pointer;
+    transition: background-color var(--dur-feedback) var(--ease-soft);
+  }
+
+  .spotlight-row[aria-selected="true"] {
+    --glass-milk: rgb(255 255 255 / 0.1);
+  }
+
+  .spotlight-row[aria-disabled="true"] {
+    cursor: default;
+  }
+
+  .spotlight-icon {
+    display: grid;
+    flex: none;
+    place-items: center;
+    width: max(2.25rem, calc(var(--u) * 2.1));
+    height: max(2.25rem, calc(var(--u) * 2.1));
+    border-radius: 50%;
+    background: var(--accent-amber);
+    color: rgb(20 14 8);
+  }
+
+  .spotlight-icon[data-tone="quiet"] {
+    background: rgb(255 255 255 / 0.12);
+    color: var(--text-primary);
+  }
+
+  .spotlight-enter {
+    flex: none;
+    border-radius: calc(var(--u) * 0.5);
+    background: rgb(245 160 74 / 0.16);
+    padding: calc(var(--u) * 0.2) calc(var(--u) * 0.6);
+    color: var(--accent-amber);
+  }
+
+  /* Chipy postępu i przykłady: od linii tekstu w wierszu (jak na makiecie). */
+  .spotlight-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: calc(var(--u) * 0.7);
+    padding-inline: calc(var(--u) * 4.3) 0;
+  }
+
+  .spotlight-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: calc(var(--u) * 0.45);
+    min-height: max(2.25rem, calc(var(--u) * 2.4));
+    padding-inline: calc(var(--u) * 0.9);
+    border-radius: var(--radius-pill);
+  }
+
+  .spotlight-card {
+    border-radius: calc(var(--u) * 1.3);
+    padding: calc(var(--u) * 1.1) calc(var(--u) * 1.3);
+  }
+
+  .spotlight-ghost {
+    position: fixed;
+    z-index: 90;
+    pointer-events: none;
+  }
+
+  /* Arkusz na pełny ekran (< 1024 px): kula u góry, wyniki przewijają się pod polem. */
+  @media (max-width: 1023.98px) {
+    .spotlight-backdrop {
+      background: rgb(6 8 12 / 0.55);
+    }
+
+    .spotlight {
+      padding: max(1rem, env(safe-area-inset-top)) 1rem max(1.5rem, env(safe-area-inset-bottom));
+      overflow-y: auto;
+      overscroll-behavior: contain;
+      pointer-events: auto;
+    }
+
+    .spotlight-slot {
+      margin-bottom: 1.5rem;
+    }
+
+    .spotlight-chips {
+      padding-inline: 0;
+    }
+  }
+}
+
+/*
+ * Cel akcji ze Spotlightu (pigułka, kafelek listy) na chwilę wychodzi nad przyciemnione tło
+ * i zgłasza się bursztynowym obrysem. Poza warstwami: musi wygrać z `z-*` z Tailwinda.
+ */
+.desktop [data-landing] {
+  z-index: 72;
+}
+
+.desktop :is([data-landing], [data-landing-under]) {
+  outline: 2px solid rgb(245 160 74 / 0.9);
+  outline-offset: calc(var(--u) * 0.3);
+  animation: called 700ms var(--ease-out);
+}
+
+.desktop [data-slot="pill"][data-landing] {
+  border-radius: var(--radius-pill);
+}
+
+/* Kula w trakcie Spotlightu: nad tłem (ten sam element, który był na pulpicie). */
+.desktop [data-orb-lifted] {
+  position: relative;
+  z-index: 75;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .desktop :is([data-landing], [data-landing-under]) {
+    animation: none;
+  }
+}

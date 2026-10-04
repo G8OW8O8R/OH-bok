@@ -18,7 +18,8 @@ interface RemindersState {
   reminders: Reminder[];
   /** Dane startowe wstawiamy tylko raz. */
   seeded: boolean;
-  add: (input: { title: string; at: Date }) => void;
+  /** Zwraca identyfikator nowego przypomnienia (null przy limicie) – Spotlight cofa po nim dodanie. */
+  add: (input: { title: string; at: Date }) => string | null;
   /** Drzemka: nowy termin = teraz + 10 min. */
   snooze: (id: string, now: Date) => void;
   complete: (id: string) => void;
@@ -40,7 +41,12 @@ export const useRemindersStore = create<RemindersState>()(
     (set, get) => ({
       reminders: [],
       seeded: false,
-      add: (input) => set({ reminders: addReminder(get().reminders, input, `rem-${crypto.randomUUID()}`) }),
+      add: (input) => {
+        const id = `rem-${crypto.randomUUID()}`;
+        const reminders = addReminder(get().reminders, input, id);
+        set({ reminders });
+        return reminders.some((reminder) => reminder.id === id) ? id : null;
+      },
       snooze: (id, now) => set({ reminders: snoozeReminder(get().reminders, id, now) }),
       complete: (id) => set({ reminders: completeReminder(get().reminders, id) }),
       remove: (id) => set({ reminders: removeReminder(get().reminders, id) }),

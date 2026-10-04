@@ -13,6 +13,8 @@ interface ShoppingState {
   add: (names: string[]) => number;
   toggle: (id: string) => void;
   remove: (id: string) => void;
+  /** Podmiana całej listy („Cofnij” w Spotlighcie: `revertAdd`, `restoreItem`). */
+  replace: (items: ShoppingItem[]) => void;
   seedIfFirstVisit: () => void;
 }
 
@@ -40,6 +42,7 @@ export const useShoppingStore = create<ShoppingState>()(
       },
       toggle: (id) => set({ items: toggleItem(get().items, id) }),
       remove: (id) => set({ items: removeItem(get().items, id) }),
+      replace: (items) => set({ items }),
       seedIfFirstVisit: () => {
         if (!get().seeded) set({ items: STARTER_ITEMS, seeded: true });
       },

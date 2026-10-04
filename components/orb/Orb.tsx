@@ -19,6 +19,10 @@ interface OrbProps {
   today: string;
   /** `?orb-mode=` */
   modeOverride: OrbMode | null;
+  /** Klik w kulę otwiera Spotlight (zadanie 7b). */
+  onActivate?: () => void;
+  /** Spotlight jest otwarty (aria-expanded przycisku kuli). */
+  expanded?: boolean;
 }
 
 const noopSubscribe = () => () => {};
@@ -43,7 +47,7 @@ function clientDecision(override: OrbMode | null): OrbModeDecision {
  * daje radę, nad nią pojawia się płótno WebGL2 z refrakcją sceny. Każdy problem
  * (brak WebGL2, utrata kontekstu, za wolne klatki) wraca do kuli w CSS.
  */
-export function Orb({ state, preview, rain, today, modeOverride }: OrbProps) {
+export function Orb({ state, preview, rain, today, modeOverride, onActivate, expanded = false }: OrbProps) {
   const reduceMotion = useReducedMotion() ?? false;
   const decision = useSyncExternalStore(
     noopSubscribe,
@@ -83,6 +87,18 @@ export function Orb({ state, preview, rain, today, modeOverride }: OrbProps) {
           visible={canvasShown}
           onReady={() => setReady(true)}
           onFail={setFailure}
+        />
+      )}
+      {onActivate && (
+        <button
+          type="button"
+          id="orb-button"
+          aria-label="Zapytaj Obok (Ctrl+K)"
+          aria-haspopup="dialog"
+          aria-expanded={expanded}
+          onClick={onActivate}
+          data-testid="orb-button"
+          className="absolute inset-[4%] cursor-pointer rounded-full outline-none focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-white"
         />
       )}
       {/* Płótno jest aria-hidden: podgląd dnia ma odpowiednik tekstowy. */}
