@@ -1,0 +1,62 @@
+/*
+ * Wiadomości: widget „Najważniejsze dziś” (components/widgets/News.tsx) i okno
+ * (components/apps/News.tsx). Bursztyn tylko na aktywnej kategorii i kropce „Dziś w skrócie · AI”;
+ * źródła i godziny w stonowanej bieli.
+ */
+@layer components {
+  .news-widget {
+    width: var(--column-width);
+    gap: 0.75rem;
+    padding: 1rem 1.125rem 1.125rem;
+  }
+
+  .news-title,
+  .news-summary-text {
+    font-size: var(--text-caption);
+    line-height: 1.3;
+  }
+
+  .news-summary-text {
+    margin-top: 0.25rem;
+  }
+
+  /* Źródło i godzina: stonowane (biel .74 trzyma ≥ 4,5:1 na szkle widgetu – zmierzone). */
+  .news-meta {
+    color: rgb(255 255 255 / 0.74);
+  }
+
+  .news-list {
+    gap: 0.75rem;
+    margin-top: 0.875rem;
+  }
+
+  /*
+   * Układ desktopowy: stały rozmiar kafelka (dane przychodzą po hydracji – bez CLS). Węższy niż
+   * na makiecie (17,5u zamiast ~19u, odstępy w rzędzie 2u zamiast 2,4u): latarnia w wideo stoi bardziej w lewo niż na makiecie, a kafelek
+   * nie może jej zasłaniać bardziej (zrzuty 1536×864 i 1920×1080).
+   */
+  @media (min-width: 1200px) and (min-height: 640px) and (min-aspect-ratio: 4/3) {
+    .news-widget {
+      width: calc(var(--u) * 17.5);
+      height: calc(var(--u) * 17.5);
+      gap: calc(var(--u) * 0.5);
+      padding: calc(var(--u) * 0.85) calc(var(--u) * 1.05) calc(var(--u) * 0.9);
+    }
+
+    .news-title,
+    .news-summary-text {
+      font-size: max(0.8125rem, calc(var(--u) * 0.8));
+      line-height: 1.22;
+    }
+
+    .news-summary-text {
+      margin-top: calc(var(--u) * 0.15);
+    }
+
+    .news-list {
+      justify-content: space-between;
+      gap: calc(var(--u) * 0.35);
+      margin-top: calc(var(--u) * 0.6);
+    }
+  }
+}

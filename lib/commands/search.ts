@@ -10,6 +10,7 @@ const APP_KEYWORDS: Record<AppId, readonly string[]> = {
   shopping: ["lista zakupów", "zakupy"],
   reminders: ["przypomnienia"],
   markets: ["rynki", "kryptowaluty", "krypto", "giełda", "kursy"],
+  news: ["wiadomości", "newsy", "aktualności", "najważniejsze dziś"],
 };
 
 /**

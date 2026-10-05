@@ -158,6 +158,7 @@ const APP_WORDS: [RegExp, AppId][] = [
   [/^(list[aey](?:\s+zakupow)?|zakupy)$/, "shopping"],
   [/^(przypomnieni[ae]|przypominajk[ai])$/, "reminders"],
   [/^(rynk[iu]|rynek|krypto(?:waluty)?|gield[aey])$/, "markets"],
+  [/^(wiadomosci|newsy|aktualnosci)$/, "news"],
 ];
 
 function parseOpenApp(key: string): Command | null {

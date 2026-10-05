@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 /** Aplikacje, które mają okno. Dock pokazuje tylko te, które istnieją. */
-export const APP_IDS = ["weather", "shopping", "reminders", "markets"] as const;
+export const APP_IDS = ["weather", "shopping", "reminders", "markets", "news"] as const;
 export const appIdSchema = z.enum(APP_IDS);
 export type AppId = z.infer<typeof appIdSchema>;
 
@@ -16,6 +16,7 @@ export const APPS: Record<AppId, AppInfo> = {
   shopping: { title: "Lista zakupów", slug: "lista" },
   reminders: { title: "Przypomnienia", slug: "przypomnienia" },
   markets: { title: "Rynki", slug: "rynki" },
+  news: { title: "Wiadomości", slug: "wiadomosci" },
 };
 
 const BY_SLUG = new Map<string, AppId>(APP_IDS.map((id) => [APPS[id].slug, id]));

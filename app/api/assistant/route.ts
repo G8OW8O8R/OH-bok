@@ -4,9 +4,14 @@ import { clientIp, memoryCounterStore, upstashCounterStore, type CounterStore } 
 import { errorEvent } from "@/lib/assistant/schema";
 import { runAssistant, toNdjsonStream } from "@/lib/assistant/service";
 import { getQuotes } from "@/lib/markets/service";
+import { toNewsBrief } from "@/lib/news/brief";
+import { getNewsDigest } from "@/lib/news/server";
 
 /** Pierwszy fragment do 8 s na dostawcę, cała odpowiedź do 20 s. */
 export const maxDuration = 45;
+
+/** Tyle asystent czeka na streszczenie dnia (gdy go jeszcze nie ma w cache). */
+const NEWS_WAIT_MS = 2500;
 
 /** Pamięć instancji: liczniki bez Upstash albo przy jego awarii. */
 const memoryCounters = memoryCounterStore();
@@ -34,6 +39,8 @@ export async function POST(request: Request) {
     counters: counters(),
     fallbackCounters: memoryCounters,
     quotes: async () => (await getQuotes()).data.quotes,
+    // Nagłówki z cache danych; na streszczenie (wspólne, raz na godzinę) czekamy najwyżej 2,5 s.
+    news: async (timeZone) => toNewsBrief((await getNewsDigest(NEWS_WAIT_MS)).digest, timeZone),
     log: (message) => console.warn(message),
   }, request.signal);
 

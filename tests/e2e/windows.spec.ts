@@ -19,7 +19,7 @@ test("okno Pogody: z docka, adres, przeciąganie z zapamiętaniem, przypięcie d
 
   // Dock: Spotlight + tylko istniejące aplikacje, bez „wkrótce”.
   const dock = page.getByRole("navigation", { name: "Aplikacje" });
-  await expect(dock.getByRole("button")).toHaveText(["", "", "", "", ""]);
+  await expect(dock.getByRole("button")).toHaveText(["", "", "", "", "", ""]);
   await expect(dock.getByRole("button").first()).toHaveAccessibleName(/Szukaj/);
   await expect(dock.getByRole("button", { name: "Muzyka" })).toHaveCount(0);
 

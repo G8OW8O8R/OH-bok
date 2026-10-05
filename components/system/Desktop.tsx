@@ -14,6 +14,7 @@ import { ShoppingApp } from "@/components/apps/Shopping";
 import { WeatherApp } from "@/components/apps/Weather";
 import { DepthLayer, ParallaxProvider } from "@/components/ui/Parallax";
 import { Greeting } from "@/components/widgets/Greeting";
+import { News } from "@/components/widgets/News";
 import { PlayerCapsule } from "@/components/widgets/PlayerCapsule";
 import { Reminders } from "@/components/widgets/Reminders";
 import { ShoppingList } from "@/components/widgets/ShoppingList";
@@ -22,6 +23,8 @@ import { isBootDone, reportBootSignal } from "@/lib/boot";
 import { composeBrief, dayBrief, greeting } from "@/lib/brief";
 import { SAMPLE_TRACK } from "@/lib/desktop/sample";
 import { useMarketAlerts } from "@/lib/markets/use-markets";
+import type { NewsCategory } from "@/lib/news/sources";
+import { useNews } from "@/lib/news/use-news";
 import { usePlannerSync } from "@/lib/planner/use-planner-sync";
 import { nextReminder, SNOOZE_MINUTES, type Reminder } from "@/lib/reminders/reminders";
 import { remainingCount } from "@/lib/shopping/list";
@@ -49,6 +52,9 @@ import { useWindows, WindowBackdrop } from "./Windows";
  * przez SSR (pozycje w localStorage), a pulpit hydratuje się szybciej. Ładuje się w tle po starcie.
  */
 const MarketsApp = dynamic(() => import("@/components/apps/Markets").then((module) => module.MarketsApp), { ssr: false });
+
+/** Okno Wiadomości: też poza pakietem startowym (dane ma już widget). */
+const NewsApp = dynamic(() => import("@/components/apps/News").then((module) => module.NewsApp), { ssr: false });
 
 /** Spotlight (parser, karty, rynki) też poza pakietem startowym: potrzebny dopiero po Ctrl+K. */
 const Spotlight = dynamic(() => import("./Spotlight").then((module) => module.Spotlight), { ssr: false });
@@ -87,6 +93,10 @@ export function Desktop({ initialWeather, override, timeOverride, initialNow, or
   const timeZone = useUserTimeZone(weather.timezone);
   const plannerReady = usePlannerSync(timeZone);
   const reduceMotion = useReducedMotion();
+
+  const news = useNews();
+  /** Kategoria wiadomości wspólna dla widgetu i okna. */
+  const [newsCategory, setNewsCategory] = useState<NewsCategory>("polska");
 
   const reminders = useRemindersStore((state) => state.reminders);
   const shopping = useShoppingStore((state) => state.items);
@@ -334,8 +344,14 @@ export function Desktop({ initialWeather, override, timeOverride, initialNow, or
             called={called === "reminders"}
             onOpen={() => windows.open("reminders", "tile")}
           />
-          {/* Miejsce na widget wiadomości (następne zadanie): rezerwuje rozmiar dawnego koła przepisu. */}
-          <div aria-hidden data-testid="news-slot" className="invisible hidden size-53.5 shrink-0 desk:block" />
+          <News
+            digest={news.digest}
+            category={newsCategory}
+            onCategory={setNewsCategory}
+            now={now}
+            timeZone={timeZone}
+            onOpen={() => windows.open("news", "tile")}
+          />
           <PlayerCapsule track={SAMPLE_TRACK} cover={SCENE_MEDIA[resolved.video].poster} />
         </div>
 
@@ -369,6 +385,7 @@ export function Desktop({ initialWeather, override, timeOverride, initialNow, or
           onRemove={(id) => useRemindersStore.getState().remove(id)}
         />
         <MarketsApp now={now} timeZone={timeZone} />
+        <NewsApp digest={news.digest} category={newsCategory} onCategory={setNewsCategory} now={now} timeZone={timeZone} />
         <Spotlight
           phase={spotlight}
           onRequestClose={closeSpotlight}

@@ -77,6 +77,15 @@ export function formatWhen(at: Date, now: Date, timeZone: string): string {
   return `${weekdayShort(day)} ${time}`;
 }
 
+/** Czas publikacji (wiadomości): `14:20` dziś, `wczoraj 21:40`, dalej `Pt 09:00` (w strefie `timeZone`). */
+export function formatPublished(at: Date, now: Date, timeZone: string): string {
+  const day = dateIn(at, timeZone);
+  const time = formatTime(at, timeZone);
+  if (day === dateIn(now, timeZone)) return time;
+  if (day === dateIn(new Date(now.getTime() - 86_400_000), timeZone)) return `wczoraj ${time}`;
+  return `${weekdayShort(day)} ${time}`;
+}
+
 /** Rok, miesiąc (1–12), dzień, godzina, minuta w danej strefie. */
 function zonedParts(at: Date, timeZone: string): [number, number, number, number, number] {
   const parts = formatter(timeZone, {

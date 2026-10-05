@@ -1,6 +1,6 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 
-const OBJECTS = ["weather-arc", "shopping-list", "reminders", "news-slot", "player", "dock", "pill", "greeting", "orb"];
+const OBJECTS = ["weather-arc", "shopping-list", "reminders", "news", "player", "dock", "pill", "greeting", "orb"];
 
 type Box = { x: number; y: number; width: number; height: number };
 
@@ -39,8 +39,8 @@ for (const [width, height] of [
       expect(b.y + b.height, id).toBeLessThanOrEqual(height);
     }
 
-    // Rząd obiektów (z zarezerwowanym miejscem na wiadomości) i dock nie nachodzą na siebie.
-    const row = ["weather-arc", "shopping-list", "reminders", "news-slot", "player"];
+    // Rząd obiektów (z widgetem wiadomości) i dock nie nachodzą na siebie.
+    const row = ["weather-arc", "shopping-list", "reminders", "news", "player"];
     const boxes = await Promise.all(row.map((id) => box(page.getByTestId(id))));
     const dock = await box(page.getByTestId("dock"));
     boxes.forEach((a, i) => {

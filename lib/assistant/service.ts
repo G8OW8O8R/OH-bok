@@ -1,4 +1,5 @@
 import type { Quote } from "@/lib/markets/schema";
+import type { NewsBrief } from "@/lib/news/brief";
 import { assistantRequestSchema } from "./context";
 import { buildPrompt } from "./prompt";
 import { AllProvidersFailed, openStream, type ProviderConfig, type ProviderStream } from "./providers";
@@ -20,6 +21,8 @@ export interface AssistantDeps {
   /** Liczniki zapasowe, gdy Upstash nie odpowiada. */
   fallbackCounters?: CounterStore;
   quotes: () => Promise<readonly Quote[]>;
+  /** Wiadomości dnia (streszczenie + nagłówki) w strefie użytkownika; brak = asystent ich nie zna. */
+  news?: (timeZone: string) => Promise<NewsBrief | null>;
   fetch?: typeof fetch;
   now?: () => Date;
   firstChunkTimeoutMs?: number;
@@ -46,8 +49,11 @@ export async function runAssistant(body: unknown, ip: string, deps: AssistantDep
   const limit = await checkRateLimit(deps.counters, ip, now, deps.fallbackCounters);
   if (!limit.ok) return fail("limit", limit.retryAfterS);
 
-  const quotes = await deps.quotes().catch(() => []);
-  const prompt = buildPrompt(parsed.data.query, parsed.data.context, quotes, now);
+  const [quotes, news] = await Promise.all([
+    deps.quotes().catch(() => []),
+    deps.news?.(parsed.data.context.timeZone).catch(() => null) ?? Promise.resolve(null),
+  ]);
+  const prompt = buildPrompt(parsed.data.query, parsed.data.context, quotes, now, news);
   let stream: ProviderStream;
   try {
     stream = await openStream(deps.providers, prompt, { fetch: deps.fetch, firstChunkTimeoutMs: deps.firstChunkTimeoutMs, signal });

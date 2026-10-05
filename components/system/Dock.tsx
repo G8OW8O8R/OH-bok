@@ -1,6 +1,6 @@
 "use client";
 
-import { AlarmClock, ChartCandlestick, Cloud, ListChecks, Search, type LucideIcon } from "lucide-react";
+import { AlarmClock, ChartCandlestick, Cloud, ListChecks, Newspaper, Search, type LucideIcon } from "lucide-react";
 import { motion } from "motion/react";
 import { Glass } from "@/components/ui/Glass";
 import { APP_IDS, APPS, originLayoutId, type AppId } from "@/lib/windows/apps";
@@ -13,6 +13,7 @@ export const APP_ICONS: Record<AppId, LucideIcon> = {
   shopping: ListChecks,
   reminders: AlarmClock,
   markets: ChartCandlestick,
+  news: Newspaper,
 };
 
 /** Tylko aplikacje, które istnieją (bez „wkrótce” i martwych przycisków). */

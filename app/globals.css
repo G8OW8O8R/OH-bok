@@ -4,6 +4,7 @@
 @import "../styles/boot.css";
 @import "../styles/weather.css";
 @import "../styles/markets.css";
+@import "../styles/news.css";
 @import "../styles/spotlight.css";
 
 /* Układ desktopowy pulpitu (lustro media query z tokens.css, gdzie zmienia się --u). */

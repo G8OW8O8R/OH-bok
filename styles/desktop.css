@@ -185,7 +185,8 @@
       flex-wrap: nowrap;
       align-items: flex-end;
       justify-content: flex-start;
-      gap: calc(var(--u) * 2.4);
+      /* 2u (makieta ~2,4u): z widgetem wiadomości rząd mieści się przed latarnią (styles/news.css). */
+      gap: calc(var(--u) * 2);
     }
 
     .dock-row {
