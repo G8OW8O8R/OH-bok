@@ -1,10 +1,11 @@
 "use client";
 
-import { Bell, BellRing, Check, Droplet, ListPlus, ListX, Undo2, Wind } from "lucide-react";
+import { Bell, BellRing, Check, Droplet, ListPlus, ListX, Sparkles, Undo2, Wind } from "lucide-react";
 import { createElement, useId, useState } from "react";
 import { changeClass, CoinBadge, useDisplay } from "@/components/apps/markets/shared";
 import { weatherIcon } from "@/components/apps/weather-icons";
 import { Odometer } from "@/components/ui/Odometer";
+import { splitLinks } from "@/lib/assistant/reply";
 import { formatChange, formatPrice, fromUsd } from "@/lib/markets/currency";
 import { priceDirection, type PriceDirection } from "@/lib/markets/odometer";
 import { sparkline } from "@/lib/markets/sparkline";
@@ -170,7 +171,8 @@ export function OutcomeCard({ tone, title, detail, chips, undone, onUndo }: Outc
         {undone ? <Undo2 className="size-[50%]" strokeWidth={2} /> : <Icon className="size-[50%]" strokeWidth={2} />}
       </span>
       <div className="min-w-0 flex-1">
-        <p className="truncate text-title font-medium text-text-primary">{undone ? `Cofnięto: ${title}` : title}</p>
+        {/* Na telefonie tytuł się zawija (długie „Dodano 3 pozycje, reszta…”). */}
+        <p className="text-title font-medium text-text-primary sm:truncate">{undone ? `Cofnięto: ${title}` : title}</p>
         {chips && chips.length > 0 && !undone ? (
           <ul className="mt-1.5 flex flex-wrap gap-1.5" aria-label="Pozycje">
             {chips.map((chip) => (
@@ -195,6 +197,59 @@ export function OutcomeCard({ tone, title, detail, chips, undone, onUndo }: Outc
           Cofnij
         </button>
       )}
+    </div>
+  );
+}
+
+interface AnswerCardProps {
+  /** Odsłonięta część odpowiedzi (słowo po słowie). */
+  text: string;
+  fullText: string;
+  complete: boolean;
+  revealing: boolean;
+  /** Nazwa dostawcy do podpisu („odpowiedział: Groq”). */
+  provider: string | null;
+  /** Odpowiedź urwała się po części tekstu. */
+  error: string | null;
+}
+
+/**
+ * Odpowiedź tekstowa asystenta. Czytnik dostaje całość po odsłonięciu (`aria-busy`), linki tylko
+ * z białej listy (`splitLinks`) – inne adresy zostają tekstem.
+ */
+export function AnswerCard({ text, fullText, complete, revealing, provider, error }: AnswerCardProps) {
+  const done = complete && !revealing;
+  return (
+    <div className="glass spotlight-card flex gap-4" data-depth="mid" data-testid="spotlight-answer" data-complete={done || undefined}>
+      <span className="spotlight-icon" aria-hidden>
+        <Sparkles className="size-[50%]" strokeWidth={2} />
+      </span>
+      <div className="min-w-0 flex-1 self-center">
+        <div aria-live="polite" aria-busy={!done} aria-atomic="true">
+          <p className="text-title text-pretty text-text-primary" data-full={fullText.length}>
+            {splitLinks(text).map((part, index) =>
+              part.href ?
+                <a
+                  key={index}
+                  href={part.href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="underline decoration-white/50 underline-offset-[0.2em] transition-colors duration-(--dur-feedback) hover:decoration-white focus-visible:rounded-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+                >
+                  {part.text}
+                </a>
+              : <span key={index}>{part.text}</span>,
+            )}
+            {!done && <span aria-hidden className="spotlight-caret" />}
+          </p>
+          {error && done && <p className="mt-1 text-body text-white/82">{error}</p>}
+        </div>
+        {provider && (
+          <p className="mt-2 text-caption text-white/82" data-testid="spotlight-source">
+            odpowiedział: {provider}
+          </p>
+        )}
+      </div>
     </div>
   );
 }

@@ -1,10 +1,13 @@
 "use client";
 
 import { AnimatePresence, animate, motion, useReducedMotion, type AnimationPlaybackControls, type MotionValue } from "motion/react";
-import { Bell, BellRing, Check, CloudSun, Info, ListPlus, ListX, LoaderCircle, Search, X, type LucideIcon } from "lucide-react";
+import { Bell, BellRing, Check, CloudSun, Info, ListPlus, ListX, LoaderCircle, Search, Sparkles, X, type LucideIcon } from "lucide-react";
 import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 import type { OrbFlight } from "@/components/orb/flight";
 import { useParallax } from "@/components/ui/Parallax";
+import { buildAssistantContext } from "@/lib/assistant/context";
+import { PROVIDER_LABELS } from "@/lib/assistant/schema";
+import { useAssistant, useReveal } from "@/lib/assistant/use-assistant";
 import { addDays } from "@/lib/calendar";
 import { parseCommand, type Command } from "@/lib/commands/parse";
 import {
@@ -32,9 +35,10 @@ import { useRemindersStore } from "@/store/reminders";
 import { useShoppingStore } from "@/store/shopping";
 import { APP_ICONS } from "./Dock";
 import { focusableIn, useWindows } from "./Windows";
-import { OutcomeCard, PriceCard, WeatherCard, type OutcomeTone } from "./spotlight/cards";
+import { AnswerCard, OutcomeCard, PriceCard, WeatherCard, type OutcomeTone } from "./spotlight/cards";
 
 export type SpotlightPhase = "closed" | "open" | "closing";
+export type AssistantOrbState = "thinking" | "speaking" | null;
 
 interface SpotlightProps {
   phase: SpotlightPhase;
@@ -48,13 +52,18 @@ interface SpotlightProps {
   now: Date;
   timeZone: string;
   weather: WeatherData;
-  /** Komenda w trakcie wykonania: kula „myśli”. */
-  onBusy: (busy: boolean) => void;
+  /** Kula: „myśli” (komenda w toku, czekanie na asystenta), „mówi” (odpowiedź asystenta), null = „słucha”. */
+  onAssistant: (state: AssistantOrbState) => void;
   onPinDay: (date: string) => void;
   announce: (text: string) => void;
 }
 
-type Item = { id: string; type: "command"; command: Command } | { id: string; type: "app"; app: AppId };
+type Item =
+  /** `ai` = komenda od asystenta (Enter wykonuje cały zestaw). */
+  | { id: string; type: "command"; command: Command; ai?: boolean }
+  | { id: string; type: "app"; app: AppId }
+  /** Parser nie rozumie: pytanie do asystenta AI. */
+  | { id: string; type: "ask" };
 
 type Outcome =
   | { ok: true; tone: OutcomeTone; title: string; detail: string; chips?: string[]; undo: (() => void) | null; target: "pill" | "shopping" | null; message: string }
@@ -62,11 +71,15 @@ type Outcome =
 
 interface Run {
   key: number;
-  command: ActionCommand;
+  /** Jedna komenda z parsera albo kilka od asystenta – wykonywane po kolei. */
+  commands: ActionCommand[];
+  /** Zestaw od asystenta: po wykonaniu podgląd ustępuje kartom wyników (mieszczą się na niskim ekranie). */
+  ai: boolean;
   /** 0 = „Rozumiem polecenie ✓”, 1 = w toku, 2 = gotowe. */
   step: 0 | 1 | 2;
-  outcome: Outcome | null;
-  undone: boolean;
+  /** Wyniki wykonanych komend (w kolejności). */
+  outcomes: Outcome[];
+  undone: boolean[];
 }
 
 interface Ghost {
@@ -79,7 +92,8 @@ interface Ghost {
   message: string;
 }
 
-const STEP_MS = { working: 280, done: 650, closeAfterPin: 450 } as const;
+/** `next` = odstęp między kolejnymi komendami zestawu od asystenta. */
+const STEP_MS = { working: 280, done: 650, next: 420, closeAfterPin: 450 } as const;
 const LANDING_MS = 1200;
 const SHEETS_QUERY = "(max-width: 1023.98px)";
 
@@ -101,7 +115,7 @@ function alertCurrency(requested: Currency | null): Currency {
  * chipy postępu i akcje, które lecą do celu. Kula z pulpitu przelatuje na środek u góry i „słucha”.
  * ARIA: combobox + listbox (strzałki, Enter), Esc i klik w tło zamykają, Tab krąży w panelu.
  */
-export function Spotlight({ phase, onRequestClose, onClosed, orbAnchor, flight, now, timeZone, weather, onBusy, onPinDay, announce }: SpotlightProps) {
+export function Spotlight({ phase, onRequestClose, onClosed, orbAnchor, flight, now, timeZone, weather, onAssistant, onPinDay, announce }: SpotlightProps) {
   const reduceMotion = useReducedMotion() ?? false;
   const windows = useWindows();
   const parallax = useParallax("near");
@@ -109,7 +123,8 @@ export function Spotlight({ phase, onRequestClose, onClosed, orbAnchor, flight, 
   const [query, setQuery] = useState("");
   const [active, setActive] = useState(0);
   const [run, setRun] = useState<Run | null>(null);
-  const [ghost, setGhost] = useState<Ghost | null>(null);
+  const [ghosts, setGhosts] = useState<Ghost[]>([]);
+  const { answer, ask, cancel: cancelAsk } = useAssistant();
   const slotRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
@@ -136,21 +151,21 @@ export function Spotlight({ phase, onRequestClose, onClosed, orbAnchor, flight, 
       setActive(0);
       setRun(null);
     } else {
-      setGhost(null);
+      setGhosts([]);
+      cancelAsk();
     }
   }
 
   useEffect(() => {
     if (open) return;
     clearTimers();
-    onBusy(false);
     // Zamknięcie (np. otwarcie okna z wyniku): nic nie zostaje nad tłem ani nad oknem.
     for (const element of landed.current) {
       element.removeAttribute("data-landing");
       element.removeAttribute("data-landing-under");
     }
     landed.current.clear();
-  }, [open, onBusy]);
+  }, [open]);
 
   useEffect(() => () => clearTimers(), []);
 
@@ -241,19 +256,37 @@ export function Spotlight({ phase, onRequestClose, onClosed, orbAnchor, flight, 
   // --- Wyniki -------------------------------------------------------------------------------------
 
   const command = useMemo(() => parseCommand(query, { now, timeZone }), [query, now, timeZone]);
+  /** Odpowiedź asystenta należy do tekstu, o który zapytano (zmiana pola ją kasuje). */
+  const reply = answer?.query === query ? answer : null;
+  const aiCommands = reply?.commands ?? null;
+  const aiActions = useMemo(() => (aiCommands ?? []).filter(isAction), [aiCommands]);
+  const aiDone = run?.ai === true && run.step === 2;
+  // Pytanie, które parser zamienił na kartę („czy jutro będzie padać?”): karta pierwsza, asystent obok.
+  const question = /\?\s*$/.test(query) || /^\s*(czy|co|jak|kiedy|ile|gdzie|kto|dlaczego)\s/i.test(query);
+  const informational = (command.kind === "weather" && !command.pin) || command.kind === "price";
+  // Ponowne pytanie po urwanej albo niezrozumiałej odpowiedzi.
+  const canAsk =
+    (command.kind === "unknown" || (informational && question)) &&
+    query.trim().length >= 2 &&
+    (reply === null || reply.status === "waiting" || (reply.status === "error" && reply.text === "" && (reply.error?.code === "failed" || reply.error?.code === "invalid")));
   const items = useMemo<Item[]>(() => {
     const list: Item[] = [];
-    if (command.kind !== "unknown" && command.kind !== "incomplete") list.push({ id: "command", type: "command", command });
+    if (aiCommands) {
+      if (!aiDone) aiCommands.forEach((c, index) => list.push({ id: `ai-${index}`, type: "command", command: c, ai: true }));
+    }
+    else if (command.kind !== "unknown" && command.kind !== "incomplete") list.push({ id: "command", type: "command", command });
     const opened = command.kind === "openApp" ? command.app : null;
     for (const app of searchApps(query)) if (app !== opened) list.push({ id: `app-${app}`, type: "app", app });
+    if (canAsk) list.push({ id: "ask", type: "ask" });
     return list;
-  }, [command, query]);
+  }, [aiCommands, aiDone, command, query, canAsk]);
   const activeIndex = Math.min(active, Math.max(items.length - 1, 0));
   const activeItem = items[activeIndex] ?? null;
   const optionId = (item: Item) => `${listId}-${item.id}`;
   const dayOf = (date: string): DailyForecast | null => weather.daily.find((day) => day.date === date) ?? null;
 
   const isDisabled = (item: Item): boolean => {
+    if (item.type === "ask") return reply?.status === "waiting";
     if (item.type !== "command") return false;
     const c = item.command;
     if (c.kind === "weather") return dayOf(c.date) === null;
@@ -373,12 +406,12 @@ export function Spotlight({ phase, onRequestClose, onClosed, orbAnchor, flight, 
     }
   };
 
-  const startGhost = (key: number, outcome: Extract<Outcome, { ok: true }>, icon: LucideIcon) => {
+  const startGhost = (key: number, outcome: Extract<Outcome, { ok: true }>, icon: LucideIcon, rowId: string) => {
     const target =
       outcome.target === "pill" ? document.querySelector('[data-slot="pill"]')
       : outcome.target === "shopping" ? document.getElementById("shopping")
       : null;
-    const row = document.getElementById(`${listId}-command`);
+    const row = document.getElementById(`${listId}-${rowId}`);
     // Na telefonie arkusz zakrywa pulpit, a przy reduced motion nic nie leci: tylko komunikat.
     if (!target || !row || reduceMotion || window.matchMedia(SHEETS_QUERY).matches) {
       land(window.matchMedia(SHEETS_QUERY).matches ? null : target, outcome.message);
@@ -386,7 +419,7 @@ export function Spotlight({ phase, onRequestClose, onClosed, orbAnchor, flight, 
     }
     const from = row.getBoundingClientRect();
     const to = target.getBoundingClientRect();
-    setGhost({
+    const ghost: Ghost = {
       key,
       from: { x: from.left + Math.min(from.width / 2, 220), y: from.top + from.height / 2 },
       to: { x: to.left + to.width / 2, y: to.top + to.height / 2 },
@@ -394,68 +427,109 @@ export function Spotlight({ phase, onRequestClose, onClosed, orbAnchor, flight, 
       icon,
       target,
       message: outcome.message,
-    });
+    };
+    setGhosts((current) => [...current, ghost]);
   };
 
-  const runAction = (c: ActionCommand) => {
-    if (c.kind === "openApp") {
-      openApp(c.app);
+  /**
+   * Wykonanie znaną ścieżką: chipy postępu, akcja, duch leci do celu. Zestaw od asystenta idzie po kolei
+   * (co 420 ms); akcje zamykające Spotlight (okno, przypięcie dnia) na końcu.
+   */
+  const runActions = (list: readonly { command: ActionCommand; rowId: string }[], ai = false) => {
+    const closing = (c: ActionCommand) => c.kind === "openApp" || c.kind === "weather";
+    const ordered = [...list.filter((entry) => !closing(entry.command)), ...list.filter((entry) => closing(entry.command))];
+    const only = ordered.length === 1 ? ordered[0] : undefined;
+    if (only?.command.kind === "openApp") {
+      openApp(only.command.app);
       return;
     }
     clearTimers();
     runKey.current += 1;
     const key = runKey.current;
-    setRun({ key, command: c, step: 0, outcome: null, undone: false });
-    onBusy(true);
+    const commands = ordered.map((entry) => entry.command);
+    setRun({ key, commands, ai, step: 0, outcomes: [], undone: [] });
     later(STEP_MS.working, () => setRun((current) => (current?.key === key ? { ...current, step: 1 } : current)));
-    later(STEP_MS.done, () => {
-      void execute(c).then((outcome) => {
-        if (runKey.current !== key) return;
-        setRun((current) => (current?.key === key ? { ...current, step: 2, outcome } : current));
-        onBusy(false);
-        if (!outcome.ok) return;
-        if (c.kind === "weather") {
-          later(STEP_MS.closeAfterPin, onRequestClose);
-          return;
-        }
-        startGhost(key, outcome, commandIcon(c));
-      });
+    const executeAt = async (index: number) => {
+      const entry = ordered[index];
+      if (!entry || runKey.current !== key) return;
+      const c = entry.command;
+      const outcome: Outcome = c.kind === "openApp" ? { ok: true, tone: "items", title: "", detail: "", undo: null, target: null, message: "" } : await execute(c);
+      if (runKey.current !== key) return;
+      const last = index === ordered.length - 1;
+      setRun((current) =>
+        current?.key === key ? { ...current, outcomes: [...current.outcomes, outcome], undone: [...current.undone, false], step: last ? 2 : current.step } : current,
+      );
+      if (outcome.ok) {
+        if (c.kind === "openApp") openApp(c.app);
+        else if (c.kind === "weather") later(STEP_MS.closeAfterPin, onRequestClose);
+        else startGhost(key * 10 + index, outcome, commandIcon(c), entry.rowId);
+      }
+      if (!last) later(STEP_MS.next, () => void executeAt(index + 1));
+    };
+    later(STEP_MS.done, () => void executeAt(0));
+  };
+
+  const runAction = (c: ActionCommand) => runActions([{ command: c, rowId: "command" }]);
+
+  const startAsk = () => {
+    const context = buildAssistantContext({
+      now: new Date(),
+      timeZone,
+      weather,
+      shopping: useShoppingStore.getState().items,
+      reminders: useRemindersStore.getState().reminders,
     });
+    setRun(null);
+    ask(query, context);
   };
 
   const activate = (item: Item | null) => {
     if (!item || isDisabled(item)) return;
+    if (item.type === "ask") {
+      startAsk();
+      return;
+    }
     if (item.type === "app") {
       openApp(item.app);
       return;
     }
+    // Zestaw od asystenta: Enter na dowolnym wierszu wykonuje wszystkie akcje (karty ceny i prognozy zostają).
+    if (item.ai && aiActions.length > 0) {
+      runActions(
+        items.flatMap((entry) => (entry.type === "command" && entry.ai && isAction(entry.command) ? [{ command: entry.command, rowId: entry.id }] : [])),
+        true,
+      );
+      return;
+    }
     // Termin liczony w chwili Enter (zegar pulpitu tyka co 10 s).
-    const fresh = parseCommand(query, { now: new Date(), timeZone });
+    const fresh = item.ai ? item.command : parseCommand(query, { now: new Date(), timeZone });
     const c = fresh.kind === item.command.kind ? fresh : item.command;
     if (c.kind === "price") {
       openApp("markets");
       return;
     }
     if (c.kind === "weather") {
-      runAction({ ...c, pin: true });
+      runActions([{ command: { ...c, pin: true }, rowId: item.id }]);
       return;
     }
     if (isAction(c)) runAction(c);
   };
 
-  const undo = () => {
-    if (!run?.outcome?.ok || !run.outcome.undo || run.undone) return;
-    run.outcome.undo();
-    setRun({ ...run, undone: true });
+  const undo = (index: number) => {
+    const outcome = run?.outcomes[index];
+    if (!run || !outcome?.ok || !outcome.undo || run.undone[index]) return;
+    outcome.undo();
+    setRun({ ...run, undone: run.undone.map((value, i) => (i === index ? true : value)) });
     // Przycisk „Cofnij” znika: fokus wraca do pola, nie na body.
     inputRef.current?.focus();
-    announce(`Cofnięto: ${run.outcome.title}`);
+    announce(`Cofnięto: ${outcome.title}`);
   };
 
   const fill = (text: string) => {
     setQuery(text);
     setActive(0);
     setRun(null);
+    cancelAsk();
     inputRef.current?.focus();
   };
 
@@ -500,7 +574,16 @@ export function Spotlight({ phase, onRequestClose, onClosed, orbAnchor, flight, 
 
   const fade = transitionFor(reduceMotion, { duration: duration.feedback, ease: ease.soft });
   const rise = reduceMotion ? { opacity: 0 } : { opacity: 0, y: 8 };
-  const unknown = query.trim() !== "" && items.length === 0 && command.kind === "unknown";
+  const replyComplete = reply !== null && (reply.status === "done" || reply.status === "error");
+  const { visible: replyText, revealing } = useReveal(reply?.key ?? null, reply?.text ?? "", replyComplete, reduceMotion);
+  const replyError = reply?.status === "error" && reply.text === "" ? reply.error : null;
+  const providerLabel = reply?.provider ? PROVIDER_LABELS[reply.provider] : null;
+
+  // Kula: „myśli” przy wykonaniu i czekaniu na asystenta, „mówi” w trakcie odpowiedzi.
+  const orbMood: AssistantOrbState = (run !== null && run.step < 2) || reply?.status === "waiting" ? "thinking" : revealing ? "speaking" : null;
+  useEffect(() => {
+    onAssistant(open ? orbMood : null);
+  }, [open, orbMood, onAssistant]);
 
   return (
     <>
@@ -605,10 +688,29 @@ export function Spotlight({ phase, onRequestClose, onClosed, orbAnchor, flight, 
                 </div>
               )}
 
-              {unknown && (
-                <div className="glass spotlight-card" data-depth="mid" data-testid="spotlight-unknown">
-                  <p className="text-title font-medium text-text-primary">Tego polecenia jeszcze nie znam.</p>
-                  <p className="mt-0.5 text-body text-white/82">Spróbuj na przykład:</p>
+              {aiCommands && providerLabel && (
+                <p className="spotlight-source" data-testid="spotlight-source">
+                  <span className="glass text-caption text-white/86" data-depth="far">
+                    odpowiedział: {providerLabel}
+                  </span>
+                </p>
+              )}
+
+              {reply && reply.text !== "" && (
+                <AnswerCard
+                  text={replyText}
+                  fullText={reply.text}
+                  complete={replyComplete}
+                  revealing={revealing}
+                  provider={providerLabel}
+                  error={reply.status === "error" ? reply.error?.message ?? null : null}
+                />
+              )}
+
+              {replyError && (
+                <div className="glass spotlight-card" data-depth="mid" data-testid="spotlight-assistant-error" data-code={replyError.code}>
+                  <p className="text-title font-medium text-text-primary">{replyError.message}</p>
+                  <p className="mt-0.5 text-body text-white/82">Na przykład:</p>
                   <ul className="mt-3 flex flex-wrap gap-2">
                     {FALLBACK_EXAMPLES.map((example) => (
                       <li key={example}>
@@ -621,29 +723,30 @@ export function Spotlight({ phase, onRequestClose, onClosed, orbAnchor, flight, 
 
               <div role="status" aria-live="polite" className="contents">
                 {run && <ProgressChips run={run} reduceMotion={reduceMotion} />}
-                {run?.step === 2 && run.outcome && !run.outcome.ok && (
-                  <p className="glass spotlight-card text-body text-text-primary" data-depth="mid" data-testid="spotlight-error">
-                    {run.outcome.error}
-                  </p>
-                )}
-                {run?.step === 2 && run.outcome?.ok && run.outcome.title && (
-                  <motion.div initial={rise} animate={{ opacity: 1, y: 0 }} transition={transitionFor(reduceMotion, spring.default)}>
-                    <OutcomeCard
-                      tone={run.outcome.tone}
-                      title={run.outcome.title}
-                      detail={run.outcome.detail}
-                      chips={run.outcome.chips}
-                      undone={run.undone}
-                      onUndo={run.outcome.undo ? undo : null}
-                    />
-                  </motion.div>
+                {run?.outcomes.map((outcome, index) =>
+                  !outcome.ok ?
+                    <p key={index} className="glass spotlight-card text-body text-text-primary" data-depth="mid" data-testid="spotlight-error">
+                      {outcome.error}
+                    </p>
+                  : outcome.title ?
+                    <motion.div key={index} initial={rise} animate={{ opacity: 1, y: 0 }} transition={transitionFor(reduceMotion, spring.default)}>
+                      <OutcomeCard
+                        tone={outcome.tone}
+                        title={outcome.title}
+                        detail={outcome.detail}
+                        chips={outcome.chips}
+                        undone={run.undone[index] ?? false}
+                        onUndo={outcome.undo ? () => undo(index) : null}
+                      />
+                    </motion.div>
+                  : null,
                 )}
               </div>
             </motion.div>
           </motion.div>
         )}
       </AnimatePresence>
-      {ghost && (
+      {ghosts.map((ghost) => (
         <motion.div
           key={ghost.key}
           aria-hidden
@@ -660,7 +763,7 @@ export function Spotlight({ phase, onRequestClose, onClosed, orbAnchor, flight, 
           transition={{ duration: 0.7, ease: ease.out, times: [0, 0.45, 1] }}
           onAnimationComplete={() => {
             land(ghost.target, ghost.message);
-            setGhost(null);
+            setGhosts((current) => current.filter((entry) => entry.key !== ghost.key));
           }}
         >
           <span className="spotlight-icon size-8!">
@@ -668,7 +771,7 @@ export function Spotlight({ phase, onRequestClose, onClosed, orbAnchor, flight, 
           </span>
           <span className="truncate">{ghost.label}</span>
         </motion.div>
-      )}
+      ))}
     </>
   );
 
@@ -679,7 +782,21 @@ export function Spotlight({ phase, onRequestClose, onClosed, orbAnchor, flight, 
         <RowText icon={Icon} quiet primary={APPS[item.app].title} secondary="aplikacja" selected={item === activeItem} />
       );
     }
+    if (item.type === "ask") {
+      const waiting = reply?.status === "waiting";
+      return (
+        <RowText
+          icon={waiting ? LoaderCircle : Sparkles}
+          spin={waiting}
+          primary="Zapytaj Obok"
+          secondary={waiting ? "myślę…" : query.trim()}
+          selected={item === activeItem && !waiting}
+        />
+      );
+    }
     const c = item.command;
+    // Zestaw od asystenta: Enter wykonuje wszystkie akcje naraz.
+    const enter = item.ai && aiActions.length > 1 ? `wszystkie (${aiActions.length})` : undefined;
     switch (c.kind) {
       case "price":
         return (
@@ -699,15 +816,15 @@ export function Spotlight({ phase, onRequestClose, onClosed, orbAnchor, flight, 
             </>
           );
         }
-        return <RowText icon={CloudSun} primary="Pokaż na pulpicie" secondary={dayLabel(c.date, today).toLocaleLowerCase("pl")} selected={item === activeItem} />;
+        return <RowText icon={CloudSun} primary="Pokaż na pulpicie" secondary={dayLabel(c.date, today).toLocaleLowerCase("pl")} selected={item === activeItem} enter={enter} />;
       }
       case "reminder":
-        return <RowText icon={Bell} primary="Utwórz przypomnienie" secondary={`${formatCommandWhen(c.at, now, timeZone)} · ${c.title}`} selected={item === activeItem} />;
+        return <RowText icon={Bell} primary="Utwórz przypomnienie" secondary={`${formatCommandWhen(c.at, now, timeZone)} · ${c.title}`} selected={item === activeItem} enter={enter} />;
       case "addItems":
-        return <RowText icon={ListPlus} primary="Dodaj do listy" secondary={c.items.join(", ")} selected={item === activeItem} />;
+        return <RowText icon={ListPlus} primary="Dodaj do listy" secondary={c.items.join(", ")} selected={item === activeItem} enter={enter} />;
       case "removeItem": {
         const found = findItem(useShoppingStore.getState().items, c.item);
-        return <RowText icon={ListX} primary="Usuń z listy" secondary={found ? found.name : `${c.item} – nie ma na liście`} selected={item === activeItem && found !== null} />;
+        return <RowText icon={ListX} primary="Usuń z listy" secondary={found ? found.name : `${c.item} – nie ma na liście`} selected={item === activeItem && found !== null} enter={enter} />;
       }
       case "alert":
         return (
@@ -716,10 +833,11 @@ export function Spotlight({ phase, onRequestClose, onClosed, orbAnchor, flight, 
             primary="Ustaw alert"
             secondary={`${c.symbol} ${c.condition === "above" ? "powyżej" : "poniżej"} ${formatPrice(c.threshold, alertCurrency(c.currency))}`}
             selected={item === activeItem}
+            enter={enter}
           />
         );
       case "openApp":
-        return <RowText icon={APP_ICONS[c.app]} primary="Otwórz" secondary={APPS[c.app].title} selected={item === activeItem} />;
+        return <RowText icon={APP_ICONS[c.app]} primary="Otwórz" secondary={APPS[c.app].title} selected={item === activeItem} enter={enter} />;
       default:
         return null;
     }
@@ -743,6 +861,7 @@ function measureFlight(
 
 function appOfItem(item: Item): AppId | null {
   if (item.type === "app") return item.app;
+  if (item.type === "ask") return null;
   if (item.command.kind === "openApp") return item.command.app;
   if (item.command.kind === "price") return "markets";
   return null;
@@ -795,11 +914,23 @@ function ResultRow({ id, selected, disabled, onHover, onPick, layoutId, children
   );
 }
 
-function RowText({ icon: Icon, primary, secondary, selected, quiet = false }: { icon: LucideIcon; primary: string; secondary: string; selected: boolean; quiet?: boolean }) {
+interface RowTextProps {
+  icon: LucideIcon;
+  primary: string;
+  secondary: string;
+  selected: boolean;
+  quiet?: boolean;
+  /** Ikona się obraca (czekanie na asystenta). */
+  spin?: boolean;
+  /** Etykieta plakietki zamiast samego „Enter”. */
+  enter?: string;
+}
+
+function RowText({ icon: Icon, primary, secondary, selected, quiet = false, spin = false, enter }: RowTextProps) {
   return (
     <>
       <span className="spotlight-icon" data-tone={quiet ? "quiet" : undefined} aria-hidden>
-        <Icon className="size-[50%]" strokeWidth={2} />
+        <Icon className={`size-[50%]${spin ? " motion-safe:animate-spin" : ""}`} strokeWidth={2} />
       </span>
       {/* Na telefonie druga linia zamiast ucinania terminu i tytułu. */}
       <p className="min-w-0 flex-1 text-title text-text-primary sm:truncate">
@@ -810,7 +941,7 @@ function RowText({ icon: Icon, primary, secondary, selected, quiet = false }: { 
           {secondary}
         </span>
       </p>
-      <EnterBadge visible={selected} />
+      <EnterBadge visible={selected} label={enter} />
     </>
   );
 }
@@ -840,8 +971,16 @@ function ExampleChip({ text, onPick }: { text: string; onPick: (text: string) =>
 
 function ProgressChips({ run, reduceMotion }: { run: Run; reduceMotion: boolean }) {
   const chips: { key: string; label: string; done: boolean }[] = [{ key: "understood", label: "Rozumiem polecenie", done: true }];
-  if (run.step >= 1) chips.push({ key: "working", label: progressLabel(run.command), done: run.step === 2 });
-  if (run.step === 2 && run.outcome?.ok) chips.push({ key: "done", label: "Gotowe", done: true });
+  // Kolejne komendy zestawu dochodzą po jednej: wykonane z ✓, bieżąca z kręcącą się ikoną.
+  // Po wykonaniu zestawu kroki zwijają się do „Gotowe” – karty wyników mówią to samo (niski ekran).
+  const collapsed = run.step === 2 && run.commands.length > 1;
+  if (run.step >= 1 && !collapsed) {
+    run.commands.forEach((command, index) => {
+      if (index > run.outcomes.length) return;
+      chips.push({ key: index === 0 ? "working" : `working-${index}`, label: progressLabel(command), done: index < run.outcomes.length });
+    });
+  }
+  if (run.step === 2 && run.outcomes.some((outcome) => outcome.ok)) chips.push({ key: "done", label: "Gotowe", done: true });
   return (
     <ul className="spotlight-chips" data-testid="spotlight-progress" aria-label="Postęp">
       <AnimatePresence initial={false}>
@@ -858,7 +997,7 @@ function ProgressChips({ run, reduceMotion }: { run: Run; reduceMotion: boolean 
           >
             {chip.done ? (
               <>
-                {chip.key === "working" ? chip.label.replace("…", "") : chip.label}
+                {chip.key.startsWith("working") ? chip.label.replace("…", "") : chip.label}
                 <Check aria-hidden className="size-4" strokeWidth={2.25} />
               </>
             ) : (

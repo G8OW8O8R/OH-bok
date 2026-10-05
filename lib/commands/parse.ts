@@ -12,24 +12,32 @@ import { capitalize, cleanInput, fold, Phrase } from "./text";
 
 /**
  * Lokalny parser komend: najczęstsze polecenia po polsku bez AI. Wynik to dane
- * (te same, które w zadaniu 8 zwróci model jako akcje klienta), wykonuje je Spotlight.
+ * (te same kształty zwraca asystent AI – `lib/assistant/schema.ts`), wykonuje je Spotlight.
  */
+export const addItemsCommandSchema = z.object({ kind: z.literal("addItems"), items: z.array(z.string().trim().min(1).max(MAX_ITEM_NAME)).min(1) });
+export const removeItemCommandSchema = z.object({ kind: z.literal("removeItem"), item: z.string().trim().min(1).max(MAX_ITEM_NAME) });
+export const reminderCommandSchema = z.object({ kind: z.literal("reminder"), title: z.string().trim().min(1).max(MAX_TITLE), at: z.date() });
+export const openAppCommandSchema = z.object({ kind: z.literal("openApp"), app: appIdSchema });
+export const priceCommandSchema = z.object({ kind: z.literal("price"), symbol: marketSymbolSchema });
+export const alertCommandSchema = z.object({
+  kind: z.literal("alert"),
+  symbol: marketSymbolSchema,
+  condition: z.enum(ALERT_CONDITIONS),
+  threshold: z.number().positive(),
+  /** null = waluta wyświetlania w oknie Rynków. */
+  currency: currencySchema.nullable(),
+});
+/** Prognoza dnia; `pin` = przypięcie dnia na pulpicie („pokaż czwartek”). */
+export const weatherCommandSchema = z.object({ kind: z.literal("weather"), date: z.iso.date(), pin: z.boolean() });
+
 export const commandSchema = z.discriminatedUnion("kind", [
-  z.object({ kind: z.literal("addItems"), items: z.array(z.string().trim().min(1).max(MAX_ITEM_NAME)).min(1) }),
-  z.object({ kind: z.literal("removeItem"), item: z.string().trim().min(1).max(MAX_ITEM_NAME) }),
-  z.object({ kind: z.literal("reminder"), title: z.string().trim().min(1).max(MAX_TITLE), at: z.date() }),
-  z.object({ kind: z.literal("openApp"), app: appIdSchema }),
-  z.object({ kind: z.literal("price"), symbol: marketSymbolSchema }),
-  z.object({
-    kind: z.literal("alert"),
-    symbol: marketSymbolSchema,
-    condition: z.enum(ALERT_CONDITIONS),
-    threshold: z.number().positive(),
-    /** null = waluta wyświetlania w oknie Rynków. */
-    currency: currencySchema.nullable(),
-  }),
-  /** Prognoza dnia; `pin` = przypięcie dnia na pulpicie („pokaż czwartek”). */
-  z.object({ kind: z.literal("weather"), date: z.iso.date(), pin: z.boolean() }),
+  addItemsCommandSchema,
+  removeItemCommandSchema,
+  reminderCommandSchema,
+  openAppCommandSchema,
+  priceCommandSchema,
+  alertCommandSchema,
+  weatherCommandSchema,
   /** Zrozumiany zamiar bez kompletu danych: podpowiedź zamiast zgadywania. */
   z.object({ kind: z.literal("incomplete"), intent: z.enum(["reminder", "alert"]), message: z.string() }),
   z.object({ kind: z.literal("unknown") }),
@@ -122,6 +130,8 @@ function splitItems(text: string): string[] {
     .map((item) => capitalize(item).slice(0, MAX_ITEM_NAME));
 }
 
+const NOT_AN_ITEM = /^(?:skladnik\w*|przypomnij|ustaw|otworz|pokaz|powiadom|usun|sprawdz)\b/;
+
 function parseShopping(text: string): Command | null {
   const key = fold(text);
   const add = /^(?:dodaj|dopisz|kup|wpisz)\s+(?:do\s+(?:listy|zakupow)\s+)?/.exec(key);
@@ -129,6 +139,8 @@ function parseShopping(text: string): Command | null {
     const body = text.slice(add[0].length);
     const suffix = LIST_SUFFIX.exec(fold(body));
     const items = splitItems(suffix ? body.slice(0, suffix.index) : body);
+    // „Składniki na naleśniki” i polecenie w środku („…i przypomnij mi o 18”) to zadanie dla asystenta AI.
+    if (items.some((item) => NOT_AN_ITEM.test(fold(item)))) return null;
     return items.length > 0 ? { kind: "addItems", items } : null;
   }
   const remove = /^(?:usun|skresl|wykresl|wyrzuc|odhacz)\s+/.exec(key);

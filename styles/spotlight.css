@@ -134,6 +134,41 @@
     padding: calc(var(--u) * 1.1) calc(var(--u) * 1.3);
   }
 
+  /* Podpis źródła pod komendami od asystenta („odpowiedział: Groq”): mała kapsuła od linii tekstu. */
+  .spotlight-source {
+    display: flex;
+    padding-inline: calc(var(--u) * 4.3) 0;
+  }
+
+  .spotlight-source > span {
+    border-radius: var(--radius-pill);
+    padding: calc(var(--u) * 0.15) calc(var(--u) * 0.7);
+  }
+
+  /* Kursor odpowiedzi w trakcie odsłaniania (bursztyn lampy). */
+  .spotlight-caret {
+    display: inline-block;
+    width: 0.45em;
+    height: 1em;
+    margin-left: 0.15em;
+    vertical-align: -0.12em;
+    border-radius: 2px;
+    background: var(--accent-amber);
+    animation: spotlight-caret 900ms steps(2, jump-none) infinite;
+  }
+
+  @keyframes spotlight-caret {
+    to {
+      opacity: 0.25;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .spotlight-caret {
+      animation: none;
+    }
+  }
+
   .spotlight-ghost {
     position: fixed;
     z-index: 90;
@@ -157,7 +192,8 @@
       margin-bottom: 1.5rem;
     }
 
-    .spotlight-chips {
+    .spotlight-chips,
+    .spotlight-source {
       padding-inline: 0;
     }
   }

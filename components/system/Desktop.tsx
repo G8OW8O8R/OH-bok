@@ -43,7 +43,7 @@ import { Clock } from "./Clock";
 import { Dock } from "./Dock";
 import { Logo } from "./Logo";
 import { Pill } from "./Pill";
-import type { SpotlightPhase } from "./Spotlight";
+import type { AssistantOrbState, SpotlightPhase } from "./Spotlight";
 import { useWindows, WindowBackdrop } from "./Windows";
 
 /**
@@ -99,7 +99,7 @@ export function Desktop({ initialWeather, override, timeOverride, initialNow, or
    * (pulpit już aktywny, kula jeszcze nad tłem); „closed”.
    */
   const [spotlight, setSpotlight] = useState<SpotlightPhase>("closed");
-  const [assistantBusy, setAssistantBusy] = useState(false);
+  const [assistantState, setAssistantState] = useState<AssistantOrbState>(null);
   const spotlightOpen = spotlight === "open";
   const desktopInert = windowsOpen || spotlightOpen;
   const flightX = useMotionValue(0);
@@ -300,7 +300,7 @@ export function Desktop({ initialWeather, override, timeOverride, initialNow, or
             <motion.div ref={orbAnchor} style={{ x: flightX, y: flightY, opacity: flightOpacity }}>
               <OrbFlightProvider value={flight}>
                 <Orb
-                  state={spotlight === "closed" ? orbState : assistantBusy ? "thinking" : "listening"}
+                  state={spotlight === "closed" ? orbState : (assistantState ?? "listening")}
                   preview={previewDay}
                   rain={orbRainStrength(conditions.state, conditions.intensityMmH)}
                   today={today}
@@ -393,7 +393,7 @@ export function Desktop({ initialWeather, override, timeOverride, initialNow, or
           now={now}
           timeZone={timeZone}
           weather={weather}
-          onBusy={setAssistantBusy}
+          onAssistant={setAssistantState}
           onPinDay={(date) => setPinnedDay(date === today ? null : date)}
           announce={announce}
         />
