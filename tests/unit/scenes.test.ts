@@ -48,7 +48,7 @@ describe("SCENES", () => {
 
   it.each(WEATHER_STATES)("%s wskazuje istniejące nagranie", (state) => {
     const media = SCENE_MEDIA[SCENES[state].video];
-    expect(media.video).toMatch(/^\/scenes\/[a-z-]+\/loop-720\.mp4$/);
+    expect(media.video).toMatch(/^\/scenes\/[a-z-]+\/loop-1080\.mp4$/);
     expect(media.poster).toMatch(/^\/scenes\/[a-z-]+\/poster\.jpg$/);
   });
 
@@ -107,7 +107,7 @@ describe("resolveScene (pogoda × pora dnia)", () => {
 
   it.each(["night-clear", "night-cloudy"] as const)("plansza nocna %s ma pliki", (video) => {
     expect(SCENE_MEDIA[video]).toEqual({
-      video: `/scenes/${video}/loop-720.mp4`,
+      video: `/scenes/${video}/loop-1080.mp4`,
       poster: `/scenes/${video}/poster.jpg`,
     });
   });

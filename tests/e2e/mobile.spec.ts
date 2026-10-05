@@ -12,9 +12,9 @@ test("mobile 390×844: kolumna bez poziomego przewijania, dock w ekranie, dzień
   // Bez poziomego przewijania.
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390);
 
-  // Kolejność kolumny: kula i powitanie, łuk pogody, lista, przypomnienia, przepis, odtwarzacz.
+  // Kolejność kolumny: kula i powitanie, łuk pogody, lista, przypomnienia, odtwarzacz.
   const tops = await page.evaluate(() =>
-    ["orb", "weather-arc", "shopping", "reminders", "recipe", "player"].map((id) => {
+    ["orb", "weather-arc", "shopping", "reminders", "player"].map((id) => {
       const el = document.querySelector(`[data-testid="${id}"]`) ?? document.getElementById(id);
       return el ? el.getBoundingClientRect().top + window.scrollY : Number.NaN;
     }),

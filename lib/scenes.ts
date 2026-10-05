@@ -44,24 +44,24 @@ export interface SceneMedia {
 
 export const SCENE_MEDIA: Record<SceneVideoId, SceneMedia> = {
   sunny: {
-    video: "/scenes/sunny-lighthouse/loop-720.mp4",
+    video: "/scenes/sunny-lighthouse/loop-1080.mp4",
     poster: "/scenes/sunny-lighthouse/poster.jpg",
   },
   cloudy: {
-    video: "/scenes/cloudy-lighthouse/loop-720.mp4",
+    video: "/scenes/cloudy-lighthouse/loop-1080.mp4",
     poster: "/scenes/cloudy-lighthouse/poster.jpg",
   },
   rain: {
-    video: "/scenes/rain-lighthouse/loop-720.mp4",
+    video: "/scenes/rain-lighthouse/loop-1080.mp4",
     poster: "/scenes/rain-lighthouse/poster.jpg",
   },
   // Plansze nocne: lampa pulsuje w samym filmie (bez snopa w kodzie poza deszczem i burzą).
   "night-clear": {
-    video: "/scenes/night-clear/loop-720.mp4",
+    video: "/scenes/night-clear/loop-1080.mp4",
     poster: "/scenes/night-clear/poster.jpg",
   },
   "night-cloudy": {
-    video: "/scenes/night-cloudy/loop-720.mp4",
+    video: "/scenes/night-cloudy/loop-1080.mp4",
     poster: "/scenes/night-cloudy/poster.jpg",
   },
 };

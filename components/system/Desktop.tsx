@@ -15,16 +15,14 @@ import { WeatherApp } from "@/components/apps/Weather";
 import { DepthLayer, ParallaxProvider } from "@/components/ui/Parallax";
 import { Greeting } from "@/components/widgets/Greeting";
 import { PlayerCapsule } from "@/components/widgets/PlayerCapsule";
-import { RecipeOrb } from "@/components/widgets/RecipeOrb";
 import { Reminders } from "@/components/widgets/Reminders";
 import { ShoppingList } from "@/components/widgets/ShoppingList";
 import { WeatherArc } from "@/components/widgets/WeatherArc";
 import { isBootDone, reportBootSignal } from "@/lib/boot";
-import { composeBrief, dayBrief, greeting, recipePrompt } from "@/lib/brief";
-import { SAMPLE_RECIPE, SAMPLE_TRACK } from "@/lib/desktop/sample";
+import { composeBrief, dayBrief, greeting } from "@/lib/brief";
+import { SAMPLE_TRACK } from "@/lib/desktop/sample";
 import { useMarketAlerts } from "@/lib/markets/use-markets";
 import { usePlannerSync } from "@/lib/planner/use-planner-sync";
-import { pluralPl } from "@/lib/plural";
 import { nextReminder, SNOOZE_MINUTES, type Reminder } from "@/lib/reminders/reminders";
 import { remainingCount } from "@/lib/shopping/list";
 import { dayPeriod, nextPeriodChange, type DayPeriod } from "@/lib/day-period";
@@ -108,7 +106,6 @@ export function Desktop({ initialWeather, override, timeOverride, initialNow, or
   const flight = useMemo(() => ({ x: flightX, y: flightY, opacity: flightOpacity }), [flightX, flightY, flightOpacity]);
   const orbAnchor = useRef<HTMLDivElement>(null);
   const spotlightOpener = useRef<HTMLElement | null>(null);
-  const [recipeAdded, setRecipeAdded] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [called, setCalled] = useState<string | null>(null);
   const timers = useRef<{ call?: number; message?: number }>({});
@@ -230,17 +227,6 @@ export function Desktop({ initialWeather, override, timeOverride, initialNow, or
   // Alerty cenowe: spełniony alert = komunikat w pigułce.
   useMarketAlerts(announce);
 
-  const addRecipe = () => {
-    const count = useShoppingStore.getState().add(SAMPLE_RECIPE.ingredients);
-    setRecipeAdded(true);
-    announce(
-      count > 0
-        ? `Dodano ${count} ${pluralPl(count, ["składnik", "składniki", "składników"])} do listy`
-        : "Składniki są już na liście",
-    );
-    call("shopping");
-  };
-
   const next = nextReminder(reminders);
   const remaining = remainingCount(shopping);
 
@@ -319,9 +305,7 @@ export function Desktop({ initialWeather, override, timeOverride, initialNow, or
                   ? composeBrief(dayBrief(weather, now), { remaining, next, now, timeZone }, dayBrief(weather, now, true))
                   : dayBrief(weather, now)
               }
-              recipeLabel={recipePrompt(override ?? weather.current.state, weather.daily[0]?.temperatureMaxC ?? null)}
               onPlan={() => call("reminders")}
-              onRecipe={() => call("recipe")}
             />
           </DepthLayer>
         </div>
@@ -350,7 +334,8 @@ export function Desktop({ initialWeather, override, timeOverride, initialNow, or
             called={called === "reminders"}
             onOpen={() => windows.open("reminders", "tile")}
           />
-          <RecipeOrb recipe={SAMPLE_RECIPE} added={recipeAdded} onAdd={addRecipe} called={called === "recipe"} />
+          {/* Miejsce na widget wiadomości (następne zadanie): rezerwuje rozmiar dawnego koła przepisu. */}
+          <div aria-hidden data-testid="news-slot" className="invisible hidden size-53.5 shrink-0 desk:block" />
           <PlayerCapsule track={SAMPLE_TRACK} cover={SCENE_MEDIA[resolved.video].poster} />
         </div>
 

@@ -56,8 +56,8 @@
 
   /*
    * Układ kolumnowy (telefon, tablet, wąskie okno): jedna kolumna w kolejności DOM –
-   * łuk pogody, lista, przypomnienia, przepis, odtwarzacz. Kafelki prostokątne na szerokość
-   * kolumny (`--column-width`), koła i łuk w swoim kształcie, wyśrodkowane.
+   * łuk pogody, lista, przypomnienia, odtwarzacz. Kafelki prostokątne na szerokość
+   * kolumny (`--column-width`), łuk w swoim kształcie, wyśrodkowany.
    */
   /*
    * W kolumnie kafelki leżą nad jasnym niebem i białą wieżą latarni (na desktopie – nisko, nad

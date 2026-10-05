@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { composeBrief, dayBrief, greeting, isWetHour, recipePrompt, type BriefContext } from "@/lib/brief";
+import { composeBrief, dayBrief, greeting, isWetHour, type BriefContext } from "@/lib/brief";
 import type { Reminder } from "@/lib/reminders/reminders";
 import { demoWeather } from "@/lib/weather/demo";
 import type { HourlyForecast, WeatherData } from "@/lib/weather/schema";
@@ -109,17 +109,6 @@ describe("dayBrief", () => {
     const w = weather({ timezone: "America/New_York", hourly: hours(9, [0, 0, 1]) });
     // 11:00 w Warszawie = 05:00 w Nowym Jorku.
     expect(dayBrief(w, at(9))).toBe("Od 05:00 pada, weź parasol.");
-  });
-});
-
-describe("recipePrompt", () => {
-  it("dopasowuje przepis do pogody", () => {
-    expect(recipePrompt("rain", 12)).toBe("Przepis na deszcz");
-    expect(recipePrompt("storm", 20)).toBe("Przepis na deszcz");
-    expect(recipePrompt("snow", 1)).toBe("Przepis na chłód");
-    expect(recipePrompt("cloudy", 5)).toBe("Przepis na chłód");
-    expect(recipePrompt("sunny", 24)).toBe("Przepis na słońce");
-    expect(recipePrompt("cloudy", 15)).toBe("Przepis na dziś");
   });
 });
 

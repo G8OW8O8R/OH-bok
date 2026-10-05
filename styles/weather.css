@@ -108,7 +108,7 @@
     overflow: hidden;
   }
 
-  /* Lampa w kadrze 1280×720: (995, 160) px → 77,7% × 22,2%. */
+  /* Lampa w kadrze 1920×1080: (1492, 240) px → 77,7% × 22,2%. */
   .beam-sweep {
     position: absolute;
     left: 77.7%;

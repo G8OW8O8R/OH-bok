@@ -30,7 +30,7 @@ test("scena deszczowa: poster w HTML z serwera, wideo wczytywane dopiero po hydr
   await page.goto("/?boot=off&weather=rain");
   await expect(page.getByTestId("scene")).toHaveAttribute("data-weather", "rain");
   await expect(layerVideo(page)).toHaveCount(1);
-  await expect(layerVideo(page)).toHaveAttribute("src", "/scenes/rain-lighthouse/loop-720.mp4");
+  await expect(layerVideo(page)).toHaveAttribute("src", "/scenes/rain-lighthouse/loop-1080.mp4");
 
   expect(errors).toEqual([]);
 });
@@ -55,7 +55,7 @@ for (const [weather, folder] of [
     const errors = collectConsoleErrors(page);
     await page.goto(`/?boot=off&weather=${weather}&time=day`);
     await expect(page.getByTestId("scene")).toHaveAttribute("data-weather", weather);
-    await expect(layerVideo(page)).toHaveAttribute("src", `/scenes/${folder}/loop-720.mp4`);
+    await expect(layerVideo(page)).toHaveAttribute("src", `/scenes/${folder}/loop-1080.mp4`);
     await expect(layerPoster(page)).toHaveAttribute("src", `/scenes/${folder}/poster.jpg`);
     expect(errors).toEqual([]);
   });

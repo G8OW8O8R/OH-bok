@@ -5,19 +5,17 @@ import { glueShortWords } from "@/lib/typography";
 interface GreetingProps {
   title: string;
   brief: string;
-  recipeLabel: string;
   onPlan: () => void;
-  onRecipe: () => void;
 }
 
 const capsule =
   "glass rounded-pill px-5 py-2 text-body text-text-primary transition-[background-color,scale] duration-(--dur-feedback) ease-out hover:bg-white/12 active:scale-[0.97]";
 
 /**
- * Powitanie + brief dnia + dwie kapsuły szybkich akcji. Każda kapsuła prowadzi do swojego
- * celu na pulpicie (plan → przypomnienia, przepis → okrągły przepis).
+ * Powitanie + brief dnia + kapsuła szybkiej akcji „Plan dnia”, która prowadzi do swojego
+ * celu na pulpicie (przypomnienia).
  */
-export function Greeting({ title, brief, recipeLabel, onPlan, onRecipe }: GreetingProps) {
+export function Greeting({ title, brief, onPlan }: GreetingProps) {
   return (
     // Szerokości niezależne od treści (kolumnowo wyznacza ją `.desktop-hero-text`): brief
     // z przypomnieniem (po hydracji) nie poszerza halo ani nie przesuwa hero (CLS).
@@ -29,9 +27,6 @@ export function Greeting({ title, brief, recipeLabel, onPlan, onRecipe }: Greeti
       <div data-boot-part="actions" className="mt-6 flex flex-wrap gap-4">
         <button type="button" onClick={onPlan} className={capsule}>
           Plan dnia
-        </button>
-        <button type="button" onClick={onRecipe} className={capsule}>
-          {recipeLabel}
         </button>
       </div>
     </div>

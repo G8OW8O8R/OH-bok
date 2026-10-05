@@ -1,6 +1,6 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 
-const OBJECTS = ["weather-arc", "shopping-list", "reminders", "recipe", "player", "dock", "pill", "greeting", "orb"];
+const OBJECTS = ["weather-arc", "shopping-list", "reminders", "news-slot", "player", "dock", "pill", "greeting", "orb"];
 
 type Box = { x: number; y: number; width: number; height: number };
 
@@ -39,8 +39,8 @@ for (const [width, height] of [
       expect(b.y + b.height, id).toBeLessThanOrEqual(height);
     }
 
-    // Rząd obiektów i dock nie nachodzą na siebie.
-    const row = ["weather-arc", "shopping-list", "reminders", "recipe", "player"];
+    // Rząd obiektów (z zarezerwowanym miejscem na wiadomości) i dock nie nachodzą na siebie.
+    const row = ["weather-arc", "shopping-list", "reminders", "news-slot", "player"];
     const boxes = await Promise.all(row.map((id) => box(page.getByTestId(id))));
     const dock = await box(page.getByTestId("dock"));
     boxes.forEach((a, i) => {
@@ -64,7 +64,7 @@ test("tablet 820×1180: kolumny, kula u góry, bez poziomego przewijania", async
   await page.setViewportSize({ width: 820, height: 1180 });
   await page.goto("/?boot=off&weather=rain");
   const orb = await box(page.getByTestId("orb"));
-  for (const id of ["weather-arc", "shopping-list", "reminders", "recipe", "player"]) {
+  for (const id of ["weather-arc", "shopping-list", "reminders", "player"]) {
     const b = await box(page.getByTestId(id));
     expect(b.y, id).toBeGreaterThan(orb.y + orb.height);
     expect(b.x + b.width, id).toBeLessThanOrEqual(820);
@@ -89,16 +89,6 @@ test("zoom 200% (1440×900 → 720×450 CSS px): tekst rośnie fizycznie", async
   expect(zoomed / normal).toBeGreaterThanOrEqual(1.9);
 });
 
-test("„+” przepisu dodaje składniki do listy i ogłasza to w pigułce", async ({ page }) => {
-  await page.setViewportSize({ width: 1440, height: 900 });
-  await page.goto("/?boot=off&weather=rain");
-  await expect(page.getByTestId("shopping-list")).toContainText("Kupione 3 z 4");
-  await page.getByRole("button", { name: /Dodaj składniki do listy/ }).click();
-  await expect(page.getByTestId("shopping-list")).toContainText("Kupione 3 z 7");
-  await expect(page.getByTestId("pill")).toContainText("Dodano 3 składniki do listy");
-  await expect(page.getByRole("button", { name: "Składniki dodane do listy" })).toBeDisabled();
-});
-
 test("prefers-reduced-motion: kursor nie przesuwa obiektów", async ({ browser }) => {
   const context = await browser.newContext({ viewport: { width: 1440, height: 900 }, reducedMotion: "reduce" });
   const page = await context.newPage();
@@ -116,7 +106,7 @@ test("parallax: bliższe obiekty przesuwają się mocniej niż dalsze", async ({
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto("/?boot=off&weather=rain");
   const far = page.getByTestId("weather-arc");
-  const near = page.getByTestId("recipe");
+  const near = page.getByTestId("greeting");
   await page.mouse.move(720, 450);
   await page.waitForTimeout(800);
   const [far0, near0] = [await box(far), await box(near)];

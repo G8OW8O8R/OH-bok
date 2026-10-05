@@ -8,7 +8,7 @@
  */
 
 /** Natywny rozmiar nagrań i posterów sceny. */
-export const SCENE_MEDIA_SIZE = { width: 1280, height: 720 } as const;
+export const SCENE_MEDIA_SIZE = { width: 1920, height: 1080 } as const;
 
 export const SCENE_ASPECT = SCENE_MEDIA_SIZE.width / SCENE_MEDIA_SIZE.height;
 

@@ -11,12 +11,14 @@ import { useSceneSource } from "./SceneSource";
 const BOLTS = [1, 2, 3] as const;
 type BoltVariant = 720 | 1440;
 
-/** Wersja 1440 dopiero, gdy pudełko kadru ma wyraźnie więcej pikseli fizycznych niż 1280. */
+/** Wersja 1440 dopiero, gdy pudełko kadru ma wyraźnie więcej niż 1280 pikseli fizycznych szerokości. */
+const HIRES_FROM_PX = 1600;
+
 function chooseVariant(): BoltVariant {
   const root = document.documentElement;
   const dpr = window.devicePixelRatio || 1;
   const fit = computeSceneFit(root.clientWidth, root.clientHeight, dpr);
-  return fit.width * dpr > SCENE_MEDIA_SIZE.width * 1.25 ? 1440 : 720;
+  return fit.width * dpr > HIRES_FROM_PX ? 1440 : 720;
 }
 
 /**

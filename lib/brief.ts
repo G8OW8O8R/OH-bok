@@ -168,11 +168,3 @@ export function composeBrief(weatherLine: string, context: BriefContext, compact
   }
   return weatherLine;
 }
-
-/** Druga kapsuła akcji: przepis dopasowany do pogody. */
-export function recipePrompt(state: WeatherState, maxC: number | null): string {
-  if (state === "rain" || state === "drizzle" || state === "storm") return "Przepis na deszcz";
-  if (state === "snow" || (maxC !== null && maxC < 8)) return "Przepis na chłód";
-  if (state === "sunny") return "Przepis na słońce";
-  return "Przepis na dziś";
-}
