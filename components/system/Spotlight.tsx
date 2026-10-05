@@ -1,7 +1,7 @@
 "use client";
 
 import { AnimatePresence, animate, motion, useReducedMotion, type AnimationPlaybackControls, type MotionValue } from "motion/react";
-import { Bell, BellRing, Check, CloudSun, Info, ListPlus, ListX, LoaderCircle, Search, Sparkles, X, type LucideIcon } from "lucide-react";
+import { Bell, BellRing, Check, CloudSun, Info, ListPlus, ListX, LoaderCircle, Music, Pause, Search, SkipForward, Sparkles, X, type LucideIcon } from "lucide-react";
 import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 import type { OrbFlight } from "@/components/orb/flight";
 import { useParallax } from "@/components/ui/Parallax";
@@ -23,6 +23,7 @@ import { describeAlert } from "@/lib/markets/alerts";
 import { displayCurrency, formatPrice, type Currency } from "@/lib/markets/currency";
 import { usableFx } from "@/lib/markets/fx";
 import { ensureMarketsHydrated } from "@/lib/markets/use-markets";
+import { unlockAudio } from "@/lib/music/engine";
 import { duration, ease, spring, transitionFor } from "@/lib/motion";
 import { pluralPl } from "@/lib/plural";
 import { addChange, findItem, restoreItem, revertAdd } from "@/lib/shopping/list";
@@ -31,6 +32,7 @@ import type { DailyForecast, WeatherData } from "@/lib/weather/schema";
 import { APPS, originLayoutId, type AppId } from "@/lib/windows/apps";
 import { useAlertsStore } from "@/store/alerts";
 import { useMarketsStore } from "@/store/markets";
+import { useMusicStore } from "@/store/music";
 import { useRemindersStore } from "@/store/reminders";
 import { useShoppingStore } from "@/store/shopping";
 import { APP_ICONS } from "./Dock";
@@ -66,7 +68,7 @@ type Item =
   | { id: string; type: "ask" };
 
 type Outcome =
-  | { ok: true; tone: OutcomeTone; title: string; detail: string; chips?: string[]; undo: (() => void) | null; target: "pill" | "shopping" | null; message: string }
+  | { ok: true; tone: OutcomeTone; title: string; detail: string; chips?: string[]; undo: (() => void) | null; target: "pill" | "shopping" | "player" | null; message: string }
   | { ok: false; error: string };
 
 interface Run {
@@ -401,6 +403,8 @@ export function Spotlight({ phase, onRequestClose, onClosed, orbAnchor, flight, 
       case "weather":
         onPinDay(c.date);
         return { ok: true, tone: "items", title: "", detail: "", undo: null, target: null, message: "" };
+      case "music":
+        return controlMusic(c.action);
       case "openApp":
         return { ok: true, tone: "items", title: "", detail: "", undo: null, target: null, message: "" };
     }
@@ -410,6 +414,7 @@ export function Spotlight({ phase, onRequestClose, onClosed, orbAnchor, flight, 
     const target =
       outcome.target === "pill" ? document.querySelector('[data-slot="pill"]')
       : outcome.target === "shopping" ? document.getElementById("shopping")
+      : outcome.target === "player" ? document.getElementById("player")
       : null;
     const row = document.getElementById(`${listId}-${rowId}`);
     // Na telefonie arkusz zakrywa pulpit, a przy reduced motion nic nie leci: tylko komunikat.
@@ -495,6 +500,7 @@ export function Spotlight({ phase, onRequestClose, onClosed, orbAnchor, flight, 
     }
     // Zestaw od asystenta: Enter na dowolnym wierszu wykonuje wszystkie akcje (karty ceny i prognozy zostają).
     if (item.ai && aiActions.length > 0) {
+      if (aiActions.some((action) => action.kind === "music")) unlockAudio();
       runActions(
         items.flatMap((entry) => (entry.type === "command" && entry.ai && isAction(entry.command) ? [{ command: entry.command, rowId: entry.id }] : [])),
         true,
@@ -512,6 +518,7 @@ export function Spotlight({ phase, onRequestClose, onClosed, orbAnchor, flight, 
       runActions([{ command: { ...c, pin: true }, rowId: item.id }]);
       return;
     }
+    if (c.kind === "music") unlockAudio();
     if (isAction(c)) runAction(c);
   };
 
@@ -838,6 +845,10 @@ export function Spotlight({ phase, onRequestClose, onClosed, orbAnchor, flight, 
         );
       case "openApp":
         return <RowText icon={APP_ICONS[c.app]} primary="Otwórz" secondary={APPS[c.app].title} selected={item === activeItem} enter={enter} />;
+      case "music": {
+        const row = MUSIC_ROWS[c.action];
+        return <RowText icon={row.icon} primary={row.primary} secondary={row.secondary} selected={item === activeItem} enter={enter} />;
+      }
       default:
         return null;
     }
@@ -881,6 +892,41 @@ function commandIcon(command: ActionCommand): LucideIcon {
       return APP_ICONS[command.app];
     case "weather":
       return CloudSun;
+    case "music":
+      return MUSIC_ROWS[command.action].icon;
+  }
+}
+
+const MUSIC_ROWS = {
+  play: { icon: Music, primary: "Włącz muzykę", secondary: "Audius, w nastroju pogody" },
+  calm: { icon: Music, primary: "Coś spokojnego", secondary: "ambient i pianino z Audius" },
+  pause: { icon: Pause, primary: "Pauza", secondary: "odtwarzacz" },
+  next: { icon: SkipForward, primary: "Następny utwór", secondary: "odtwarzacz" },
+} as const;
+
+/** Komenda odtwarzacza → wynik w Spotlighcie (duch leci do kapsuły). */
+function controlMusic(action: Extract<Command, { kind: "music" }>["action"]): Outcome {
+  const music = useMusicStore.getState();
+  const track = music.tracks[music.index];
+  const playing = music.status === "playing" || music.status === "buffering";
+  const done = (title: string, detail: string): Outcome => ({ ok: true, tone: "music", title, detail, undo: null, target: "player", message: detail ? `${title}: ${detail}` : title });
+  switch (action) {
+    case "play":
+      if (!playing) music.play();
+      return done(playing ? "Muzyka już gra" : "Włączono muzykę", track ? `${track.title} · ${track.artist}` : music.label);
+    case "calm":
+      music.playCalm();
+      return done("Coś spokojnego", "spokojna kolejka z Audius");
+    case "pause":
+      if (!playing) return { ok: false, error: "Nic teraz nie gra." };
+      music.pause();
+      return done("Wstrzymano muzykę", track?.title ?? "");
+    case "next": {
+      if (music.tracks.length === 0) return { ok: false, error: "Muzyka chwilowo niedostępna." };
+      music.next();
+      const next = useMusicStore.getState().tracks[useMusicStore.getState().index];
+      return done("Następny utwór", next && next !== track ? `${next.title} · ${next.artist}` : "nowa kolejka");
+    }
   }
 }
 

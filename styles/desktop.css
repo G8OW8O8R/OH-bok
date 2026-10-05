@@ -422,6 +422,18 @@
     animation-play-state: paused;
   }
 
+  /* Widmo z analizatora (strumień z CORS): skalę słupków ustawia skrypt. */
+  [data-analysed] .wave-bar {
+    animation: none;
+    transition: scale 80ms linear;
+  }
+
+  /* Widmo z analizatora (strumień z CORS): skalę słupków ustawia skrypt. */
+  [data-analysed] .wave-bar {
+    animation: none;
+    transition: scale 80ms linear;
+  }
+
   @keyframes wave-bar {
     from {
       scale: 1 0.35;

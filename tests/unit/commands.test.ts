@@ -189,6 +189,49 @@ describe("parser: pogoda", () => {
   });
 });
 
+describe("parser: muzyka", () => {
+  const music = (text: string) => {
+    const command = parse(text);
+    return command.kind === "music" ? command.action : command.kind;
+  };
+
+  it("włącz muzykę i warianty → play", () => {
+    for (const text of ["włącz muzykę", "Puść muzykę!", "zagraj jakąś muzykę", "graj", "wznów", "muzyka", "włącz mi piosenkę"]) {
+      expect(music(text), text).toBe("play");
+    }
+  });
+
+  it("coś spokojnego → calm", () => {
+    for (const text of ["coś spokojnego", "Puść coś spokojnego", "włącz spokojną muzykę", "coś do relaksu", "muzyka do relaksu"]) {
+      expect(music(text), text).toBe("calm");
+    }
+  });
+
+  it("pauza → pause", () => {
+    for (const text of ["pauza", "Pauza.", "zatrzymaj muzykę", "wstrzymaj", "stop", "wyłącz muzykę", "przestań grać"]) {
+      expect(music(text), text).toBe("pause");
+    }
+  });
+
+  it("następny → next", () => {
+    for (const text of ["następny", "Następny utwór", "następna piosenka", "pomiń", "dalej", "przełącz na następny utwór", "inna piosenka"]) {
+      expect(music(text), text).toBe("next");
+    }
+  });
+
+  it("komenda muzyki jest akcją Spotlightu", () => {
+    expect(isAction(parse("pauza"))).toBe(true);
+  });
+
+  it("nie przechwytuje innych komend", () => {
+    expect(parse("otwórz rynki").kind).toBe("openApp");
+    expect(parse("dodaj płytę z muzyką").kind).toBe("addItems");
+    expect(parse("przypomnij mi jutro o 9 o muzyce").kind).toBe("reminder");
+    expect(parse("następny wtorek").kind).not.toBe("music");
+    expect(parse("stop wojnie").kind).not.toBe("music");
+  });
+});
+
 describe("parser: reszta", () => {
   it("niezrozumiałe i puste → unknown", () => {
     expect(parse("opowiedz mi dowcip")).toEqual({ kind: "unknown" });

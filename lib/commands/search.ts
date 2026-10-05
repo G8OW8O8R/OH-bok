@@ -54,15 +54,17 @@ export function formatCommandWhen(at: Date, now: Date, timeZone: string): string
 
 /** Komendy, które coś zmieniają (wykonanie Enterem, chipy postępu, „Cofnij”). */
 export type ActionCommand =
-  | Extract<Command, { kind: "addItems" | "removeItem" | "reminder" | "alert" | "openApp" }>
+  | Extract<Command, { kind: "addItems" | "removeItem" | "reminder" | "alert" | "openApp" | "music" }>
   | (Extract<Command, { kind: "weather" }> & { pin: true });
 
-const ACTION_KINDS: readonly Command["kind"][] = ["addItems", "removeItem", "reminder", "alert", "openApp"];
+const ACTION_KINDS: readonly Command["kind"][] = ["addItems", "removeItem", "reminder", "alert", "openApp", "music"];
 
 export function isAction(command: Command): command is ActionCommand {
   if (command.kind === "weather") return command.pin;
   return ACTION_KINDS.includes(command.kind);
 }
+
+const MUSIC_PROGRESS = { play: "Włączam muzykę…", calm: "Szukam czegoś spokojnego…", pause: "Wstrzymuję…", next: "Przełączam utwór…" } as const;
 
 /** Środkowy chip postępu („Rozumiem polecenie ✓” → ten → „Gotowe ✓”). */
 export function progressLabel(command: ActionCommand): string {
@@ -79,5 +81,7 @@ export function progressLabel(command: ActionCommand): string {
       return `Otwieram: ${APPS[command.app].title}…`;
     case "weather":
       return "Zmieniam scenę…";
+    case "music":
+      return MUSIC_PROGRESS[command.action];
   }
 }

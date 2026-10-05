@@ -21,7 +21,6 @@ import { ShoppingList } from "@/components/widgets/ShoppingList";
 import { WeatherArc } from "@/components/widgets/WeatherArc";
 import { isBootDone, reportBootSignal } from "@/lib/boot";
 import { composeBrief, dayBrief, greeting } from "@/lib/brief";
-import { SAMPLE_TRACK } from "@/lib/desktop/sample";
 import { useMarketAlerts } from "@/lib/markets/use-markets";
 import type { NewsCategory } from "@/lib/news/sources";
 import { useNews } from "@/lib/news/use-news";
@@ -38,6 +37,7 @@ import { useNow, useUserTimeZone } from "@/lib/use-now";
 import type { WeatherData } from "@/lib/weather/schema";
 import { useWeather } from "@/lib/weather/use-weather";
 import { nextWakeAt, useRemindersStore } from "@/store/reminders";
+import { useMusicStore } from "@/store/music";
 import { useShoppingStore } from "@/store/shopping";
 import { Boot } from "./Boot";
 import { Clock } from "./Clock";
@@ -155,6 +155,12 @@ export function Desktop({ initialWeather, override, timeOverride, initialNow, or
     (date: string) => setPinnedDay((current) => (date === today || current === date ? null : date)),
     [today],
   );
+
+  // Muzyka: nastrój z pogody za oknem i pory z zegara (nie z dnia oglądanego w prognozie).
+  const liveWeather = currentConditions(weather, override).state;
+  useEffect(() => {
+    useMusicStore.getState().setScene(liveWeather, clockPeriod);
+  }, [liveWeather, clockPeriod]);
 
   // Esc wraca do dziś (otwarte okno obsługuje Esc samo).
   useEffect(() => {
@@ -352,7 +358,7 @@ export function Desktop({ initialWeather, override, timeOverride, initialNow, or
             timeZone={timeZone}
             onOpen={() => windows.open("news", "tile")}
           />
-          <PlayerCapsule track={SAMPLE_TRACK} cover={SCENE_MEDIA[resolved.video].poster} />
+          <PlayerCapsule cover={SCENE_MEDIA[resolved.video].poster} />
         </div>
 
         <WindowBackdrop />

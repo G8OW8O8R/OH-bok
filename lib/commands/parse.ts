@@ -29,6 +29,9 @@ export const alertCommandSchema = z.object({
 });
 /** Prognoza dnia; `pin` = przypięcie dnia na pulpicie („pokaż czwartek”). */
 export const weatherCommandSchema = z.object({ kind: z.literal("weather"), date: z.iso.date(), pin: z.boolean() });
+/** Odtwarzacz: `calm` = „coś spokojnego” (spokojna kolejka i od razu gra). */
+export const MUSIC_ACTIONS = ["play", "pause", "next", "calm"] as const;
+export const musicCommandSchema = z.object({ kind: z.literal("music"), action: z.enum(MUSIC_ACTIONS) });
 
 export const commandSchema = z.discriminatedUnion("kind", [
   addItemsCommandSchema,
@@ -38,6 +41,7 @@ export const commandSchema = z.discriminatedUnion("kind", [
   priceCommandSchema,
   alertCommandSchema,
   weatherCommandSchema,
+  musicCommandSchema,
   /** Zrozumiany zamiar bez kompletu danych: podpowiedź zamiast zgadywania. */
   z.object({ kind: z.literal("incomplete"), intent: z.enum(["reminder", "alert"]), message: z.string() }),
   z.object({ kind: z.literal("unknown") }),
@@ -118,6 +122,25 @@ function parseWeather(text: string, today: string): Command | null {
   // Samo „pogoda” otwiera aplikację.
   if (!day && /^\s*(pogod\w*|prognoz\w*)\s*$/.test(phrase.key)) return null;
   return { kind: "weather", date: day ? resolveDay(day, today) : today, pin: false };
+}
+
+const MUSIC_NOUN = String.raw`(?:muzyk[aeiy]|muzyczk[aeiy]|piosenk[aeiy]|utwor|kawalek|playlist[aeiy]|odtwarzanie|odtwarzacz)`;
+const MUSIC_CALM = /^(?:(?:wlacz|pusc|zagraj|daj|graj)\s+(?:mi\s+)?)?(?:cos\s+(?:spokojn\w*|na\s+relaks|do\s+relaksu|wyciszajac\w*|lagodn\w*)|spokojn\w*(?:\s+muzyk\w*)?|muzyk\w*\s+(?:spokojn\w*|do\s+relaksu|na\s+relaks)|relaks\w*)$/;
+const MUSIC_PAUSE = new RegExp(String.raw`^(?:pauza|zapauzuj|stop|zatrzymaj|wstrzymaj|wylacz|wycisz|przestan\s+grac|cisza)(?:\s+${MUSIC_NOUN})?$`);
+const MUSIC_NEXT = new RegExp(String.raw`^(?:(?:nastepn\w*|kolejn\w*)(?:\s+${MUSIC_NOUN})?|inn\w*\s+${MUSIC_NOUN}|(?:pomin|przewin)(?:\s+${MUSIC_NOUN})?|(?:zmien|przelacz)\s+(?:na\s+)?(?:nastepn\w*\s+|inn\w*\s+)?${MUSIC_NOUN}|dalej|skip)$`);
+const MUSIC_PLAY = new RegExp(String.raw`^(?:(?:wlacz|pusc|zagraj|odtworz|graj|wznow|daj)(?:\s+(?:mi|nam))?(?:\s+(?:jakas|troche|cos))?\s+${MUSIC_NOUN}|(?:graj|wznow|play)|${MUSIC_NOUN})$`);
+
+/**
+ * Odtwarzacz: „włącz muzykę”, „coś spokojnego”, „pauza”, „następny”. Tylko całe, krótkie polecenia
+ * („stop” w środku zdania to nie pauza); same „pauza”, „stop”, „dalej” zawsze dotyczą muzyki.
+ */
+function parseMusic(key: string): Command | null {
+  const text = key.replace(/^(?:prosze\s+)?/, "").replace(/\s+prosze$/, "").trim();
+  if (MUSIC_CALM.test(text)) return { kind: "music", action: "calm" };
+  if (MUSIC_PAUSE.test(text)) return { kind: "music", action: "pause" };
+  if (MUSIC_NEXT.test(text)) return { kind: "music", action: "next" };
+  if (MUSIC_PLAY.test(text)) return { kind: "music", action: "play" };
+  return null;
 }
 
 const LIST_SUFFIX = /\s+(?:do|na)\s+(?:listy|liste|zakupow|koszyka)(?:\s+zakupow)?\s*$/;
@@ -242,6 +265,7 @@ export function parseCommand(input: string, ctx: ParseContext): Command {
   const key = fold(text);
   const today = todayIn(ctx.now, ctx.timeZone);
   return (
+    parseMusic(key) ??
     parseAlert(key) ??
     parsePrice(key) ??
     parseReminder(text, ctx, true) ??

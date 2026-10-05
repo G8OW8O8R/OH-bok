@@ -1,6 +1,6 @@
 "use client";
 
-import { Bell, BellRing, Check, Droplet, ListPlus, ListX, Sparkles, Undo2, Wind } from "lucide-react";
+import { Bell, BellRing, Check, Droplet, ListPlus, ListX, Music, Sparkles, Undo2, Wind } from "lucide-react";
 import { createElement, useId, useState } from "react";
 import { changeClass, CoinBadge, useDisplay } from "@/components/apps/markets/shared";
 import { weatherIcon } from "@/components/apps/weather-icons";
@@ -148,9 +148,9 @@ export function WeatherCard({ day, label }: { day: DailyForecast; label: string 
   );
 }
 
-export type OutcomeTone = "reminder" | "items" | "removed" | "alert";
+export type OutcomeTone = "reminder" | "items" | "removed" | "alert" | "music";
 
-const OUTCOME_ICON = { reminder: Bell, items: ListPlus, removed: ListX, alert: BellRing } as const;
+const OUTCOME_ICON = { reminder: Bell, items: ListPlus, removed: ListX, alert: BellRing, music: Music } as const;
 
 interface OutcomeCardProps {
   tone: OutcomeTone;
