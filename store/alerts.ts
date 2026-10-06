@@ -3,6 +3,7 @@
 import { z } from "zod";
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
+import { appStorage } from "@/lib/storage";
 import {
   createAlert,
   evaluateAlerts,
@@ -48,7 +49,7 @@ export const useAlertsStore = create<AlertsState>()(
     {
       name: ALERTS_STORAGE_KEY,
       version: 1,
-      storage: createJSONStorage(() => localStorage),
+      storage: createJSONStorage(() => appStorage),
       partialize: ({ alerts }): PersistedAlerts => ({ alerts }),
       merge: (persisted, current) => {
         const parsed = persistedSchema.safeParse(persisted);

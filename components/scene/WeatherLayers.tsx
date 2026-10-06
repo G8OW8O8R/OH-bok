@@ -22,6 +22,8 @@ interface WeatherLayersProps {
   transitionS: number;
   /** Zmienna `--dur-scene` przy wolnym przejściu pory (przejścia CSS: mgła, pyłki). */
   durationStyle?: CSSProperties;
+  /** Tryb demo: burza zaczyna się od pioruna po tylu ms. */
+  firstStrikeMs?: number;
 }
 
 interface FadeProps {
@@ -54,7 +56,7 @@ function Fade({ name, screen = false, transitionS, children }: FadeProps) {
  * z warunków sceny. Leżą w `scene-stage` (pod scrimem i UI); animacje CSS pauzują
  * przy ukrytej karcie, pętle JS (opad, pioruny) stoją same.
  */
-export function WeatherLayers({ conditions, effects, period, transitionS, durationStyle }: WeatherLayersProps) {
+export function WeatherLayers({ conditions, effects, period, transitionS, durationStyle, firstStrikeMs }: WeatherLayersProps) {
   const reduceMotion = useReducedMotion() ?? false;
   const hidden = usePageHidden();
   const precipitation = effects.precipitation;
@@ -77,7 +79,7 @@ export function WeatherLayers({ conditions, effects, period, transitionS, durati
         {effects.lightning && (
           <Fade key="lightning" name="lightning" screen transitionS={transitionS}>
             {/* Opakowanie zawsze (ta sama struktura w SSR i po hydracji), pioruny tylko bez reduced motion. */}
-            <LightningLayer enabled={!reduceMotion} />
+            <LightningLayer enabled={!reduceMotion} firstStrikeMs={firstStrikeMs} />
           </Fade>
         )}
         {effects.beam && (

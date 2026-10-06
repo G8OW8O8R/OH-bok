@@ -1,6 +1,6 @@
 "use client";
 
-import { AlarmClock, ChartCandlestick, Cloud, ListChecks, Newspaper, Search, type LucideIcon } from "lucide-react";
+import { AlarmClock, ChartCandlestick, Cloud, Info, ListChecks, Newspaper, Search, type LucideIcon } from "lucide-react";
 import { motion } from "motion/react";
 import { Glass } from "@/components/ui/Glass";
 import { APP_IDS, APPS, originLayoutId, type AppId } from "@/lib/windows/apps";
@@ -14,10 +14,11 @@ export const APP_ICONS: Record<AppId, LucideIcon> = {
   reminders: AlarmClock,
   markets: ChartCandlestick,
   news: Newspaper,
+  about: Info,
 };
 
 /** Tylko aplikacje, które istnieją (bez „wkrótce” i martwych przycisków). */
-const DOCK: { id: AppId; icon: LucideIcon }[] = APP_IDS.map((id) => ({ id, icon: APP_ICONS[id] }));
+const DOCK: { id: AppId; icon: LucideIcon }[] = APP_IDS.filter((id) => APPS[id].dock).map((id) => ({ id, icon: APP_ICONS[id] }));
 
 const BUTTON =
   "relative grid size-13.5 place-items-center rounded-full border border-white/8 bg-white/6 text-text-primary transition-[background-color,scale] duration-(--dur-feedback) ease-out hover:bg-white/12 active:scale-95";

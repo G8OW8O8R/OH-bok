@@ -18,6 +18,10 @@ import { ShoppingList } from "@/components/widgets/ShoppingList";
 import { WeatherArc } from "@/components/widgets/WeatherArc";
 import { isBootDone, reportBootSignal } from "@/lib/boot";
 import { composeBrief, dayBrief, greeting } from "@/lib/brief";
+import { DEMO_PARAM } from "@/lib/demo/mode";
+import { DEMO_FIRST_STRIKE_MS } from "@/lib/demo/script";
+import { resetDemoData, restoreUserData } from "@/lib/demo/session";
+import { useDemoTour } from "@/lib/demo/use-demo";
 import { useMarketAlerts } from "@/lib/markets/use-markets";
 import type { NewsCategory } from "@/lib/news/sources";
 import { useNews } from "@/lib/news/use-news";
@@ -34,6 +38,7 @@ import { useIdleAfterBoot } from "@/lib/use-idle";
 import { useNow, useUserTimeZone } from "@/lib/use-now";
 import type { WeatherData } from "@/lib/weather/schema";
 import { useWeather } from "@/lib/weather/use-weather";
+import { APP_PARAM } from "@/lib/windows/url";
 import { nextWakeAt, useRemindersStore } from "@/store/reminders";
 import { useMusicStore } from "@/store/music";
 import { useShoppingStore } from "@/store/shopping";
@@ -43,7 +48,7 @@ import { Dock } from "./Dock";
 import { Logo } from "./Logo";
 import { Pill } from "./Pill";
 import type { AssistantOrbState, SpotlightPhase } from "./Spotlight";
-import { useWindows, WindowBackdrop } from "./Windows";
+import { replaceSearchParams, useWindows, WindowBackdrop } from "./Windows";
 
 /*
  * Okna aplikacji i Spotlight poza pakietem startowym: okna i tak nie są renderowane przez SSR
@@ -55,6 +60,7 @@ const ShoppingApp = dynamic(() => import("@/components/apps/Shopping").then((mod
 const RemindersApp = dynamic(() => import("@/components/apps/Reminders").then((module) => module.RemindersApp), { ssr: false });
 const MarketsApp = dynamic(() => import("@/components/apps/Markets").then((module) => module.MarketsApp), { ssr: false });
 const NewsApp = dynamic(() => import("@/components/apps/News").then((module) => module.NewsApp), { ssr: false });
+const AboutApp = dynamic(() => import("@/components/apps/About").then((module) => module.AboutApp), { ssr: false });
 const Spotlight = dynamic(() => import("./Spotlight").then((module) => module.Spotlight), { ssr: false });
 
 interface DesktopProps {
@@ -70,12 +76,14 @@ interface DesktopProps {
   orbState: OrbState;
   /** `?orb-mode=webgl|fallback` */
   orbMode: OrbMode | null;
+  /** `?demo=1`: automatyczna wycieczka na danych w pamięci. */
+  demo: boolean;
 }
 
 const CALL_MS = 1200;
 const MESSAGE_MS = 4000;
 
-export function Desktop({ initialWeather, override, timeOverride, initialNow, orbState, orbMode }: DesktopProps) {
+export function Desktop({ initialWeather, override: urlOverride, timeOverride: urlTimeOverride, initialNow, orbState, orbMode, demo: demoRequested }: DesktopProps) {
   const { weather, locating, locationError, locate } = useWeather(initialWeather);
   const daily = weather.daily;
   // Zegar budzi się dokładnie na termin przypomnienia i na zmianę pory dnia.
@@ -91,6 +99,12 @@ export function Desktop({ initialWeather, override, timeOverride, initialNow, or
   const timeZone = useUserTimeZone(weather.timezone);
   const plannerReady = usePlannerSync(timeZone);
   const reduceMotion = useReducedMotion();
+
+  /*
+   * Tryb demo: scenariusz steruje sceną, porą, podglądem w kuli, Spotlightem i oknami.
+   * Pierwsza interakcja kończy demo – dane użytkownika wracają z localStorage (demo pisało do pamięci).
+   */
+  const [demoActive, setDemoActive] = useState(demoRequested);
 
   const news = useNews();
   /** Kategoria wiadomości wspólna dla widgetu i okna. */
@@ -129,6 +143,41 @@ export function Desktop({ initialWeather, override, timeOverride, initialNow, or
    */
   const [hoveredDay, setHoveredDay] = useState<string | null>(null);
   const [pinnedDay, setPinnedDay] = useState<string | null>(null);
+
+  const openSpotlight = useCallback(() => {
+    // Do końca startu kula leci z logo – Spotlight dopiero potem.
+    if (!isBootDone()) return;
+    spotlightOpener.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    setSpotlight("open");
+  }, []);
+
+  const closeSpotlight = useCallback(() => {
+    setSpotlight((phase) => (phase === "open" ? "closing" : phase));
+    // Fokus wraca od razu (pulpit przestaje być inert już w „closing”); okno otwarte z wyniku
+    // i tak przejmie fokus w następnej klatce.
+    requestAnimationFrame(() => {
+      const opener = spotlightOpener.current;
+      // Otwarcie skrótem bez fokusu (body) – fokus na kulę, z której Spotlight „wyszedł”.
+      const target = opener?.isConnected && opener !== document.body ? opener : document.getElementById("orb-button");
+      target?.focus({ preventScroll: true });
+    });
+  }, []);
+
+  const exitDemo = useCallback(() => {
+    setDemoActive(false);
+    setHoveredDay(null);
+    closeSpotlight();
+    // Okna demo nie mają wpisów w historii: znikają razem z parametrem `app`.
+    replaceSearchParams((params) => {
+      params.delete(DEMO_PARAM);
+      params.delete(APP_PARAM);
+    });
+    void restoreUserData(new Date(), timeZone);
+  }, [closeSpotlight, timeZone]);
+  const demo = useDemoTour(demoActive, reduceMotion ?? false, exitDemo);
+  const override = demo ? demo.weather : urlOverride;
+  const timeOverride = demo ? demo.time : urlTimeOverride;
+
   const today = dateIn(now, weather.timezone);
   // Dzień znika z prognozy (odświeżenie danych po północy) = powrót do dziś.
   const pinned = pinnedDay === null || pinnedDay === today ? null : (weather.daily.find((day) => day.date === pinnedDay) ?? null);
@@ -154,7 +203,9 @@ export function Desktop({ initialWeather, override, timeOverride, initialNow, or
   // wolnym przejściu pory, więc SSR i hydracja mają ten sam atrybut `style`.
   const durationStyle = pace === "period" ? { "--dur-scene": `${Math.round(transitionS * 1000)}ms` } : undefined;
   const shownDate = pinned?.date ?? today;
-  const previewDay = hoveredDay === null || hoveredDay === shownDate ? null : (weather.daily.find((day) => day.date === hoveredDay) ?? null);
+  // W demo podgląd dnia w kuli prowadzi scenariusz (przesunięcie od dziś w prognozie).
+  const hovered = demo ? (demo.previewDay === null ? null : (daily[demo.previewDay]?.date ?? null)) : hoveredDay;
+  const previewDay = hovered === null || hovered === shownDate ? null : (daily.find((day) => day.date === hovered) ?? null);
   const returnToToday = useCallback(() => setPinnedDay(null), []);
   const selectDay = useCallback(
     (date: string) => setPinnedDay((current) => (date === today || current === date ? null : date)),
@@ -178,25 +229,6 @@ export function Desktop({ initialWeather, override, timeOverride, initialNow, or
     return () => window.removeEventListener("keydown", onKey);
   }, [pinned, desktopInert, returnToToday]);
 
-  const openSpotlight = useCallback(() => {
-    // Do końca startu kula leci z logo – Spotlight dopiero potem.
-    if (!isBootDone()) return;
-    spotlightOpener.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-    setSpotlight("open");
-  }, []);
-
-  const closeSpotlight = useCallback(() => {
-    setSpotlight((phase) => (phase === "open" ? "closing" : phase));
-    // Fokus wraca od razu (pulpit przestaje być inert już w „closing”); okno otwarte z wyniku
-    // i tak przejmie fokus w następnej klatce.
-    requestAnimationFrame(() => {
-      const opener = spotlightOpener.current;
-      // Otwarcie skrótem bez fokusu (body) – fokus na kulę, z której Spotlight „wyszedł”.
-      const target = opener?.isConnected && opener !== document.body ? opener : document.getElementById("orb-button");
-      target?.focus({ preventScroll: true });
-    });
-  }, []);
-
   const spotlightClosed = useCallback(() => setSpotlight((phase) => (phase === "closing" ? "closed" : phase)), []);
 
   // Cmd/Ctrl+K (w otwartym Spotlighcie klawisze obsługuje panel; Esc tutaj, gdy fokus wypadł z panelu).
@@ -215,6 +247,34 @@ export function Desktop({ initialWeather, override, timeOverride, initialNow, or
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [spotlight, openSpotlight, closeSpotlight]);
+
+  // --- Tryb demo: Spotlight, okna i świeże dane na każde okrążenie ---------------------------------
+
+  const demoLoop = demo?.loop ?? null;
+  useEffect(() => {
+    if (demoLoop !== null) resetDemoData(new Date(), timeZone);
+    // Strefa liczy się tylko przy wstawianiu przykładowych przypomnień.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [demoLoop]);
+
+  const demoSpotlight = demo?.spotlight ?? null;
+  const demoSpotlightWas = useRef(false);
+  useEffect(() => {
+    if (demoSpotlight === null) return;
+    const was = demoSpotlightWas.current;
+    demoSpotlightWas.current = demoSpotlight;
+    if (demoSpotlight && !was) openSpotlight();
+    if (!demoSpotlight && was) closeSpotlight();
+  }, [demoSpotlight, openSpotlight, closeSpotlight]);
+
+  const demoWindow = demo ? demo.window : undefined;
+  const { stack: windowStack, open: openWindow, close: closeWindow } = windows;
+  useEffect(() => {
+    if (demoWindow === undefined) return;
+    for (const id of windowStack) if (id !== demoWindow) closeWindow(id);
+    // Bez wpisów w historii: „wstecz” po demo nie przechodzi przez jego okna.
+    if (demoWindow && !windowStack.includes(demoWindow)) openWindow(demoWindow, "dock", { history: "replace" });
+  }, [demoWindow, windowStack, openWindow, closeWindow]);
 
   useEffect(() => {
     const pending = timers.current;
@@ -270,6 +330,7 @@ export function Desktop({ initialWeather, override, timeOverride, initialNow, or
           period={period}
           transitionS={transitionS}
           durationStyle={durationStyle}
+          firstStrikeMs={demo ? DEMO_FIRST_STRIKE_MS : undefined}
         />
       </SceneVideo>
       <Scrim strength={tokens.scrimStrength} vignette={tokens.vignetteStrength} durationStyle={durationStyle} />
@@ -289,7 +350,7 @@ export function Desktop({ initialWeather, override, timeOverride, initialNow, or
       >
         {/* Pod otwartym oknem pulpit jest nieaktywny (fokus, klik, czytniki); dock zostaje dostępny. */}
         <header className="desktop-chrome" inert={desktopInert}>
-          <Logo />
+          <Logo onOpen={() => windows.open("about", "tile")} />
           <Pill
             next={next}
             now={now}
@@ -335,7 +396,7 @@ export function Desktop({ initialWeather, override, timeOverride, initialNow, or
         <div className="desktop-objects" inert={desktopInert}>
           <WeatherArc
             weather={weather}
-            override={override}
+            override={urlOverride}
             locating={locating}
             locationError={locationError}
             onLocate={locate}
@@ -368,6 +429,13 @@ export function Desktop({ initialWeather, override, timeOverride, initialNow, or
         </div>
 
         <WindowBackdrop />
+        {demoActive && (
+          <p role="status" className="demo-badge scene-text fixed z-[95] rounded-pill px-3.5 py-1.5 text-caption text-text-primary" data-testid="demo-badge">
+            <span aria-hidden className="mr-2 inline-block size-1.5 rounded-full bg-amber align-middle" />
+            Tryb demo <span aria-hidden>·</span> <span className="pointer-coarse:hidden">Esc, aby wyjść</span>
+            <span className="hidden pointer-coarse:inline">dotknij, aby wyjść</span>
+          </p>
+        )}
         <div inert={spotlightOpen} className="contents">
           <Dock onSearch={openSpotlight} searchOpen={spotlightOpen} />
         </div>
@@ -400,6 +468,7 @@ export function Desktop({ initialWeather, override, timeOverride, initialNow, or
             />
             <MarketsApp now={now} timeZone={timeZone} />
             <NewsApp digest={news.digest} category={newsCategory} onCategory={setNewsCategory} now={now} timeZone={timeZone} />
+            <AboutApp timeZone={timeZone} />
             <Spotlight
               phase={spotlight}
               onRequestClose={closeSpotlight}
@@ -412,6 +481,7 @@ export function Desktop({ initialWeather, override, timeOverride, initialNow, or
               onAssistant={setAssistantState}
               onPinDay={(date) => setPinnedDay(date === today ? null : date)}
               announce={announce}
+              script={demo?.spotlight ? { typed: demo.typed, submitted: demo.submitted } : null}
             />
           </>
         )}

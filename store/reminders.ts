@@ -3,6 +3,7 @@
 import { z } from "zod";
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
+import { appStorage } from "@/lib/storage";
 import {
   addReminder,
   completeReminder,
@@ -57,7 +58,7 @@ export const useRemindersStore = create<RemindersState>()(
     {
       name: REMINDERS_STORAGE_KEY,
       version: 1,
-      storage: createJSONStorage(() => localStorage),
+      storage: createJSONStorage(() => appStorage),
       partialize: ({ reminders, seeded }): PersistedReminders => ({ reminders, seeded }),
       merge: (persisted, current) => {
         const parsed = persistedSchema.safeParse(persisted);

@@ -30,6 +30,8 @@ const persistedSchema = z.object({
 
 type PersistedWeather = z.infer<typeof persistedSchema>;
 
+export const WEATHER_STORAGE_KEY = "obok-weather";
+
 export const useWeatherStore = create<WeatherState>()(
   persist(
     (set) => ({
@@ -42,7 +44,7 @@ export const useWeatherStore = create<WeatherState>()(
       forgetLocation: () => set({ coords: null, consent: "unknown" }),
     }),
     {
-      name: "obok-weather",
+      name: WEATHER_STORAGE_KEY,
       version: 1,
       storage: createJSONStorage(() => localStorage),
       partialize: ({ consent, coords, lastGood }): PersistedWeather => ({ consent, coords, lastGood }),

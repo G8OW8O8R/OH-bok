@@ -14,7 +14,7 @@ import {
 } from "react";
 import { duration, ease, transitionFor } from "@/lib/motion";
 import { useBootState } from "@/lib/use-boot";
-import type { AppId, WindowOrigin } from "@/lib/windows/apps";
+import { openerElementId, type AppId, type WindowOrigin } from "@/lib/windows/apps";
 import {
   closeWindow,
   cycleWindows,
@@ -41,7 +41,8 @@ interface WindowsContextValue {
   sheets: boolean;
   /** Skąd otwarto okno (przejście współdzielone); null = z linku albo „dalej” w historii. */
   originOf: (id: AppId) => WindowOrigin | null;
-  open: (id: AppId, origin: WindowOrigin) => void;
+  /** `history: "replace"` – bez wpisu w historii (tryb demo: „wstecz” nie przechodzi przez jego okna). */
+  open: (id: AppId, origin: WindowOrigin, options?: { history?: "push" | "replace" }) => void;
   close: (id: AppId) => void;
   focus: (id: AppId) => void;
 }
@@ -126,6 +127,18 @@ function navigate(mode: "push" | "replace", stack: WindowStack, state: unknown) 
 }
 
 /**
+ * Podmiana parametrów adresu bez wpisu w historii (np. koniec trybu demo: bez `demo` i `app`).
+ * Okna subskrybują adres, więc usunięcie `app` je zamyka.
+ */
+export function replaceSearchParams(update: (params: URLSearchParams) => void) {
+  const params = new URLSearchParams(window.location.search);
+  update(params);
+  const query = params.toString().replace(/%2C/gi, ",");
+  window.history.replaceState(window.history.state, "", `${window.location.pathname}${query ? `?${query}` : ""}`);
+  window.dispatchEvent(new Event(LOCATION_EVENT));
+}
+
+/**
  * System okien: stos okien zapisany w adresie (`?app=pogoda,lista`), „wstecz”
  * zamyka okno, fokus i kolejność warstw, Esc i F6, powrót fokusu do ikony albo kafelka.
  * Okna z linku otwierają się dopiero po sekwencji startu (pozycja jest w localStorage, a okno
@@ -148,7 +161,7 @@ export function WindowsProvider({ children }: { children: ReactNode }) {
     if (ready) void useWindowsStore.persist.rehydrate();
   }, [ready]);
 
-  const open = useCallback((id: AppId, origin: WindowOrigin) => {
+  const open = useCallback((id: AppId, origin: WindowOrigin, options?: { history?: "push" | "replace" }) => {
     const current = currentStack();
     const next = openWindow(current, id);
     if (next === current) return;
@@ -159,7 +172,8 @@ export function WindowsProvider({ children }: { children: ReactNode }) {
       navigate("replace", next, window.history.state);
     } else {
       setOrigins((value) => ({ ...value, [id]: origin }));
-      navigate("push", next, { obokApp: id } satisfies WindowHistoryState);
+      if (options?.history === "replace") navigate("replace", next, window.history.state);
+      else navigate("push", next, { obokApp: id } satisfies WindowHistoryState);
     }
   }, []);
 
@@ -204,7 +218,7 @@ export function WindowsProvider({ children }: { children: ReactNode }) {
     lastFocused.current.delete(closed);
     const opener = openers.current.get(closed);
     openers.current.delete(closed);
-    const target = opener?.isConnected ? opener : document.getElementById(`dock-${closed}`);
+    const target = opener?.isConnected ? opener : document.getElementById(openerElementId(closed));
     target?.focus({ preventScroll: true });
   }, [stack]);
 

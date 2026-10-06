@@ -38,8 +38,9 @@ export function nextStrikeDelay(random: () => number = Math.random): number {
   return Math.round(between(STRIKE_INTERVAL_MS.min, STRIKE_INTERVAL_MS.max, random()));
 }
 
-export function planStrike(random: () => number = Math.random, boltCount = 3): Strike {
-  const bolt = random() < CLOUD_FLASH_CHANCE ? null : Math.min(boltCount - 1, Math.floor(random() * boltCount));
+export function planStrike(random: () => number = Math.random, boltCount = 3, forceBolt = false): Strike {
+  const cloud = random() < CLOUD_FLASH_CHANCE && !forceBolt;
+  const bolt = cloud ? null : Math.min(boltCount - 1, Math.floor(random() * boltCount));
   const peak = bolt === null ? 0.7 : 1;
   if (random() < DOUBLE_FLASH_CHANCE) {
     const first = Math.round(between(60, 90, random()));
@@ -125,6 +126,8 @@ interface SchedulerOptions {
   onStrike: (strike: Strike) => void;
   random?: () => number;
   boltCount?: number;
+  /** Pierwszy błysk po tylu ms i zawsze z piorunem (tryb demo); dalej zwykłe losowe odstępy. */
+  firstStrikeMs?: number;
 }
 
 /**
@@ -138,9 +141,11 @@ export class LightningScheduler {
   private readonly limiter = new FlashLimiter();
   private readonly unsubscribe: () => void;
   private readonly random: () => number;
+  private first: boolean;
 
   constructor(private readonly options: SchedulerOptions) {
     this.random = options.random ?? Math.random;
+    this.first = options.firstStrikeMs !== undefined;
     this.unsubscribe = options.visibility.subscribe(() => this.update());
   }
 
@@ -166,7 +171,8 @@ export class LightningScheduler {
 
   private schedule(): void {
     if (this.timer !== null) return;
-    this.timer = this.options.clock.setTimeout(this.fire, nextStrikeDelay(this.random));
+    const delay = this.first && this.options.firstStrikeMs !== undefined ? this.options.firstStrikeMs : nextStrikeDelay(this.random);
+    this.timer = this.options.clock.setTimeout(this.fire, delay);
   }
 
   private cancel(): void {
@@ -177,7 +183,9 @@ export class LightningScheduler {
 
   private readonly fire = (): void => {
     this.timer = null;
-    const strike = this.limiter.admit(planStrike(this.random, this.options.boltCount), this.options.clock.now());
+    const forceBolt = this.first;
+    this.first = false;
+    const strike = this.limiter.admit(planStrike(this.random, this.options.boltCount, forceBolt), this.options.clock.now());
     if (strike) this.options.onStrike(strike);
     this.update();
   };

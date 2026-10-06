@@ -58,6 +58,8 @@ interface SpotlightProps {
   onAssistant: (state: AssistantOrbState) => void;
   onPinDay: (date: string) => void;
   announce: (text: string) => void;
+  /** Tryb demo: tekst „wpisywany” w pole i Enter (`submitted` przechodzi na true). */
+  script?: { typed: string; submitted: boolean } | null;
 }
 
 type Item =
@@ -117,7 +119,7 @@ function alertCurrency(requested: Currency | null): Currency {
  * chipy postępu i akcje, które lecą do celu. Kula z pulpitu przelatuje na środek u góry i „słucha”.
  * ARIA: combobox + listbox (strzałki, Enter), Esc i klik w tło zamykają, Tab krąży w panelu.
  */
-export function Spotlight({ phase, onRequestClose, onClosed, orbAnchor, flight, now, timeZone, weather, onAssistant, onPinDay, announce }: SpotlightProps) {
+export function Spotlight({ phase, onRequestClose, onClosed, orbAnchor, flight, now, timeZone, weather, onAssistant, onPinDay, announce, script = null }: SpotlightProps) {
   const reduceMotion = useReducedMotion() ?? false;
   const windows = useWindows();
   const parallax = useParallax("near");
@@ -155,6 +157,18 @@ export function Spotlight({ phase, onRequestClose, onClosed, orbAnchor, flight, 
     } else {
       setGhosts([]);
       cancelAsk();
+    }
+  }
+
+  // Tryb demo: pole dostaje kolejne znaki komendy, jakby ktoś ją wpisywał.
+  const scriptTyped = script?.typed ?? null;
+  const [lastTyped, setLastTyped] = useState(scriptTyped);
+  if (scriptTyped !== lastTyped) {
+    setLastTyped(scriptTyped);
+    if (scriptTyped !== null) {
+      setQuery(scriptTyped);
+      setActive(0);
+      setRun(null);
     }
   }
 
@@ -521,6 +535,16 @@ export function Spotlight({ phase, onRequestClose, onClosed, orbAnchor, flight, 
     if (c.kind === "music") unlockAudio();
     if (isAction(c)) runAction(c);
   };
+
+  // Tryb demo: Enter raz, w chwili przejścia `submitted` na true.
+  const scriptSubmitted = script?.submitted ?? false;
+  useEffect(() => {
+    if (!scriptSubmitted || !open) return;
+    // Jak Enter: w osobnym zadaniu, po wyrenderowaniu wpisanej komendy.
+    const timer = window.setTimeout(() => activate(activeItem), 0);
+    return () => window.clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- tylko zbocze sygnału z wycieczki
+  }, [scriptSubmitted]);
 
   const undo = (index: number) => {
     const outcome = run?.outcomes[index];

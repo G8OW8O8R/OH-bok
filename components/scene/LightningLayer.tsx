@@ -31,9 +31,11 @@ function chooseVariant(): BoltVariant {
 interface LightningLayerProps {
   /** false przy reduced motion: żadnych błysków ani obrazów piorunów (WCAG 2.3.1). */
   enabled: boolean;
+  /** Tryb demo: pierwszy piorun po tylu ms od wejścia burzy (zwykle losowo 6–15 s). */
+  firstStrikeMs?: number;
 }
 
-export function LightningLayer({ enabled }: LightningLayerProps) {
+export function LightningLayer({ enabled, firstStrikeMs }: LightningLayerProps) {
   const { flash } = useSceneSource();
   const rootRef = useRef<HTMLDivElement>(null);
   const bolts = useRef<(HTMLImageElement | null)[]>([]);
@@ -54,6 +56,7 @@ export function LightningLayer({ enabled }: LightningLayerProps) {
       clock: browserClock(),
       visibility: documentVisibility(),
       boltCount: BOLTS.length,
+      firstStrikeMs,
       onStrike: (strike) => {
         const { values, times, duration } = flashKeyframes(strike);
         const options = { duration: duration / 1000, times, ease: "linear" as const };
@@ -72,7 +75,7 @@ export function LightningLayer({ enabled }: LightningLayerProps) {
       flash.jump(0);
       for (const bolt of images) if (bolt) bolt.style.opacity = "0";
     };
-  }, [enabled, variant, flash]);
+  }, [enabled, variant, flash, firstStrikeMs]);
 
   if (!enabled || variant === null) return null;
   const scale = variant / SCENE_MEDIA_SIZE.height;

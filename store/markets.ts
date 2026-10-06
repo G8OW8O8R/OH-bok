@@ -3,6 +3,7 @@
 import { z } from "zod";
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
+import { appStorage } from "@/lib/storage";
 import { currencySchema, type Currency } from "@/lib/markets/currency";
 import type { FeedStatus } from "@/lib/markets/feed-machine";
 import { fxRateSchema, type FxRate, type Quote, type QuoteSource } from "@/lib/markets/schema";
@@ -75,7 +76,7 @@ export const useMarketsStore = create<MarketsState>()(
     {
       name: MARKETS_STORAGE_KEY,
       version: 1,
-      storage: createJSONStorage(() => localStorage),
+      storage: createJSONStorage(() => appStorage),
       partialize: ({ currency, fx }): PersistedMarkets => ({ currency, fx }),
       // localStorage to dane z zewnątrz: uszkodzony zapis = stan domyślny.
       merge: (persisted, current) => {

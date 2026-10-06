@@ -3,6 +3,7 @@
 import { z } from "zod";
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
+import { appStorage } from "@/lib/storage";
 import { appIdSchema, type AppId } from "@/lib/windows/apps";
 import { savedPositionSchema, type SavedPosition } from "@/lib/windows/position";
 
@@ -32,7 +33,7 @@ export const useWindowsStore = create<WindowsState>()(
     {
       name: WINDOWS_STORAGE_KEY,
       version: 1,
-      storage: createJSONStorage(() => localStorage),
+      storage: createJSONStorage(() => appStorage),
       partialize: ({ positions }): PersistedWindows => ({ positions }),
       // localStorage to dane z zewnątrz: uszkodzony zapis = okna na domyślnych miejscach.
       merge: (persisted, current) => {

@@ -11,6 +11,7 @@ const APP_KEYWORDS: Record<AppId, readonly string[]> = {
   reminders: ["przypomnienia"],
   markets: ["rynki", "kryptowaluty", "krypto", "giełda", "kursy"],
   news: ["wiadomości", "newsy", "aktualności", "najważniejsze dziś"],
+  about: ["informacje", "prywatność", "autor", "wersja", "demo"],
 };
 
 /**

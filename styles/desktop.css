@@ -679,4 +679,27 @@
       opacity: 0.6;
     }
   }
+
+  /* Etykieta trybu demo: mała szklana kapsuła nad wszystkim (także nad Spotlightem i oknami). */
+  .demo-badge {
+    left: 50%;
+    bottom: calc(max(1rem, env(safe-area-inset-bottom)) + 5.5rem);
+    translate: -50% 0;
+    background: rgb(14 16 20 / 0.62);
+    border: 1px solid var(--glass-border);
+    backdrop-filter: blur(16px) saturate(140%);
+    white-space: nowrap;
+    pointer-events: none;
+  }
+
+  @media (min-width: 1200px) and (min-height: 640px) and (min-aspect-ratio: 4/3) {
+    /* Pod zegarem, w prawym górnym rogu: nie zasłania pigułki ani rzędu obiektów. */
+    .demo-badge {
+      top: calc(var(--u) * 6.8);
+      right: calc(var(--u) * 1.6);
+      bottom: auto;
+      left: auto;
+      translate: none;
+    }
+  }
 }

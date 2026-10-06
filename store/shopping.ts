@@ -3,6 +3,7 @@
 import { z } from "zod";
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
+import { appStorage } from "@/lib/storage";
 import { addItems, removeItem, shoppingItemSchema, STARTER_ITEMS, toggleItem, type ShoppingItem } from "@/lib/shopping/list";
 
 interface ShoppingState {
@@ -50,7 +51,7 @@ export const useShoppingStore = create<ShoppingState>()(
     {
       name: SHOPPING_STORAGE_KEY,
       version: 1,
-      storage: createJSONStorage(() => localStorage),
+      storage: createJSONStorage(() => appStorage),
       partialize: ({ items, seeded }): PersistedShopping => ({ items, seeded }),
       // localStorage to dane z zewnątrz: uszkodzony lub stary zapis = stan domyślny, nie crash.
       merge: (persisted, current) => {
