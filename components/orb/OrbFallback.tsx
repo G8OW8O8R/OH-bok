@@ -1,10 +1,10 @@
 "use client";
 
-import Image from "next/image";
 import { useState } from "react";
 import { PREVIEW_FOCUS, type OrbPreviewImage } from "@/lib/orb/preview";
 import type { OrbState } from "@/lib/orb/states";
-import { toCssFilter } from "@/lib/scenes";
+import { SCENE_MEDIA, toCssFilter } from "@/lib/scenes";
+import { ScenePicture } from "@/components/scene/ScenePicture";
 
 interface OrbFallbackProps {
   state: OrbState;
@@ -45,13 +45,10 @@ export function OrbFallback({ state, preview, hidden }: OrbFallbackProps) {
           data-testid="orb-preview"
           data-visible={preview !== null}
         >
-          <Image
-            src={shown.poster}
-            alt=""
-            fill
-            unoptimized
-            sizes="30vw"
-            className="object-cover"
+          <ScenePicture
+            media={SCENE_MEDIA[shown.video]}
+            decoding="async"
+            className="absolute inset-0 size-full object-cover"
             style={{
               objectPosition: `${PREVIEW_FOCUS.x * 100}% ${PREVIEW_FOCUS.y * 100}%`,
               filter: toCssFilter(shown.grading),

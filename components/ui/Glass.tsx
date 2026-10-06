@@ -24,6 +24,7 @@ export function Glass({ depth, parallax = true, className, style, children, ...p
   return (
     <motion.div
       data-depth={depth}
+      data-parallax={parallax || undefined}
       className={`glass ${className ?? ""}`}
       style={parallax ? { ...style, x: offset.x, y: offset.y } : style}
       {...props}

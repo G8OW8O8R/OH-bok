@@ -37,33 +37,38 @@ export function weatherLabel(state: WeatherState, isDay: boolean): string {
   return WEATHER_LABELS[state];
 }
 
+/**
+ * Pliki sceny: pętla H.264 i poster JPG to oryginały; obok nich wersja AV1 i postery
+ * AVIF/WebP z `scripts/encode-scenes.sh`. Postery w każdym formacie to klatka 0 nagrania.
+ */
 export interface SceneMedia {
+  /** H.264 – zapas dla przeglądarek bez wydajnego dekodowania AV1. */
   video: string;
+  videoAv1: string;
+  /** JPG – zapas w `<picture>` i domyślny adres (SSR, testy). */
   poster: string;
+  posterAvif: string;
+  posterWebp: string;
+}
+
+function sceneMedia(folder: string): SceneMedia {
+  const base = `/scenes/${folder}`;
+  return {
+    video: `${base}/loop-1080.mp4`,
+    videoAv1: `${base}/loop-1080.av1.mp4`,
+    poster: `${base}/poster.jpg`,
+    posterAvif: `${base}/poster.avif`,
+    posterWebp: `${base}/poster.webp`,
+  };
 }
 
 export const SCENE_MEDIA: Record<SceneVideoId, SceneMedia> = {
-  sunny: {
-    video: "/scenes/sunny-lighthouse/loop-1080.mp4",
-    poster: "/scenes/sunny-lighthouse/poster.jpg",
-  },
-  cloudy: {
-    video: "/scenes/cloudy-lighthouse/loop-1080.mp4",
-    poster: "/scenes/cloudy-lighthouse/poster.jpg",
-  },
-  rain: {
-    video: "/scenes/rain-lighthouse/loop-1080.mp4",
-    poster: "/scenes/rain-lighthouse/poster.jpg",
-  },
+  sunny: sceneMedia("sunny-lighthouse"),
+  cloudy: sceneMedia("cloudy-lighthouse"),
+  rain: sceneMedia("rain-lighthouse"),
   // Plansze nocne: lampa pulsuje w samym filmie (bez snopa w kodzie poza deszczem i burzą).
-  "night-clear": {
-    video: "/scenes/night-clear/loop-1080.mp4",
-    poster: "/scenes/night-clear/poster.jpg",
-  },
-  "night-cloudy": {
-    video: "/scenes/night-cloudy/loop-1080.mp4",
-    poster: "/scenes/night-cloudy/poster.jpg",
-  },
+  "night-clear": sceneMedia("night-clear"),
+  "night-cloudy": sceneMedia("night-cloudy"),
 };
 
 /** Filtr wideo w stałej postaci, żeby CSS mógł płynnie interpolować między scenami. */
@@ -76,6 +81,16 @@ export interface VideoFilter {
 export type Rgb = readonly [number, number, number];
 
 export const NEUTRAL_TINT: Rgb = [1, 1, 1];
+
+/**
+ * Tło szkła `rgba(r, g, b, a)` rozłożone na kolor (`--glass-rgb`) i krycie (`--glass-alpha`):
+ * przy zmianie sceny przenika się samo krycie (kompozytor), kolor zmienia się od razu.
+ */
+export function glassFill(tint: string): { rgb: string; alpha: number } {
+  const match = /^rgba?\(\s*([\d.]+)[,\s]+([\d.]+)[,\s]+([\d.]+)(?:[,\s/]+([\d.]+))?\s*\)$/.exec(tint);
+  if (!match) return { rgb: "14 16 20", alpha: 0.42 };
+  return { rgb: `${match[1]} ${match[2]} ${match[3]}`, alpha: match[4] === undefined ? 1 : Number(match[4]) };
+}
 
 export interface SceneTokens {
   /** Siła winiety pod tekstem po lewej (0–1). */

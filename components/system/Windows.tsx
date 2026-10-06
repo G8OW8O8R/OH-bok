@@ -89,6 +89,18 @@ function focusWindowContent(id: AppId, remembered: HTMLElement | undefined) {
   target.focus({ preventScroll: true });
 }
 
+/**
+ * Kod okien wczytuje się leniwie (`next/dynamic` w Desktop.tsx): okno otwarte przed jego wczytaniem
+ * pojawia się w DOM kilka klatek później. Fokus czeka na nie (maks. ok. 3 s), dopóki jest na wierzchu.
+ */
+function focusWhenMounted(id: AppId, remembered: () => HTMLElement | undefined, stillTop: () => boolean, frames = 180) {
+  requestAnimationFrame(() => {
+    if (!stillTop()) return;
+    if (windowElement(id)) focusWindowContent(id, remembered());
+    else if (frames > 0) focusWhenMounted(id, remembered, stillTop, frames - 1);
+  });
+}
+
 const NO_WINDOWS: WindowStack = [];
 /** `pushState`/`replaceState` nie wywołują `popstate`: własne zdarzenie dla subskrybentów adresu. */
 const LOCATION_EVENT = "obok:location";
@@ -178,7 +190,13 @@ export function WindowsProvider({ children }: { children: ReactNode }) {
     previous.current = stack;
     const top = topWindow(stack);
     if (top) {
-      if (topWindow(before) !== top) requestAnimationFrame(() => focusWindowContent(top, lastFocused.current.get(top)));
+      if (topWindow(before) !== top) {
+        focusWhenMounted(
+          top,
+          () => lastFocused.current.get(top),
+          () => topWindow(currentStack()) === top,
+        );
+      }
       return;
     }
     const closed = topWindow(before);

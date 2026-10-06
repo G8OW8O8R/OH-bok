@@ -108,7 +108,10 @@ describe("resolveScene (pogoda × pora dnia)", () => {
   it.each(["night-clear", "night-cloudy"] as const)("plansza nocna %s ma pliki", (video) => {
     expect(SCENE_MEDIA[video]).toEqual({
       video: `/scenes/${video}/loop-1080.mp4`,
+      videoAv1: `/scenes/${video}/loop-1080.av1.mp4`,
       poster: `/scenes/${video}/poster.jpg`,
+      posterAvif: `/scenes/${video}/poster.avif`,
+      posterWebp: `/scenes/${video}/poster.webp`,
     });
   });
 

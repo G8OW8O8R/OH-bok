@@ -6,6 +6,7 @@ import { chooseOrbMode, type FallbackReason, type OrbModeDecision } from "@/lib/
 import { previewAnnouncement, previewImage } from "@/lib/orb/preview";
 import type { OrbMode, OrbState } from "@/lib/orb/states";
 import type { DailyForecast } from "@/lib/weather/schema";
+import { useIdleAfterBoot } from "@/lib/use-idle";
 import { OrbCanvas } from "./OrbCanvas";
 import { OrbFallback } from "./OrbFallback";
 
@@ -56,6 +57,9 @@ export function Orb({ state, preview, rain, today, modeOverride, onActivate, exp
   );
   const [failure, setFailure] = useState<FallbackReason | null>(null);
   const [ready, setReady] = useState(false);
+  // WebGL rusza w pierwszej bezczynnej chwili po starcie: kontekst, program i pętla nie konkurują
+  // z hydracją i sekwencją startu (do tego czasu widać kulę CSS, potem przenikanie 240 ms).
+  const idle = useIdleAfterBoot();
 
   const webgl = decision?.mode === "webgl" && failure === null;
   const mode = decision === null ? "pending" : webgl ? "webgl" : "fallback";
@@ -77,7 +81,7 @@ export function Orb({ state, preview, rain, today, modeOverride, onActivate, exp
       <div aria-hidden className="orb-shadow absolute inset-0" />
       <div aria-hidden className="orb-shadow absolute right-[-2%] bottom-[2%] size-[21%]" />
       <OrbFallback state={state} preview={canvasShown ? null : image} hidden={canvasShown} />
-      {webgl && (
+      {webgl && idle && (
         <OrbCanvas
           state={state}
           preview={image}

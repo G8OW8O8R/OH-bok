@@ -69,7 +69,7 @@ test("zmiana pory z zegara: dzień → noc, wolne przenikanie ok. 15 s, jedno no
   const errors = collectErrors(page);
   const nightRequests: string[] = [];
   page.on("request", (request) => {
-    if (request.url().includes("/scenes/night-clear/poster.jpg")) nightRequests.push(request.url());
+    if (/\/scenes\/night-clear\/poster\.(avif|webp|jpg)/.test(request.url())) nightRequests.push(request.url());
   });
   test.setTimeout(120_000);
   await page.clock.install();

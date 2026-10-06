@@ -3,13 +3,15 @@
 import { LoaderCircle, Pause, Play, SkipForward } from "lucide-react";
 import { useReducedMotion } from "motion/react";
 import { useEffect, useRef, useSyncExternalStore } from "react";
+import { ScenePicture } from "@/components/scene/ScenePicture";
 import { Glass } from "@/components/ui/Glass";
 import { getAnalyser } from "@/lib/music/engine";
+import type { SceneMedia } from "@/lib/scenes";
 import { currentTime, subscribeTime, useMusicStore } from "@/store/music";
 
 interface PlayerCapsuleProps {
   /** Okładka zastępcza (brak okładki utworu, niedostępna muzyka): poster bieżącej sceny. */
-  cover: string;
+  cover: SceneMedia;
 }
 
 const BARS = 44;
@@ -62,18 +64,17 @@ export function PlayerCapsule({ cover }: PlayerCapsuleProps) {
       data-testid="player"
       data-playing={playing}
       data-status={status}
-      className="relative flex h-21 w-(--column-width) shrink-0 desk:w-[max(calc(var(--u)*21.75),19.5rem)] items-center gap-3 overflow-hidden rounded-pill py-2 pr-2.5 pl-2.5"
+      className="relative flex h-21 w-(--column-width) shrink-0 desk:w-[max(calc(var(--u)*21.75),19.5rem)] items-center gap-3 glass-clip rounded-pill py-2 pr-2.5 pl-2.5"
     >
       <div className="relative size-15 shrink-0 overflow-hidden rounded-[calc(var(--u)*0.9)] bg-white/10">
-        {/* Okładki z hostów Audius (zmienne domeny): zwykły <img>, bez optymalizacji Next. */}
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          key={track?.artwork ?? cover}
-          src={(!unavailable && track?.artwork) || cover}
-          alt=""
-          loading="lazy"
-          className={`size-full object-cover ${track?.artwork && !unavailable ? "" : "object-[70%_50%]"}`}
-        />
+        {track?.artwork && !unavailable ? (
+          // Okładki z hostów Audius (zmienne domeny węzłów): zwykły <img>, bez optymalizacji Next.
+          // eslint-disable-next-line @next/next/no-img-element
+          <img key={track.artwork} src={track.artwork} alt="" loading="lazy" className="size-full object-cover" />
+        ) : (
+          // Poster sceny w tym samym formacie co tło (ten sam plik z pamięci podręcznej).
+          <ScenePicture media={cover} loading="lazy" decoding="async" className="size-full object-cover object-[70%_50%]" />
+        )}
       </div>
 
       <div className="flex min-w-0 flex-1 flex-col">

@@ -285,7 +285,7 @@ function WindowBody({ id, size = "regular", tabs, status, aside, headerActions, 
             exit={layoutId ? undefined : { opacity: 0, scale: reduceMotion ? 1 : 0.96, transition: quickExit }}
             depth="near"
             parallax={false}
-            className={`window-glass flex max-h-[min(calc(100dvh-var(--window-reserve)),calc(var(--u)*46))] flex-col overflow-hidden rounded-window ${WIDTH[size]}`}
+            className={`window-glass flex max-h-[min(calc(100dvh-var(--window-reserve)),calc(var(--u)*46))] flex-col glass-clip rounded-window ${WIDTH[size]}`}
           >
             <motion.div className="flex min-h-0 flex-1 flex-col" {...content}>
               <header
@@ -352,7 +352,7 @@ function SheetBody({ id, tabs, status, aside, asideOnSheet = true, headerActions
         dragElastic={{ top: 0, bottom: 0.9 }}
         dragMomentum={false}
         onDragEnd={onDragEnd}
-        className="absolute inset-0 flex flex-col overflow-hidden rounded-none border-0"
+        className="absolute inset-0 flex flex-col glass-clip rounded-none [--glass-edge:0px]"
       >
         <motion.div className="flex min-h-0 flex-1 flex-col" {...content}>
           <header

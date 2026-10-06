@@ -1,5 +1,4 @@
 import { cookies } from "next/headers";
-import { DevSceneSwitcher } from "@/components/dev/DevSceneSwitcher";
 import { Desktop } from "@/components/system/Desktop";
 import { WindowsProvider } from "@/components/system/Windows";
 import { parseTimeOverride } from "@/lib/day-period";
@@ -20,6 +19,9 @@ export default async function DesktopPage({ searchParams }: PageProps<"/">) {
   const { data } = await getWeather(coords);
   // Wspólny punkt startu zegara: klient hydratuje z tą samą chwilą, potem liczy sam.
   const renderedAt = new Date().toISOString();
+  // Przełącznik dev tylko w trybie deweloperskim: import za stałym warunkiem nie trafia do paczek produkcji.
+  const DevSceneSwitcher =
+    process.env.NODE_ENV === "development" ? (await import("@/components/dev/DevSceneSwitcher")).DevSceneSwitcher : null;
 
   return (
     <main className="relative isolate min-h-dvh overflow-x-clip desk:h-dvh desk:overflow-hidden">
@@ -34,7 +36,7 @@ export default async function DesktopPage({ searchParams }: PageProps<"/">) {
           orbMode={orbMode}
         />
       </WindowsProvider>
-      {process.env.NODE_ENV === "development" && (
+      {DevSceneSwitcher && (
         <DevSceneSwitcher weather={override} time={timeOverride} orbState={orbState} orbMode={orbMode} />
       )}
     </main>

@@ -4,7 +4,7 @@ import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { StatusCapsule, Window, WindowScroll } from "@/components/system/Window";
 import { tabId, tabPanelId, Tabs, type TabItem } from "@/components/ui/Tabs";
 import { NewsHeadline } from "@/components/widgets/NewsHeadline";
-import { PROVIDER_LABELS } from "@/lib/assistant/schema";
+import { PROVIDER_LABELS } from "@/lib/assistant/provider-ids";
 import { duration, ease } from "@/lib/motion";
 import type { NewsDigest } from "@/lib/news/schema";
 import { NEWS_CATEGORIES, NEWS_CATEGORY_LABELS, NEWS_SOURCES, type NewsCategory } from "@/lib/news/sources";

@@ -4,20 +4,31 @@
  * poniżej: kolumny, kula u góry, strona się przewija.
  */
 
-/* Tokeny sceny przechodzą płynnie razem z przenikaniem wideo. */
-@property --halo-strength {
+/*
+ * Tokeny sceny przechodzą płynnie razem z przenikaniem wideo, ale animują się tylko u odbiorców
+ * (halo, tło szkła) jako zarejestrowane właściwości bez dziedziczenia. `.desktop` ustawia zwykłe
+ * zmienne `--halo-strength` i `--glass-bg` (zmiana raz na scenę). Przejście dziedziczonej
+ * właściwości na `.desktop` przeliczało style całego pulpitu w każdej klatce przenikania
+ * (pomiar 2026-10-06: ~50% wątku głównego, 105 klatek > 17 ms na 4 s przy CPU 1×).
+ */
+@property --halo-fade {
   syntax: "<number>";
-  inherits: true;
+  inherits: false;
   initial-value: 0;
 }
 
-@property --glass-bg {
-  syntax: "<color>";
-  inherits: true;
-  initial-value: rgb(14 16 20 / 0.42);
-}
-
 @layer components {
+  /*
+   * Warstwy parallaxu we własnych warstwach kompozytora: przesunięcie za kursorem
+   * nie rasteryzuje ich od nowa (halo z `blur(5u)`, szkło). Pomiar 2026-10-06, 1536×864, CPU 1×:
+   * ruch kursora 52 → 145 fps. Tylko tam, gdzie parallax działa (układ desktopowy, mysz, ruch).
+   */
+  @media (min-width: 1200px) and (min-height: 640px) and (min-aspect-ratio: 4/3) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
+    [data-parallax] {
+      will-change: transform;
+    }
+  }
+
   .desktop {
     position: relative;
     display: flex;
@@ -25,9 +36,6 @@
     gap: calc(var(--u) * 2.5);
     min-height: 100dvh;
     padding: calc(var(--u) * 1.25) calc(var(--u) * 1.25) calc(var(--u) * 9);
-    transition:
-      --halo-strength var(--dur-scene) var(--ease-dissolve),
-      --glass-bg var(--dur-scene) var(--ease-dissolve);
   }
 
   .desktop-chrome {
@@ -225,14 +233,16 @@
     inset: var(--halo-inset, -150% -75%);
     z-index: -1;
     pointer-events: none;
+    --halo-fade: var(--halo-strength);
     background: radial-gradient(
       closest-side,
-      rgb(0 0 0 / var(--halo-strength)) 0%,
-      rgb(0 0 0 / calc(var(--halo-strength) * 0.7)) 40%,
-      rgb(0 0 0 / calc(var(--halo-strength) * 0.3)) 70%,
+      rgb(0 0 0 / var(--halo-fade)) 0%,
+      rgb(0 0 0 / calc(var(--halo-fade) * 0.7)) 40%,
+      rgb(0 0 0 / calc(var(--halo-fade) * 0.3)) 70%,
       rgb(0 0 0 / 0) 100%
     );
     filter: blur(calc(var(--u) * 5));
+    transition: --halo-fade var(--dur-scene) var(--ease-dissolve);
   }
 
   /*
@@ -465,14 +475,10 @@
   /*
    * Szkło okna jaśniejsze niż na pulpicie (makieta okna): rozmyta scena z latarnią prześwituje.
    * 66% krycia sceny (`glassTint` .40–.58 → .26–.38); kontrast tekstu zmierzony.
-   * Ramka dziedziczy `--glass-bg` sceny, szkło okna nadpisuje je własnym (bez cyklu zmiennych).
+   * Skala krycia dymnego tła (`.glass::before`) dziedziczą też panele w oknie.
    */
-  .window-frame {
-    --window-glass-bg: color-mix(in srgb, var(--glass-bg) 66%, transparent);
-  }
-
   .window-glass {
-    --glass-bg: var(--window-glass-bg);
+    --glass-alpha-scale: 0.66;
   }
 
   /* Przewijanie awaryjne: cienki, przezroczysty pasek widoczny tylko w trakcie przewijania. */

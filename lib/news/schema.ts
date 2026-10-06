@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { providerIdSchema } from "@/lib/assistant/schema";
+import { providerIdSchema } from "@/lib/assistant/provider-ids";
 import { newsCategorySchema } from "./sources";
 
 /**

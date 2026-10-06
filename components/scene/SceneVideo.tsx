@@ -1,11 +1,11 @@
 "use client";
 
 import { animate, motion, useMotionValue, useReducedMotion, useTransform, type MotionValue } from "motion/react";
-import Image from "next/image";
 import { useEffect, useEffectEvent, useMemo, useRef, useState, type ReactNode } from "react";
 import { preload } from "react-dom";
 import { reportBootSignal } from "@/lib/boot";
 import { duration, ease } from "@/lib/motion";
+import { AV1_TYPE, H264_TYPE, preferAv1, rememberPosterFormat } from "@/lib/scene-media";
 import { SCENE_MEDIA_SIZE } from "@/lib/scene-fit";
 import type { DayPeriod } from "@/lib/day-period";
 import { sceneFilterCss, tintCss } from "@/lib/scene-grading";
@@ -19,6 +19,7 @@ import {
 } from "@/lib/scene-transition";
 import { SCENE_MEDIA, type SceneDefinition, type SceneVideoId, type WeatherState } from "@/lib/scenes";
 import { handoffStep } from "@/lib/video-handoff";
+import { ScenePicture } from "./ScenePicture";
 import { useSceneSource } from "./SceneSource";
 import { useSceneFit } from "./useSceneFit";
 
@@ -54,7 +55,8 @@ export function SceneVideo({ weather, period, periodEnds, scene, transitionS, ch
 
   // Poster to LCP. Wywołane podczas SSR trafia jako <link rel="preload"> do <head>;
   // przy zmianie sceny po stronie klienta od razu zaczyna pobierać nowy poster.
-  preload(SCENE_MEDIA[scene.video].poster, { as: "image", fetchPriority: "high" });
+  // AVIF z `type`: przeglądarka bez AVIF pomija preload i bierze WebP/JPG z <picture>.
+  preload(SCENE_MEDIA[scene.video].posterAvif, { as: "image", type: "image/avif", fetchPriority: "high" });
 
   // Dopasowanie stanu do nowej sceny w trakcie renderu (wzorzec „stan zależny od propsów”).
   const reconciled = reconcileLayers(layers, scene.video);
@@ -178,6 +180,8 @@ function SceneLayerMedia({ layerId, video, opacity, onReady }: SceneLayerMediaPr
   const videoRef = useRef<HTMLVideoElement>(null);
   /** `mediaTime` klatki, na której wideo zakryło poster (null = widać poster). */
   const [revealedAt, setRevealedAt] = useState<number | null>(null);
+  /** Źródła wideo: do decyzji o AV1 oba (SSR, hydracja), potem tylko wybrane – i dopiero wtedy wczytanie. */
+  const [codec, setCodec] = useState<"pending" | "av1" | "h264">("pending");
   const handleReady = useEffectEvent(onReady);
 
   // Rejestracja w źródle sceny: kula próbkuje poster, a od klatki 0 wideo tej warstwy.
@@ -202,6 +206,7 @@ function SceneLayerMedia({ layerId, video, opacity, onReady }: SceneLayerMediaPr
     let cancelled = false;
     poster.decode().then(
       () => {
+        rememberPosterFormat(poster.currentSrc);
         if (layerId === 0) reportBootSignal("poster");
         if (!cancelled) handleReady();
       },
@@ -217,8 +222,18 @@ function SceneLayerMedia({ layerId, video, opacity, onReady }: SceneLayerMediaPr
   }, [media.poster, layerId]);
 
   useEffect(() => {
+    let active = true;
+    preferAv1().then((av1) => {
+      if (active) setCodec(av1 ? "av1" : "h264");
+    });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  useEffect(() => {
     const el = videoRef.current;
-    if (!el) return;
+    if (!el || codec === "pending") return;
 
     const abort = new AbortController();
     const { signal } = abort;
@@ -229,6 +244,11 @@ function SceneLayerMedia({ layerId, video, opacity, onReady }: SceneLayerMediaPr
     // React nie zawsze przenosi `muted` na właściwość elementu, a bez niej
     // przeglądarki (zwłaszcza iOS Safari) blokują odtwarzanie bez gestu.
     el.muted = true;
+
+    // WebKit wczytuje metadane mimo `preload="none"`: źródło wybrane jeszcze w HTML (AV1) zostałoby
+    // po usunięciu jego <source>. Inne źródło niż na liście = wybór od nowa.
+    const listed = [...el.querySelectorAll("source")].some((source) => source.src === el.currentSrc);
+    if (el.currentSrc && !listed) el.load();
 
     const play = () => {
       if (document.hidden) return;
@@ -276,9 +296,11 @@ function SceneLayerMedia({ layerId, video, opacity, onReady }: SceneLayerMediaPr
       start();
     } else {
       el.addEventListener("canplaythrough", start, { once: true, signal });
-      // W HTML wideo ma preload="none", żeby nie konkurować z posterem o łącze.
-      el.preload = "auto";
+      // W HTML wideo ma preload="none", żeby nie konkurować z posterem o łącze. Najpierw `load()`:
+      // wybiera źródło od nowa, z listy po decyzji o AV1 (samo `preload` zacząłby pobierać źródło
+      // wybrane jeszcze w HTML, czyli AV1 także tam, gdzie zostaje H.264).
       if (el.readyState === HTMLMediaElement.HAVE_NOTHING) el.load();
+      el.preload = "auto";
     }
 
     return () => {
@@ -289,25 +311,23 @@ function SceneLayerMedia({ layerId, video, opacity, onReady }: SceneLayerMediaPr
       queueMicrotask(() => {
         if (el.isConnected) return;
         el.pause();
-        el.removeAttribute("src");
+        el.replaceChildren();
         el.load();
       });
     };
-  }, [media.video]);
+  }, [media.video, codec]);
 
   return (
     <>
-      <Image
+      <ScenePicture
         ref={posterRef}
+        media={media}
         className="scene-media select-none"
-        src={media.poster}
-        alt=""
         width={SCENE_MEDIA_SIZE.width}
         height={SCENE_MEDIA_SIZE.height}
-        // Poster to dokładna klatka 0: optymalizator Next przekodowałby go i zepsuł dopasowanie.
-        unoptimized
         loading="eager"
         fetchPriority="high"
+        decoding="async"
         draggable={false}
       />
       <motion.video
@@ -316,7 +336,7 @@ function SceneLayerMedia({ layerId, video, opacity, onReady }: SceneLayerMediaPr
         data-testid="scene-video"
         data-handoff={revealedAt === null ? "poster" : "video"}
         data-first-frame-time={revealedAt ?? undefined}
-        src={media.video}
+        data-codec={codec}
         muted
         playsInline
         loop
@@ -330,7 +350,11 @@ function SceneLayerMedia({ layerId, video, opacity, onReady }: SceneLayerMediaPr
           duration: reduceMotion ? duration.reducedFade : duration.posterHandoff,
           ease: ease.dissolve,
         }}
-      />
+      >
+        {/* AV1 pierwsze (~40% rozmiaru H.264), tylko przy sprzętowym dekodowaniu (`preferAv1`). */}
+        {codec !== "h264" && <source src={media.videoAv1} type={AV1_TYPE} />}
+        <source src={media.video} type={H264_TYPE} />
+      </motion.video>
     </>
   );
 }

@@ -3,8 +3,21 @@
 const WEEKDAYS_SHORT = ["Nd", "Pon", "Wt", "Śr", "Czw", "Pt", "Sob"] as const;
 const WEEKDAYS_LONG = ["Niedziela", "Poniedziałek", "Wtorek", "Środa", "Czwartek", "Piątek", "Sobota"] as const;
 
-function formatter(timeZone: string, options: Intl.DateTimeFormatOptions): Intl.DateTimeFormat {
-  return new Intl.DateTimeFormat("pl-PL", { ...options, timeZone });
+const formatters = new Map<string, Intl.DateTimeFormat>();
+
+/**
+ * Formatery z pamięci: utworzenie `Intl.DateTimeFormat` kosztuje dziesiątki razy więcej niż
+ * formatowanie (pomiar 2026-10-06: otwarcie okna Pogody przy CPU 4× – 0,5 s na same konstruktory).
+ * Kluczem jest strefa + opcje (zawsze literały w tym pliku, więc kolejność pól jest stała).
+ */
+export function formatter(timeZone: string, options: Intl.DateTimeFormatOptions): Intl.DateTimeFormat {
+  const key = `${timeZone}|${JSON.stringify(options)}`;
+  let cached = formatters.get(key);
+  if (!cached) {
+    cached = new Intl.DateTimeFormat("pl-PL", { ...options, timeZone });
+    formatters.set(key, cached);
+  }
+  return cached;
 }
 
 function part(parts: Intl.DateTimeFormatPart[], type: Intl.DateTimeFormatPartTypes): string {

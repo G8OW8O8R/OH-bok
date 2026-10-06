@@ -26,6 +26,9 @@ const ParallaxContext = createContext<ParallaxContextValue | null>(null);
 
 const FINE_POINTER = "(pointer: fine)";
 
+/** Jak długo pozycje paneli dla refleksu są ważne (ms). */
+const RECT_TTL_MS = 300;
+
 function subscribeFinePointer(onChange: () => void): () => void {
   const query = window.matchMedia(FINE_POINTER);
   query.addEventListener("change", onChange);
@@ -83,42 +86,64 @@ export function ParallaxProvider({ children, paused = false }: { children: React
 
     let frame = 0;
     let pointer = { x: 0, y: 0 };
+    let lit: boolean | null = null;
+    // Pozycje paneli z pamięci: odczyt w każdej klatce, po zapisach parallaxu, wymuszał przeliczenie
+    // stylów (pomiar 2026-10-06: 0,7 s na 6 s ruchu przy CPU 4×). Parallax przesuwa panel o maks. 16 px,
+    // czego na refleksie o promieniu 14u nie widać, więc wystarczy pomiar co RECT_TTL_MS i po zmianie układu.
+    let rects = new Map<HTMLElement, DOMRect>();
+    let measuredAt = -Infinity;
+    const invalidate = () => {
+      measuredAt = -Infinity;
+    };
 
-    const paint = () => {
+    const setLit = (value: boolean) => {
+      if (lit === value) return;
+      lit = value;
+      root.style.setProperty("--edge-light", value ? "1" : "0");
+    };
+
+    const paint = (now: number) => {
       frame = 0;
-      rawX.set(pointerToUnit(pointer.x, window.innerWidth));
-      rawY.set(pointerToUnit(pointer.y, window.innerHeight));
       // Najpierw wszystkie odczyty, potem zapisy: przeplatanie wymuszało przeliczenie
       // stylów po każdym elemencie (dziesiątki razy na klatkę przy ruchu kursora).
       const elements = [...lights.current];
-      const rects = elements.map((element) => element.getBoundingClientRect());
-      elements.forEach((element, i) => {
-        const rect = rects[i];
-        if (!rect) return;
+      if (now - measuredAt > RECT_TTL_MS || elements.some((element) => !rects.has(element))) {
+        rects = new Map(elements.map((element) => [element, element.getBoundingClientRect()]));
+        measuredAt = now;
+      }
+      rawX.set(pointerToUnit(pointer.x, window.innerWidth));
+      rawY.set(pointerToUnit(pointer.y, window.innerHeight));
+      for (const element of elements) {
+        const rect = rects.get(element);
+        if (!rect) continue;
         element.style.setProperty("--mx", `${Math.round(pointer.x - rect.left)}px`);
         element.style.setProperty("--my", `${Math.round(pointer.y - rect.top)}px`);
-      });
+      }
     };
 
     const onMove = (event: PointerEvent) => {
       if (event.pointerType !== "mouse" && event.pointerType !== "pen") return;
       pointer = { x: event.clientX, y: event.clientY };
-      root.style.setProperty("--edge-light", "1");
+      setLit(true);
       if (!frame) frame = requestAnimationFrame(paint);
     };
 
     const onLeave = () => {
       rawX.set(0);
       rawY.set(0);
-      root.style.setProperty("--edge-light", "0");
+      setLit(false);
     };
 
     window.addEventListener("pointermove", onMove, { passive: true });
     root.addEventListener("pointerleave", onLeave);
+    window.addEventListener("scroll", invalidate, { passive: true });
+    window.addEventListener("resize", invalidate);
     return () => {
       cancelAnimationFrame(frame);
       window.removeEventListener("pointermove", onMove);
       root.removeEventListener("pointerleave", onLeave);
+      window.removeEventListener("scroll", invalidate);
+      window.removeEventListener("resize", invalidate);
       root.style.removeProperty("--edge-light");
     };
   }, [enabled, rawX, rawY]);
@@ -165,5 +190,5 @@ interface DepthLayerProps extends HTMLMotionProps<"div"> {
 /** Warstwa głębi bez szkła (np. powitanie, kula): tylko parallax. */
 export function DepthLayer({ depth, style, ...props }: DepthLayerProps) {
   const { x, y } = useParallax(depth);
-  return <motion.div data-depth={depth} style={{ ...style, x, y }} {...props} />;
+  return <motion.div data-depth={depth} data-parallax style={{ ...style, x, y }} {...props} />;
 }

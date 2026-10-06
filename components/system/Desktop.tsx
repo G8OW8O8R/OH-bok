@@ -9,9 +9,6 @@ import { SceneVideo } from "@/components/scene/SceneVideo";
 import { WeatherLayers } from "@/components/scene/WeatherLayers";
 import { OrbFlightProvider } from "@/components/orb/flight";
 import { Orb } from "@/components/orb/Orb";
-import { RemindersApp } from "@/components/apps/Reminders";
-import { ShoppingApp } from "@/components/apps/Shopping";
-import { WeatherApp } from "@/components/apps/Weather";
 import { DepthLayer, ParallaxProvider } from "@/components/ui/Parallax";
 import { Greeting } from "@/components/widgets/Greeting";
 import { News } from "@/components/widgets/News";
@@ -30,9 +27,10 @@ import { remainingCount } from "@/lib/shopping/list";
 import { dayPeriod, nextPeriodChange, type DayPeriod } from "@/lib/day-period";
 import { currentConditions, dayConditions, orbRainStrength } from "@/lib/scene-conditions";
 import { sameSceneKey, sceneDuration, scenePace, type SceneKey, type ScenePace } from "@/lib/scene-transition";
-import { resolveScene, SCENE_MEDIA, type WeatherState } from "@/lib/scenes";
+import { glassFill, resolveScene, SCENE_MEDIA, type WeatherState } from "@/lib/scenes";
 import type { OrbMode, OrbState } from "@/lib/orb/states";
 import { dateIn, formatTime, hourIn } from "@/lib/time";
+import { useIdleAfterBoot } from "@/lib/use-idle";
 import { useNow, useUserTimeZone } from "@/lib/use-now";
 import type { WeatherData } from "@/lib/weather/schema";
 import { useWeather } from "@/lib/weather/use-weather";
@@ -47,16 +45,16 @@ import { Pill } from "./Pill";
 import type { AssistantOrbState, SpotlightPhase } from "./Spotlight";
 import { useWindows, WindowBackdrop } from "./Windows";
 
-/**
- * Okno Rynków (wykres, licznik, formularze) poza pakietem startowym: okna i tak nie są renderowane
- * przez SSR (pozycje w localStorage), a pulpit hydratuje się szybciej. Ładuje się w tle po starcie.
+/*
+ * Okna aplikacji i Spotlight poza pakietem startowym: okna i tak nie są renderowane przez SSR
+ * (pozycje w localStorage), a pulpit hydratuje się szybciej. Kod wczytuje się w bezczynności
+ * po starcie (`useIdleAfterBoot`) albo od razu, gdy ktoś otworzy okno lub Spotlight wcześniej.
  */
+const WeatherApp = dynamic(() => import("@/components/apps/Weather").then((module) => module.WeatherApp), { ssr: false });
+const ShoppingApp = dynamic(() => import("@/components/apps/Shopping").then((module) => module.ShoppingApp), { ssr: false });
+const RemindersApp = dynamic(() => import("@/components/apps/Reminders").then((module) => module.RemindersApp), { ssr: false });
 const MarketsApp = dynamic(() => import("@/components/apps/Markets").then((module) => module.MarketsApp), { ssr: false });
-
-/** Okno Wiadomości: też poza pakietem startowym (dane ma już widget). */
 const NewsApp = dynamic(() => import("@/components/apps/News").then((module) => module.NewsApp), { ssr: false });
-
-/** Spotlight (parser, karty, rynki) też poza pakietem startowym: potrzebny dopiero po Ctrl+K. */
 const Spotlight = dynamic(() => import("./Spotlight").then((module) => module.Spotlight), { ssr: false });
 
 interface DesktopProps {
@@ -102,6 +100,10 @@ export function Desktop({ initialWeather, override, timeOverride, initialNow, or
   const shopping = useShoppingStore((state) => state.items);
   const windows = useWindows();
   const windowsOpen = windows.stack.length > 0;
+  // Kod okien i Spotlightu: w bezczynności po starcie albo od pierwszego otwarcia (potem zostaje,
+  // żeby zamykane okno dokończyło animację wyjścia).
+  const idle = useIdleAfterBoot();
+  const [appsWanted, setAppsWanted] = useState(false);
   /**
    * Spotlight (zadanie 7b): „open” – panel i kula u góry; „closing” – kula wraca na miejsce
    * (pulpit już aktywny, kula jeszcze nad tłem); „closed”.
@@ -109,6 +111,8 @@ export function Desktop({ initialWeather, override, timeOverride, initialNow, or
   const [spotlight, setSpotlight] = useState<SpotlightPhase>("closed");
   const [assistantState, setAssistantState] = useState<AssistantOrbState>(null);
   const spotlightOpen = spotlight === "open";
+  if (!appsWanted && (windowsOpen || spotlight !== "closed")) setAppsWanted(true);
+  const appsLoaded = idle || appsWanted;
   const desktopInert = windowsOpen || spotlightOpen;
   const flightX = useMotionValue(0);
   const flightY = useMotionValue(0);
@@ -136,6 +140,7 @@ export function Desktop({ initialWeather, override, timeOverride, initialNow, or
   const resolved = resolveScene(scene, period);
   const periodEnds = timeOverride || pinned ? null : (nextPeriodChange(now, daily)?.toISOString() ?? null);
   const tokens = resolved.tokens;
+  const glass = useMemo(() => glassFill(tokens.glassTint), [tokens.glassTint]);
   // Zmiana samej pory z zegara = wolne przejście (ok. 15 s); każda inna zmiana sceny = 1,4 s.
   const sceneKey: SceneKey = { state: scene, period, pinned: pinned?.date ?? null, timeOverride };
   const [lastKey, setLastKey] = useState(sceneKey);
@@ -275,7 +280,8 @@ export function Desktop({ initialWeather, override, timeOverride, initialNow, or
         style={{
           ...durationStyle,
           "--halo-strength": tokens.haloStrength,
-          "--glass-bg": tokens.glassTint,
+          "--glass-rgb": glass.rgb,
+          "--glass-alpha": glass.alpha,
           "--glass-blur": `${tokens.glassBlur}px`,
           "--glass-text-shadow": tokens.glassTextShadow,
           "--scene-text-shadow": tokens.textShadow,
@@ -358,7 +364,7 @@ export function Desktop({ initialWeather, override, timeOverride, initialNow, or
             timeZone={timeZone}
             onOpen={() => windows.open("news", "tile")}
           />
-          <PlayerCapsule cover={SCENE_MEDIA[resolved.video].poster} />
+          <PlayerCapsule cover={SCENE_MEDIA[resolved.video]} />
         </div>
 
         <WindowBackdrop />
@@ -366,45 +372,49 @@ export function Desktop({ initialWeather, override, timeOverride, initialNow, or
           <Dock onSearch={openSpotlight} searchOpen={spotlightOpen} />
         </div>
 
-        <WeatherApp
-          weather={weather}
-          now={now}
-          timeZone={timeZone}
-          today={today}
-          shownDate={shownDate}
-          onShow={(date) => {
-            setPinnedDay(date === today ? null : date);
-            windows.close("weather");
-          }}
-        />
-        <ShoppingApp
-          items={shopping}
-          onAdd={(name) => useShoppingStore.getState().add([name])}
-          onToggle={(id) => useShoppingStore.getState().toggle(id)}
-          onRemove={(id) => useShoppingStore.getState().remove(id)}
-        />
-        <RemindersApp
-          reminders={reminders}
-          now={now}
-          timeZone={timeZone}
-          onAdd={(input) => useRemindersStore.getState().add(input)}
-          onRemove={(id) => useRemindersStore.getState().remove(id)}
-        />
-        <MarketsApp now={now} timeZone={timeZone} />
-        <NewsApp digest={news.digest} category={newsCategory} onCategory={setNewsCategory} now={now} timeZone={timeZone} />
-        <Spotlight
-          phase={spotlight}
-          onRequestClose={closeSpotlight}
-          onClosed={spotlightClosed}
-          orbAnchor={orbAnchor}
-          flight={flight}
-          now={now}
-          timeZone={timeZone}
-          weather={weather}
-          onAssistant={setAssistantState}
-          onPinDay={(date) => setPinnedDay(date === today ? null : date)}
-          announce={announce}
-        />
+        {appsLoaded && (
+          <>
+            <WeatherApp
+              weather={weather}
+              now={now}
+              timeZone={timeZone}
+              today={today}
+              shownDate={shownDate}
+              onShow={(date) => {
+                setPinnedDay(date === today ? null : date);
+                windows.close("weather");
+              }}
+            />
+            <ShoppingApp
+              items={shopping}
+              onAdd={(name) => useShoppingStore.getState().add([name])}
+              onToggle={(id) => useShoppingStore.getState().toggle(id)}
+              onRemove={(id) => useShoppingStore.getState().remove(id)}
+            />
+            <RemindersApp
+              reminders={reminders}
+              now={now}
+              timeZone={timeZone}
+              onAdd={(input) => useRemindersStore.getState().add(input)}
+              onRemove={(id) => useRemindersStore.getState().remove(id)}
+            />
+            <MarketsApp now={now} timeZone={timeZone} />
+            <NewsApp digest={news.digest} category={newsCategory} onCategory={setNewsCategory} now={now} timeZone={timeZone} />
+            <Spotlight
+              phase={spotlight}
+              onRequestClose={closeSpotlight}
+              onClosed={spotlightClosed}
+              orbAnchor={orbAnchor}
+              flight={flight}
+              now={now}
+              timeZone={timeZone}
+              weather={weather}
+              onAssistant={setAssistantState}
+              onPinDay={(date) => setPinnedDay(date === today ? null : date)}
+              announce={announce}
+            />
+          </>
+        )}
       </div>
       <Boot />
     </ParallaxProvider>

@@ -10,6 +10,7 @@ import {
   type Command,
 } from "@/lib/commands/parse";
 import { currencySchema } from "@/lib/markets/currency";
+import { providerIdSchema } from "./provider-ids";
 
 /**
  * Asystent AI: model nie dostaje nowych uprawnień. Zwraca wyłącznie komendy z unii
@@ -69,15 +70,7 @@ export function parseWireCommands(raw: unknown, now: Date): { commands: WireComm
   return { commands, rejected };
 }
 
-export const PROVIDER_IDS = ["groq", "gemini", "cloudflare"] as const;
-export const providerIdSchema = z.enum(PROVIDER_IDS);
-export type ProviderId = z.infer<typeof providerIdSchema>;
-
-export const PROVIDER_LABELS: Record<ProviderId, string> = {
-  groq: "Groq",
-  gemini: "Gemini",
-  cloudflare: "Cloudflare Workers AI",
-};
+export { PROVIDER_IDS, PROVIDER_LABELS, providerIdSchema, type ProviderId } from "./provider-ids";
 
 export const ASSISTANT_ERROR_CODES = ["limit", "unavailable", "invalid", "failed", "bad-request"] as const;
 export const assistantErrorCodeSchema = z.enum(ASSISTANT_ERROR_CODES);

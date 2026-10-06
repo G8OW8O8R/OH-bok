@@ -119,18 +119,59 @@ body {
       --vignette-strength var(--dur-scene) var(--ease-dissolve);
   }
 
-  /* Dymne szkło. Głębia (cień) przez data-depth, patrz components/ui/Glass.tsx. */
+  /*
+   * Dymne szkło. Głębia (cień) przez data-depth, patrz components/ui/Glass.tsx.
+   * Warstwy od spodu: dymne tło sceny (::before), mleko, przyciemnienie w kolumnie, ramka i refleks (::after),
+   * treść – ta sama kolejność co dawniej w jednym `background` + `border`. Ramka hosta jest przezroczysta
+   * (trzyma tylko miejsce): pseudo-elementy malują się nad nią. `--glass-edge` = grubość ramki.
+   * `backdrop-filter` tworzy kontekst nakładania, więc z-index −1 zostaje wewnątrz panelu.
+   */
   .glass {
+    --glass-edge: 1px;
     position: relative;
-    /* --glass-boost: dodatkowe przyciemnienie w układzie kolumnowym (styles/desktop.css). */
+    backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+    border: var(--glass-edge) solid transparent;
+    box-shadow: var(--glass-depth, var(--depth-far));
+    text-shadow: var(--glass-text-shadow, none);
+  }
+
+  .glass::before,
+  .glass::after {
+    content: "";
+    position: absolute;
+    inset: calc(-1 * var(--glass-edge));
+    z-index: -1;
+    border-radius: inherit;
+    pointer-events: none;
+  }
+
+  /*
+   * Dymne tło sceny: zmiana sceny animuje samo krycie (`--glass-alpha` z tokenu `glassTint`), które
+   * przeglądarka przenika na kompozytorze. Animowany kolor przeliczał style każdego panelu w każdej
+   * klatce przenikania (pomiar 2026-10-06), a dziedziczony – style całego pulpitu.
+   */
+  .glass::before {
+    background: rgb(var(--glass-rgb));
+    opacity: calc(var(--glass-alpha) * var(--glass-alpha-scale, 1));
+    transition: opacity var(--dur-scene) var(--ease-dissolve);
+  }
+
+  /*
+   * Przycinanie treści szkła bez obcinania tła pod ramką (zamiast `overflow-hidden`, które tnie
+   * pseudo-elementy do wnętrza ramki). Safari bez `overflow-clip-margin`: rant 1 px bez dymnego tła.
+   */
+  .glass-clip {
+    overflow: clip;
+    overflow-clip-margin: var(--glass-edge, 0px);
+  }
+
+  /* --glass-boost: dodatkowe przyciemnienie w układzie kolumnowym (styles/desktop.css). */
+  .glass::after {
     background:
       linear-gradient(var(--glass-milk), var(--glass-milk)),
-      linear-gradient(var(--glass-boost, transparent), var(--glass-boost, transparent)),
-      var(--glass-bg);
-    backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
-    border: 1px solid var(--glass-border);
-    box-shadow: var(--glass-highlight), var(--glass-depth, var(--depth-far));
-    text-shadow: var(--glass-text-shadow, none);
+      linear-gradient(var(--glass-boost, transparent), var(--glass-boost, transparent));
+    border: var(--glass-edge) solid var(--glass-border);
+    box-shadow: var(--glass-highlight);
   }
 
   .glass[data-depth="mid"] {

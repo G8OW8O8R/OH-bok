@@ -1,4 +1,4 @@
-import { dateIn, hourIn, zonedDate } from "@/lib/time";
+import { dateIn, formatter, hourIn, zonedDate } from "@/lib/time";
 import { HISTORY_RANGE_CONFIG } from "./history";
 import type { HistoryPoint, HistoryRange } from "./schema";
 
@@ -103,7 +103,7 @@ function addDays(date: string, days: number): string {
 }
 
 function format(timeZone: string, options: Intl.DateTimeFormatOptions, t: number): string {
-  return new Intl.DateTimeFormat("pl-PL", { ...options, timeZone }).format(t).replace(".", "");
+  return formatter(timeZone, options).format(t).replace(".", "");
 }
 
 const HOUR_MS = 60 * 60 * 1000;
@@ -139,5 +139,5 @@ export function pointLabel(t: number, range: HistoryRange, timeZone: string): st
       ? { hour: "2-digit", minute: "2-digit", hourCycle: "h23" }
       : { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", hourCycle: "h23" };
   // „czw., 1 paź” → „czw, 1 paź” (kropka skrótu przed przecinkiem wygląda jak literówka).
-  return new Intl.DateTimeFormat("pl-PL", { ...options, timeZone }).format(t).replace(/\.,/g, ",");
+  return formatter(timeZone, options).format(t).replace(/\.,/g, ",");
 }

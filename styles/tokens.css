@@ -13,6 +13,9 @@
 
   /* Szkło (dymne) */
   --glass-bg: rgba(14, 16, 20, 0.42);
+  /* To samo tło szkła rozłożone na kolor i krycie (`.glass::before`); scena nadpisuje oba na `.desktop`. */
+  --glass-rgb: 14 16 20;
+  --glass-alpha: 0.42;
   --glass-milk: rgba(255, 255, 255, 0.04);
   --glass-blur: 36px;
   --glass-saturate: 150%;

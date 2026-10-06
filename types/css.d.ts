@@ -8,8 +8,10 @@ declare module "react" {
     "--vignette-strength"?: number;
     /** Siła winiety za swobodnym tekstem (styles/desktop.css `.halo`). */
     "--halo-strength"?: number;
-    /** Tło szkła zależne od sceny (`glassTint`). */
-    "--glass-bg"?: string;
+    /** Kolor dymnego tła szkła zależny od sceny (`glassFill(glassTint).rgb`, np. `14 16 20`). */
+    "--glass-rgb"?: string;
+    /** Krycie dymnego tła szkła (`glassFill(glassTint).alpha`), przenikane przy zmianie sceny. */
+    "--glass-alpha"?: number;
     /** Rozmycie szkła zależne od sceny (`glassBlur`). */
     "--glass-blur"?: string;
     /** Cień tekstu w panelach szkła (`glassTextShadow`). */

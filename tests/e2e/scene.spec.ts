@@ -11,6 +11,9 @@ function collectConsoleErrors(page: Page): string[] {
 
 const layerVideo = (page: Page) => page.locator("[data-testid=scene-layer] video");
 const layerPoster = (page: Page) => page.locator("[data-testid=scene-layer] img");
+/** Źródła wideo warstwy w kolejności z HTML (AV1 pierwsze, gdy dekodowanie jest sprzętowe). */
+const videoSources = (page: Page) =>
+  layerVideo(page).evaluate((el) => [...el.querySelectorAll("source")].map((source) => source.getAttribute("src")));
 
 test("scena deszczowa: poster w HTML z serwera, wideo wczytywane dopiero po hydracji", async ({
   page,
@@ -19,7 +22,8 @@ test("scena deszczowa: poster w HTML z serwera, wideo wczytywane dopiero po hydr
   const errors = collectConsoleErrors(page);
 
   const html = await (await request.get("/?weather=rain")).text();
-  expect(html).toMatch(/<link[^>]+rel="preload"[^>]+rain-lighthouse\/poster\.jpg/);
+  expect(html).toMatch(/<link[^>]+rel="preload"[^>]+rain-lighthouse\/poster\.avif[^>]+type="image\/avif"/);
+  expect(html).toMatch(/<source type="image\/avif" srcSet="\/scenes\/rain-lighthouse\/poster\.avif"/);
   expect(html).toMatch(/<img[^>]+src="\/scenes\/rain-lighthouse\/poster\.jpg"/);
   const videoTag = html.match(/<video[^>]*>/)?.[0] ?? "";
   expect(videoTag).toContain('preload="none"');
@@ -30,8 +34,32 @@ test("scena deszczowa: poster w HTML z serwera, wideo wczytywane dopiero po hydr
   await page.goto("/?boot=off&weather=rain");
   await expect(page.getByTestId("scene")).toHaveAttribute("data-weather", "rain");
   await expect(layerVideo(page)).toHaveCount(1);
-  await expect(layerVideo(page)).toHaveAttribute("src", "/scenes/rain-lighthouse/loop-1080.mp4");
+  await expect.poll(() => videoSources(page)).toContain("/scenes/rain-lighthouse/loop-1080.mp4");
 
+  expect(errors).toEqual([]);
+});
+
+test("wideo: AV1 przed H.264, wczytana tylko bieżąca scena, start z wybranego źródła", async ({ page, request }) => {
+  const errors = collectConsoleErrors(page);
+  const html = await (await request.get("/?weather=cloudy&time=day")).text();
+  const video = html.match(/<video[^>]*>(.*?)<\/video>/)?.[1] ?? "";
+  // SSR: oba źródła, AV1 pierwsze (decyzja o kodeku zapada w przeglądarce, przed wczytaniem).
+  expect(video).toMatch(/<source src="\/scenes\/cloudy-lighthouse\/loop-1080\.av1\.mp4" type="video\/mp4; codecs=&quot;av01[^"]*"\/><source src="\/scenes\/cloudy-lighthouse\/loop-1080\.mp4"/);
+
+  const media: string[] = [];
+  page.on("request", (req) => {
+    if (/\/scenes\/.+\.(mp4|avif|webp|jpg)/.test(req.url())) media.push(new URL(req.url()).pathname);
+  });
+  await page.goto("/?boot=off&weather=cloudy&time=day");
+  const el = layerVideo(page);
+  await expect(el).toHaveAttribute("data-handoff", "video", { timeout: 15_000 });
+  const { codec, currentSrc } = await el.evaluate((v: HTMLVideoElement) => ({ codec: v.dataset.codec, currentSrc: v.currentSrc }));
+  // Przeglądarka gra to źródło, które wybrał kod (AV1 tylko przy sprzętowym dekodowaniu).
+  expect(new URL(currentSrc).pathname).toBe(codec === "av1" ? "/scenes/cloudy-lighthouse/loop-1080.av1.mp4" : "/scenes/cloudy-lighthouse/loop-1080.mp4");
+  // Tylko pliki bieżącej sceny, jeden poster i jedno wideo.
+  expect(media.every((path) => path.startsWith("/scenes/cloudy-lighthouse/"))).toBe(true);
+  expect(new Set(media.filter((path) => path.endsWith(".mp4"))).size).toBe(1);
+  expect(new Set(media.filter((path) => /poster/.test(path))).size).toBe(1);
   expect(errors).toEqual([]);
 });
 
@@ -55,7 +83,7 @@ for (const [weather, folder] of [
     const errors = collectConsoleErrors(page);
     await page.goto(`/?boot=off&weather=${weather}&time=day`);
     await expect(page.getByTestId("scene")).toHaveAttribute("data-weather", weather);
-    await expect(layerVideo(page)).toHaveAttribute("src", `/scenes/${folder}/loop-1080.mp4`);
+    await expect.poll(() => videoSources(page)).toContain(`/scenes/${folder}/loop-1080.mp4`);
     await expect(layerPoster(page)).toHaveAttribute("src", `/scenes/${folder}/poster.jpg`);
     expect(errors).toEqual([]);
   });

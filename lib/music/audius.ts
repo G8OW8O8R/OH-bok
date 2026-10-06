@@ -12,7 +12,7 @@ import type { MusicQueue, Track } from "./schema";
 export const MUSIC_REVALIDATE_S = 60 * 60;
 export const AUDIUS_APP_NAME = "obok";
 const DIRECTORY = "https://api.audius.co";
-const TIMEOUT_MS = 4000;
+const TIMEOUT_MS = 8000;
 /** Ilu hostów próbujemy w jednym zapytaniu, zanim uznamy Audius za niedostępny. */
 const MAX_HOST_ATTEMPTS = 3;
 /** Ten sam artysta najwyżej tyle razy w kolejce. */
@@ -27,7 +27,10 @@ const audiusTrackSchema = z.object({
   permalink: z.string().startsWith("/"),
   is_streamable: z.boolean().optional(),
   user: z.object({ name: z.string().trim().min(1) }),
-  artwork: z.record(z.string(), z.string().nullable()).nullable().optional(),
+  // Obiekt okładek ma też inne pola (np. `mirrors` – tablica), więc tylko potrzebne rozmiary.
+  artwork: z
+    .object({ "150x150": z.string().nullish(), "480x480": z.string().nullish(), "1000x1000": z.string().nullish() })
+    .nullish(),
 });
 
 const searchSchema = z.object({ data: z.array(z.unknown()) });
@@ -72,7 +75,10 @@ function shuffled<T>(list: readonly T[], random: () => number): T[] {
   return out;
 }
 
-/** Kandydaci na hosta: zapamiętany, potem lista z katalogu (losowo), na końcu sam katalog. */
+/**
+ * Kandydaci na hosta: zapamiętany, potem sam `api.audius.co` (obsługuje `/v1` bezpośrednio), na końcu
+ * hosty z jego listy (losowo). Katalog przed listą: martwe hosty z listy nie wyczerpią limitu prób.
+ */
 async function candidateHosts(deps: MusicServiceDeps): Promise<string[]> {
   const remembered = activeHost && activeHost.until > deps.now() ? [activeHost.url] : [];
   let listed: string[] = [];
@@ -82,7 +88,7 @@ async function candidateHosts(deps: MusicServiceDeps): Promise<string[]> {
   } catch (error) {
     deps.onUpstreamError?.("lista hostów", error);
   }
-  const all = [...remembered, ...listed, DIRECTORY].map((url) => url.replace(/\/+$/, ""));
+  const all = [...remembered, DIRECTORY, ...listed].map((url) => url.replace(/\/+$/, ""));
   return [...new Set(all)];
 }
 

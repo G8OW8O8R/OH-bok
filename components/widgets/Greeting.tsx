@@ -8,8 +8,9 @@ interface GreetingProps {
   onPlan: () => void;
 }
 
+// Hover zastępuje dymne tło szkła (`::before`) jaśniejszym, w tempie odpowiedzi na interakcję.
 const capsule =
-  "glass rounded-pill px-5 py-2 text-body text-text-primary transition-[background-color,scale] duration-(--dur-feedback) ease-out hover:bg-white/12 active:scale-[0.97]";
+  "glass rounded-pill px-5 py-2 text-body text-text-primary transition-[background-color,scale] duration-(--dur-feedback) ease-out before:duration-(--dur-feedback) hover:bg-white/12 hover:before:opacity-0 active:scale-[0.97]";
 
 /**
  * Powitanie + brief dnia + kapsuła szybkiej akcji „Plan dnia”, która prowadzi do swojego

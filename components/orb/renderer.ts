@@ -77,17 +77,22 @@ function sourceSize(source: TextureSource): { width: number; height: number } {
     : { width: source.naturalWidth, height: source.naturalHeight };
 }
 
+/** Kompilacja bez pytania o wynik: odpowiedź blokowałaby wątek do końca pracy sterownika. */
 function compile(gl: WebGL2RenderingContext, type: number, code: string): WebGLShader | null {
   const shader = gl.createShader(type);
   if (!shader) return null;
   gl.shaderSource(shader, code);
   gl.compileShader(shader);
-  if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS) && !gl.isContextLost()) {
-    console.warn("Kula: shader się nie skompilował.", gl.getShaderInfoLog(shader));
-    gl.deleteShader(shader);
-    return null;
-  }
   return shader;
+}
+
+/**
+ * Budowa renderera w toku. `poll()` zwraca "pending", dopóki sterownik kompiluje program
+ * (z KHR_parallel_shader_compile – w tle, bez blokowania wątku), potem renderer albo null przy błędzie.
+ */
+export interface OrbRendererBuild {
+  poll(): OrbRenderer | "pending" | null;
+  cancel(): void;
 }
 
 /**
@@ -124,10 +129,12 @@ export class OrbRenderer {
   }
 
   /**
-   * Tworzy renderer albo zwraca null (brak WebGL2, renderowanie programowe, błąd shadera).
+   * Zaczyna budowę renderera albo zwraca null (brak WebGL2, renderowanie programowe).
+   * Błąd shadera wychodzi dopiero z `poll()`. Synchroniczne czekanie na `LINK_STATUS` blokowało
+   * wątek główny przy starcie na 0,3–0,7 s (pomiar 2026-10-06, ANGLE/D3D11).
    * `allowSoftware` tylko przy wymuszonym `?orb-mode=webgl` (np. testy w headless Chrome).
    */
-  static create(canvas: HTMLCanvasElement, { allowSoftware }: { allowSoftware: boolean }): OrbRenderer | null {
+  static build(canvas: HTMLCanvasElement, { allowSoftware }: { allowSoftware: boolean }): OrbRendererBuild | null {
     const gl = canvas.getContext("webgl2", {
       alpha: true,
       premultipliedAlpha: true,
@@ -140,6 +147,7 @@ export class OrbRenderer {
     });
     if (!gl || gl.isContextLost()) return null;
 
+    const parallel = gl.getExtension("KHR_parallel_shader_compile");
     const vertex = compile(gl, gl.VERTEX_SHADER, VERTEX_SHADER);
     const fragment = compile(gl, gl.FRAGMENT_SHADER, FRAGMENT_SHADER);
     const program = gl.createProgram();
@@ -147,18 +155,43 @@ export class OrbRenderer {
     gl.attachShader(program, vertex);
     gl.attachShader(program, fragment);
     gl.linkProgram(program);
-    gl.deleteShader(vertex);
-    gl.deleteShader(fragment);
-    if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
-      console.warn("Kula: program WebGL się nie zlinkował.", gl.getProgramInfoLog(program));
-      gl.deleteProgram(program);
-      return null;
-    }
 
-    const uniforms = Object.fromEntries(
-      UNIFORMS.map((name) => [name, gl.getUniformLocation(program, name)]),
-    ) as Record<UniformName, WebGLUniformLocation | null>;
-    return new OrbRenderer(gl, program, uniforms);
+    let settled = false;
+    const release = (keepProgram: boolean) => {
+      settled = true;
+      gl.deleteShader(vertex);
+      gl.deleteShader(fragment);
+      if (!keepProgram) gl.deleteProgram(program);
+    };
+
+    return {
+      poll: () => {
+        if (settled) return null;
+        if (gl.isContextLost()) {
+          release(false);
+          return null;
+        }
+        if (parallel && !gl.getProgramParameter(program, parallel.COMPLETION_STATUS_KHR)) return "pending";
+        if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
+          console.warn(
+            "Kula: program WebGL się nie zlinkował.",
+            gl.getShaderInfoLog(vertex),
+            gl.getShaderInfoLog(fragment),
+            gl.getProgramInfoLog(program),
+          );
+          release(false);
+          return null;
+        }
+        release(true);
+        const uniforms = Object.fromEntries(
+          UNIFORMS.map((name) => [name, gl.getUniformLocation(program, name)]),
+        ) as Record<UniformName, WebGLUniformLocation | null>;
+        return new OrbRenderer(gl, program, uniforms);
+      },
+      cancel: () => {
+        if (!settled) release(false);
+      },
+    };
   }
 
   resize(width: number, height: number): void {
