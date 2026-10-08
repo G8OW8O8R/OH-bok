@@ -59,7 +59,7 @@ export interface SceneSourceValue {
   tintB: MotionValue<number>;
   /** Siła ciepłego gradientu złotej godziny (token `warmth`, 0–1). */
   warmth: MotionValue<number>;
-  /** Jasność błysku pioruna, 0–1 (LightningLayer, zadanie 6). Rozjaśnia tło i kulę. */
+  /** Jasność błysku pioruna, 0–1 (LightningLayer). Rozjaśnia tło i kulę. */
   flash: MotionValue<number>;
 }
 

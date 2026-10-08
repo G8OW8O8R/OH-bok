@@ -15,7 +15,7 @@ const TABLE: ReadonlyArray<{ state: WeatherState; ranges: ReadonlyArray<readonly
 const expand = ([from, to]: readonly [number, number]) =>
   Array.from({ length: to - from + 1 }, (_, i) => from + i);
 
-describe("wmoToWeather: każdy kod z tabeli stanów pogody", () => {
+describe("wmoToWeather: każdy kod z tabeli", () => {
   for (const { state, ranges } of TABLE) {
     for (const range of ranges) {
       it.each(expand(range))(`${range[0]}–${range[1]}: kod %i → ${state}`, (code) => {

@@ -52,7 +52,7 @@ describe("SCENES", () => {
     expect(media.poster).toMatch(/^\/scenes\/[a-z-]+\/poster\.jpg$/);
   });
 
-  it("stany mapują się na nagrania zgodnie z tabelą stanów", () => {
+  it("stany mapują się na właściwe nagrania", () => {
     expect(SCENES.fog.video).toBe("cloudy");
     expect(SCENES.snow.video).toBe("cloudy");
     expect(SCENES.drizzle.video).toBe("rain");

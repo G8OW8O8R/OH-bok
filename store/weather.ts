@@ -18,7 +18,7 @@ interface WeatherState {
   setLocation: (coords: Coords) => void;
   setDenied: () => void;
   setLastGood: (data: WeatherData) => void;
-  /** Usuwa zapisaną lokalizację (okno „O systemie”, zadanie 11). */
+  /** Usuwa zapisaną lokalizację (okno „O systemie”). */
   forgetLocation: () => void;
 }
 

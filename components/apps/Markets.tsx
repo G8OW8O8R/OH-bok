@@ -35,7 +35,7 @@ interface MarketsAppProps {
 /**
  * Okno Rynków: lista kryptowalut z licznikiem cen i sparkline,
  * szczegół z wykresem, alerty w panelu bocznym i w zakładce, stan połączenia w kapsule pod oknem.
- * Kanał cen i kurs NBP działają, dopóki okno jest otwarte (dane z zadania 9a).
+ * Kanał cen i kurs NBP działają, dopóki okno jest otwarte.
  */
 export function MarketsApp({ now, timeZone }: MarketsAppProps) {
   const [tab, setTab] = useState<MarketsTab>("coins");

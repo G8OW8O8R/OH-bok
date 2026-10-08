@@ -17,7 +17,7 @@ import type { DailyForecast } from "@/lib/weather/schema";
 import { useMarketsStore } from "@/store/markets";
 
 /**
- * Mini-karty Spotlightu (zadanie 7b): wynik jako mikrowizualizacja, nie sam tekst.
+ * Mini-karty Spotlightu: wynik jako mikrowizualizacja, nie sam tekst.
  * Karty informacyjne (cena, prognoza) są wierszem wyniku; karty akcji pojawiają się po „Gotowe”.
  */
 

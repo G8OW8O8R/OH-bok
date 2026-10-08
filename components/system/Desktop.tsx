@@ -119,7 +119,7 @@ export function Desktop({ initialWeather, override: urlOverride, timeOverride: u
   const idle = useIdleAfterBoot();
   const [appsWanted, setAppsWanted] = useState(false);
   /**
-   * Spotlight (zadanie 7b): „open” – panel i kula u góry; „closing” – kula wraca na miejsce
+   * Spotlight: „open” – panel i kula u góry; „closing” – kula wraca na miejsce
    * (pulpit już aktywny, kula jeszcze nad tłem); „closed”.
    */
   const [spotlight, setSpotlight] = useState<SpotlightPhase>("closed");

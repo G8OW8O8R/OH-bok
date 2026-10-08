@@ -148,7 +148,7 @@ test("prefers-reduced-motion: przekazanie i zmiana sceny działają z krótkimi 
   page,
 }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
-  // Pora dnia stała: nocą sunny/cloudy mają plansze nocne (zadanie 6b).
+  // Pora dnia stała: nocą sunny/cloudy mają plansze nocne.
   await page.goto("/?boot=off&weather=rain&time=day");
   await expect(layerVideo(page)).toHaveAttribute("data-handoff", "video", { timeout: 15_000 });
 

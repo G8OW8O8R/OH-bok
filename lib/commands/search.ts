@@ -35,7 +35,7 @@ export const EXAMPLE_COMMANDS = [
   "jaka pogoda jutro",
 ] as const;
 
-/** Podpowiedzi, gdy parser nie rozumie (w zadaniu 8 to miejsce przejmie asystent AI). */
+/** Podpowiedzi, gdy parser nie rozumie (dalej pytanie trafia do asystenta AI). */
 export const FALLBACK_EXAMPLES = ["za 15 minut wyjąć pranie", "pokaż czwartek", "otwórz rynki"] as const;
 
 /** Termin w wierszu wyniku: `dziś, 14:30`, `jutro, 09:00`, `piątek, 14:30`, dalej `12.10, 09:00`. */

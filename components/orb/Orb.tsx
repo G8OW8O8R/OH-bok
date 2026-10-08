@@ -20,7 +20,7 @@ interface OrbProps {
   today: string;
   /** `?orb-mode=` */
   modeOverride: OrbMode | null;
-  /** Klik w kulę otwiera Spotlight (zadanie 7b). */
+  /** Klik w kulę otwiera Spotlight. */
   onActivate?: () => void;
   /** Spotlight jest otwarty (aria-expanded przycisku kuli). */
   expanded?: boolean;

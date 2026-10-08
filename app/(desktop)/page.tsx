@@ -12,7 +12,7 @@ export default async function DesktopPage({ searchParams }: PageProps<"/">) {
   const [params, cookieStore] = await Promise.all([searchParams, cookies()]);
   const override = parseWeatherOverride(params.weather);
   const timeOverride = parseTimeOverride(params.time);
-  // Dev override stanu i trybu kuli (asystent przejmie stan w zadaniu 7).
+  // Dev override stanu i trybu kuli (docelowo stan ustawia asystent).
   const orbState = parseOrbStateOverride(params.orb);
   const orbMode = parseOrbModeOverride(params["orb-mode"]);
   // Tryb demo (`?demo=1`): wycieczka po pulpicie, bez elementów deweloperskich.
