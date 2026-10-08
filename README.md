@@ -106,4 +106,4 @@ Dokładna pozycja nie opuszcza przeglądarki. Po zgodzie zapisujemy tylko zaokr�
 
 ## Autor
 
-Piotr Goworek, GOVO DIGITAL: [govodigital.vercel.app](https://govodigital.vercel.app) · [LinkedIn](https://www.linkedin.com/in/piotrgoworek)
+Piotr Goworek, GOVO DIGITAL: [govodigital.com](https://www.govodigital.com) · [LinkedIn](https://www.linkedin.com/in/piotrgoworek)

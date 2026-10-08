@@ -10,7 +10,7 @@ export const AUTHOR = {
   name: "Piotr Goworek",
   studio: "GOVO DIGITAL",
   links: [
-    { label: "govodigital.vercel.app", href: "https://govodigital.vercel.app" },
+    { label: "govodigital.com", href: "https://www.govodigital.com" },
     { label: "LinkedIn", href: "https://www.linkedin.com/in/piotrgoworek" },
   ],
 } as const;

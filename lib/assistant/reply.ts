@@ -145,7 +145,7 @@ export function createReplyGuard() {
 
 /** Linki, które wolno kliknąć w odpowiedzi (kontakt do twórcy). Inne adresy zostają tekstem. */
 const ALLOWED_LINKS: { pattern: RegExp; href: string }[] = [
-  { pattern: /^(?:https?:\/\/)?govodigital\.vercel\.app\/?$/i, href: "https://govodigital.vercel.app" },
+  { pattern: /^(?:https?:\/\/)?(?:www\.)?govodigital\.com\/?$/i, href: "https://www.govodigital.com" },
   { pattern: /^(?:https?:\/\/)?(?:www\.)?linkedin\.com\/in\/piotrgoworek\/?$/i, href: "https://www.linkedin.com/in/piotrgoworek" },
 ];
 

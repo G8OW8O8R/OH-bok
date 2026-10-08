@@ -18,7 +18,7 @@ import type { ChatPrompt } from "./providers";
 export const MAX_OUTPUT_TOKENS = 400;
 
 export const CREATOR_REPLY =
-  "Projekt Obok zbudował Piotr Goworek, frontend developer (GOVO DIGITAL). Kontakt: govodigital.vercel.app oraz https://www.linkedin.com/in/piotrgoworek";
+  "Projekt Obok zbudował Piotr Goworek, frontend developer (GOVO DIGITAL). Kontakt: govodigital.com oraz https://www.linkedin.com/in/piotrgoworek";
 
 export const ABILITY_EXAMPLES = [
   "dodaj mleko i jajka",

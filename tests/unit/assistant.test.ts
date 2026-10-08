@@ -184,7 +184,7 @@ describe("asystent: zasady rozmowy (podstawione odpowiedzi)", () => {
     const events = run(chunked(CREATOR_REPLY));
     expect(textOf(events)).toBe(CREATOR_REPLY);
     const links = splitLinks(textOf(events)).filter((part) => part.href);
-    expect(links.map((link) => link.href)).toEqual(["https://govodigital.vercel.app", "https://www.linkedin.com/in/piotrgoworek"]);
+    expect(links.map((link) => link.href)).toEqual(["https://www.govodigital.com", "https://www.linkedin.com/in/piotrgoworek"]);
   });
 
   it("„kim jesteś”: 3 przykłady komend w prompcie; każdy rozumie lokalny parser", () => {
